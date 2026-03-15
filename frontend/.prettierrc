@@ -1,9 +1,19 @@
 {
-    "printWidth": 120,
-    "tabWidth": 2,
-    "jsxSingleQuote": false,
-    "singleQuote": true,
-    "bracketSpacing": true,
-    "plugins": ["prettier-plugin-organize-imports"]
-  }
-  
+  "printWidth": 120,
+  "tabWidth": 2,
+  "jsxSingleQuote": false,
+  "singleQuote": true,
+  "bracketSpacing": true,
+  "plugins": ["@ianvs/prettier-plugin-sort-imports"],
+  "importOrder": [
+    "^(?!\\.\\.?/|@(shared|api|components|hooks|utils|context|assets|constants|pages|types)(/|$))[^/]+$",
+    "^(?!\\.\\.?/|@(shared|api|components|hooks|utils|context|assets|constants|pages|types)(/|$)).+/.+$",
+    "",
+    "^@(shared|api|components|hooks|utils|context|assets|constants|pages|types)$",
+    "^@(shared|api|components|hooks|utils|context|assets|constants|pages|types)(/.+)+$",
+    "^@(shared|api|components|hooks|utils|context|assets|constants|pages|types)(/.+){2}$",
+    "^@(shared|api|components|hooks|utils|context|assets|constants|pages|types)(/.+){3,}$",
+    "",
+    "^\\.\\.?/.*"
+  ]
+}

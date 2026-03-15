@@ -1,7 +1,7 @@
-import { AppProvider } from '@context';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ConfigProvider } from 'antd';
 import { FC } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+import { AppProvider, ThemeProvider } from '@context';
 
 import { Router } from './router';
 
@@ -17,15 +17,9 @@ export const App: FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <AppProvider>
-        <ConfigProvider
-          theme={{
-            token: {
-              fontFamily: '"Inter",sans-serif',
-            },
-          }}
-        >
+        <ThemeProvider>
           <Router />
-        </ConfigProvider>
+        </ThemeProvider>
       </AppProvider>
     </QueryClientProvider>
   );

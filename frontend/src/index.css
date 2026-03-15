@@ -1,7 +1,90 @@
-.my-container{
-  	max-width: calc(1920px + 2 * 1.875rem);
-	margin: 0 auto;
-	width: 100%;
-	padding-left: 1.875rem;
-	padding-right: 1.875rem;
+@font-face {
+  font-family: 'Manrope';
+  src:
+    local('Manrope Regular'),
+    url('./assets/fonts/Manrope-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Manrope';
+  src:
+    local('Manrope Medium'),
+    url('./assets/fonts/Manrope-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Manrope';
+  src:
+    local('Manrope SemiBold'),
+    url('./assets/fonts/Manrope-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Manrope';
+  src:
+    local('Manrope Bold'),
+    url('./assets/fonts/Manrope-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+:root {
+  --font-body: 0.9375rem;
+  --font-body-sm: 0.8125rem;
+  --font-label: 0.875rem;
+  --font-card-title: 1rem;
+  --font-h1: clamp(1.9rem, 1.72rem + 0.9vw, 2.7rem);
+  --font-h2: clamp(1.45rem, 1.3rem + 0.65vw, 1.8rem);
+  --font-h3: clamp(1.2rem, 1.12rem + 0.38vw, 1.35rem);
+  --line-body: 1.55;
+  --line-tight: 1.2;
+  --space-page-x: 1rem;
+  --space-page-y: 1rem;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --font-body: 0.9375rem;
+    --font-body-sm: 0.8125rem;
+    --font-label: 0.9375rem;
+    --font-card-title: 1rem;
+    --space-page-x: 1.5rem;
+    --space-page-y: 1.5rem;
+  }
+}
+
+body {
+  margin: 0;
+  font-family: 'Manrope', 'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  background: #f3f5f9;
+  color: #181818;
+  font-size: var(--font-body);
+  line-height: var(--line-body);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.my-container {
+  max-width: calc(1920px + 2 * 1.875rem);
+  margin: 0 auto;
+  width: 100%;
+  padding-left: 1.875rem;
+  padding-right: 1.875rem;
 }

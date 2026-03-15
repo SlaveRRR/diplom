@@ -1,0 +1,1 @@
+export { getAntConfig } from './getAntConfig';

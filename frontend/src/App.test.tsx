@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
 import { PropsWithChildren } from 'react';
+import { render, screen } from '@testing-library/react';
 
 import { App } from './App';
 
@@ -10,6 +10,7 @@ vi.mock('@tanstack/react-query', () => ({
 
 vi.mock('@context', () => ({
   AppProvider: ({ children }: PropsWithChildren) => <div>{children}</div>,
+  ThemeProvider: ({ children }: PropsWithChildren) => <div>{children}</div>,
 }));
 
 vi.mock('@pages', () => ({

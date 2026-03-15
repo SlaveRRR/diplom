@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
-import { Router } from './Router';
+
+import { Router } from './router';
 
 vi.mock('@pages', () => ({
   HomePage: () => <></>,
@@ -7,6 +8,7 @@ vi.mock('@pages', () => ({
   SignInPage: () => <></>,
   SignUpPage: () => <></>,
   SwaggerPage: () => <></>,
+  CatalogPage: () => <></>,
 }));
 
 vi.mock('./utils', () => ({

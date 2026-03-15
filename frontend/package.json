@@ -10,13 +10,13 @@
     "preview": "vite preview",
     "type-check": "tsc",
     "test": "vitest --coverage",
-    "prepare": "husky install"
+    "prepare": "husky"
   },
   "dependencies": {
-    "@ant-design/icons": "^5.5.1",
+    "@ant-design/icons": "^6.1.0",
     "@hookform/resolvers": "^3.9.1",
     "@tanstack/react-query": "4",
-    "antd": "^5.21.6",
+    "antd": "^6.3.2",
     "axios": "^1.7.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -25,10 +25,13 @@
     "react-router-dom": "^6.27.0",
     "styled-components": "^6.1.13",
     "swagger-ui-react": "^5.27.1",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "zustand": "^5.0.11",
+    "zustand-computed": "^2.1.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
+    "@ianvs/prettier-plugin-sort-imports": "^4.7.1",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
@@ -46,7 +49,6 @@
     "happy-dom": "^18.0.1",
     "husky": "^9.1.7",
     "prettier": "^3.3.3",
-    "prettier-plugin-organize-imports": "^4.1.0",
     "pretty-quick": "^4.2.2",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.10.0",

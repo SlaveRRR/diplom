@@ -1,5 +1,5 @@
-import { useQueryClient } from '@tanstack/react-query';
 import { createContext, FC, PropsWithChildren, useCallback, useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { api } from '@api';
 import { CURRENT_USER_QUERY_KEY, useCurrentUser, useLocalStorage } from '@hooks';
@@ -31,7 +31,7 @@ export const AppProvider: FC<PropsWithChildren> = ({ children }) => {
   const providerProps = useMemo(() => ({ auth, user, setAuth }), [auth, user, setAuth]);
 
   useEffect(() => {
-    const token = getItem('token');
+    const token = getItem<string>('token');
 
     if (token && getIsTokenExpired(token)) {
       refreshToken();
