@@ -1,9 +1,11 @@
-import { useForm } from '@hooks';
-import { SignInParams } from '@types';
 import { Button, Flex, Form, Input, Typography } from 'antd';
 import { FC } from 'react';
 import { SubmitHandler } from 'react-hook-form';
 import { FormItem } from 'react-hook-form-antd';
+
+import { useForm } from '@hooks';
+import { SignInParams } from '@types';
+
 import { SignInFormSchema, signInFormSchema } from './constants';
 import { useSignInMutation } from './hooks';
 
@@ -29,15 +31,13 @@ export const SignIn: FC = () => {
             <Input.Password placeholder="Заполните это поле" />
           </FormItem>
 
-          <Form.Item wrapperCol={{ span: 2, offset: 8 }}>
+          <Flex justify="center" gap={9} align="center" vertical className="pt-2">
             <Button loading={isLoading} type="primary" htmlType="submit">
               Войти
             </Button>
-          </Form.Item>
+            <Link href="/signup">Еще нет аккаунта?</Link>
+          </Flex>
         </Form>
-        <Flex justify="center" gap={9} align="center">
-          <Link href="/signup">Еще нет аккаунта?</Link>
-        </Flex>
       </div>
     </section>
   );
