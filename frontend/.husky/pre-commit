@@ -1,8 +1,31 @@
 #!/bin/sh
 set -e
-cd frontend
-yarn type-check
-yarn lint
-yarn test
-yarn pretty-quick
+
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR)
+
+has_frontend_changes() {
+  echo "$STAGED_FILES" | grep -q '^frontend/'
+}
+
+has_backend_changes() {
+  echo "$STAGED_FILES" | grep -q '^backend/'
+}
+
+if has_frontend_changes; then
+  echo "Running frontend pre-commit checks..."
+  cd frontend
+  yarn type-check
+  yarn lint
+  yarn test
+  yarn pretty-quick --staged
+  cd ..
+fi
+
+if has_backend_changes; then
+  echo "Running backend pre-commit checks..."
+  cd backend
+  venv/Scripts/python.exe manage.py check
+  cd ..
+fi
+
 git add .
