@@ -1,10 +1,9 @@
-import { Badge, Button, Drawer, Image, Space, theme } from 'antd';
+import { Badge, Drawer, Space, theme } from 'antd';
 import { FC, PropsWithChildren, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   BookOutlined,
   ClockCircleOutlined,
-  CloseOutlined,
   CompassOutlined,
   FireOutlined,
   HeartOutlined,
@@ -17,17 +16,12 @@ import {
 } from '@ant-design/icons';
 
 import { colors } from '@constants';
-import LogoSrc from '@assets/icons/icon.svg';
 
 import {
-  BrandLogoWrap,
-  BrandRow,
-  BrandTitle,
   drawerStyles,
   MainContent,
   MainHeader,
   MainLayout,
-  MenuHeader,
   MenuToggleButton,
   NavigationMenu,
   NotificationIcon,
@@ -82,23 +76,12 @@ export const Layout: FC<PropsWithChildren> = ({ children }) => {
     [],
   );
 
-  const menuContent = (withClose = false) => {
-    const showBrand = !collapsed || withClose;
-
+  const menuContent = () => {
     return (
       <>
-        <MenuHeader $borderColor={colorBorderSecondary} $withClose={withClose}>
-          <BrandRow>
-            <BrandLogoWrap>
-              <Image width={32} alt="logo" src={LogoSrc} preview={false} />
-            </BrandLogoWrap>
-            <BrandTitle level={4} $color={colorPrimary} $visible={showBrand}>
-              Граф комикс
-            </BrandTitle>
-          </BrandRow>
-
+        {/* <MenuHeader $borderColor={colorBorderSecondary} $withClose={withClose}>
           {withClose && <Button type="text" icon={<CloseOutlined />} onClick={() => setMobileMenuOpen(false)} />}
-        </MenuHeader>
+        </MenuHeader> */}
 
         <NavigationMenu mode="inline" selectedKeys={[selectedKey]} items={menuItems} />
       </>
@@ -117,7 +100,7 @@ export const Layout: FC<PropsWithChildren> = ({ children }) => {
           $background={colorBgContainer}
           $borderColor={colorBorderSecondary}
         >
-          {menuContent(false)}
+          {menuContent()}
         </Sidebar>
       )}
 
@@ -126,12 +109,12 @@ export const Layout: FC<PropsWithChildren> = ({ children }) => {
         closable={false}
         onClose={() => setMobileMenuOpen(false)}
         open={isMobile && mobileMenuOpen}
-        width={280}
+        size={280}
         mask={true}
         maskClosable={true}
         styles={drawerStyles}
       >
-        {menuContent(true)}
+        {menuContent()}
       </Drawer>
 
       <MainLayout $isMobile={isMobile} $collapsed={collapsed}>

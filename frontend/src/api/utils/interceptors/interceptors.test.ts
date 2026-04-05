@@ -1,23 +1,15 @@
 import { AxiosHeaders } from 'axios';
+
 import { addAuthHeaderInterceptor, refreshTokenOnError } from './interceptors';
 
-const mockError = vi.fn();
-
-vi.mock('antd', () => ({
-  message: {
-    error: () => mockError(),
-  },
-}));
-
 const mockAxiosGet = vi.fn();
-
 const mockRequest = vi.fn();
 
 vi.mock('axios', () => ({
   default: {
-    get: () => mockAxiosGet(),
+    get: (...args: unknown[]) => mockAxiosGet(...args),
     create: () => ({
-      request: () => mockRequest(),
+      request: (...args: unknown[]) => mockRequest(...args),
       interceptors: {
         request: {
           use: vi.fn(),
@@ -30,19 +22,23 @@ vi.mock('axios', () => ({
   },
 }));
 
-const mockSetItem = vi.fn();
 const mockGetItem = vi.fn();
+const mockSetItem = vi.fn();
+const mockRemoveItem = vi.fn();
 
-const localStorageMock = {
-  getItem: () => mockGetItem(),
-  setItem: () => mockSetItem(),
-};
-
-vi.stubGlobal('localStorage', localStorageMock);
+vi.stubGlobal('localStorage', {
+  getItem: (...args: unknown[]) => mockGetItem(...args),
+  removeItem: (...args: unknown[]) => mockRemoveItem(...args),
+  setItem: (...args: unknown[]) => mockSetItem(...args),
+});
 
 describe('interceptors', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   describe('addAuthHeaderInterceptor', () => {
-    test('добавляет заголовок с токеном', () => {
+    test('добавляет заголовок с токеном из localStorage', () => {
       const token = 'test-token';
 
       mockGetItem.mockReturnValue(JSON.stringify(token));
@@ -54,31 +50,55 @@ describe('interceptors', () => {
   });
 
   describe('refreshTokenOnError', () => {
-    test('отправляет запрос на рефреш токена в успешном случае', async () => {
-      mockAxiosGet.mockReturnValue({ data: { access_token: '' } });
+    test('обновляет токен и повторяет исходный запрос после 401', async () => {
+      mockAxiosGet.mockResolvedValue({
+        data: {
+          access_token: 'next-token',
+        },
+      });
+      mockRequest.mockResolvedValue({ status: 200 });
+
       await refreshTokenOnError({
-        config: { _retry: false },
+        config: { _retry: false, headers: {}, url: '/users/me/' },
         response: {
           status: 401,
         },
       });
 
-      expect(mockSetItem).toBeCalled();
-      expect(mockRequest).toBeCalled();
+      expect(mockAxiosGet).toHaveBeenCalledTimes(1);
+      expect(mockSetItem).toHaveBeenCalledWith('token', JSON.stringify('next-token'));
+      expect(mockRequest).toHaveBeenCalledTimes(1);
+      expect(mockRequest.mock.calls[0][0].headers.Authorization).toBe('Bearer next-token');
     });
 
-    test('отправляет сообщение об ошибке', async () => {
-      mockAxiosGet.mockRejectedValue({ message: '' });
-      try {
-        await refreshTokenOnError({
-          config: { _retry: false },
+    test('тихо очищает токен при ошибке refresh без показа сообщений', async () => {
+      mockAxiosGet.mockRejectedValue(new Error('refresh failed'));
+
+      await expect(
+        refreshTokenOnError({
+          config: { _retry: false, headers: {}, url: '/users/me/' },
           response: {
             status: 401,
           },
-        });
-      } catch {
-        expect(mockError).toBeCalled();
-      }
+        }),
+      ).rejects.toThrow('refresh failed');
+
+      expect(mockRemoveItem).toHaveBeenCalledWith('token');
+      expect(mockRequest).not.toHaveBeenCalled();
+    });
+
+    test('не пытается рефрешить сам refresh endpoint и просто очищает токен', async () => {
+      const error = {
+        config: { _retry: false, headers: {}, url: '/token/refresh/' },
+        response: {
+          status: 401,
+        },
+      };
+
+      await expect(refreshTokenOnError(error)).rejects.toBe(error);
+
+      expect(mockRemoveItem).toHaveBeenCalledWith('token');
+      expect(mockAxiosGet).not.toHaveBeenCalled();
     });
   });
 });

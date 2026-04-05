@@ -73,7 +73,7 @@ export const BrandTitle = styled(Title)<BrandTitleStyledProps>(({ $color, $visib
 
 export const NavigationMenu = styled(Menu)({
   borderRight: 0,
-  marginTop: space(4),
+  marginTop: space(2),
 });
 
 export const MainLayout = styled(AntdLayout)<MainLayoutStyledProps>(({ $isMobile, $collapsed }) => ({

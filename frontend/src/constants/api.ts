@@ -9,3 +9,9 @@ export const REFRESH_TOKEN_ENDPOINT = `${API_ENDPOINT}/token/refresh/`;
 export const LOGOUT_ENDPOINT = '/logout/';
 
 export const CURRENT_USER_ENDPOINT = '/users/me/';
+
+export const COMICS_UPLOAD_CONFIG_ENDPOINT = '/comics/upload-config/';
+
+export const COMICS_CONFIRM_ENDPOINT = '/comics/confirm/';
+
+export const TAXONOMY_PLATFORM_ENDPOINT = '/taxonomy';

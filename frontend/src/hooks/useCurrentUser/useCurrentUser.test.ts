@@ -1,7 +1,9 @@
-import { api } from '@api';
 import { QueryClientProvider } from '@test-utils';
-import { renderHook, waitFor } from '@testing-library/react';
 import { AxiosResponse } from 'axios';
+import { renderHook, waitFor } from '@testing-library/react';
+
+import { api } from '@api';
+
 import { useCurrentUser } from './useCurrentUser';
 
 vi.mock('@api', () => ({
@@ -18,7 +20,7 @@ beforeEach(() => {
 
 describe('useCurrentUser', () => {
   test('проверка работы хука', async () => {
-    const apiResponse = { data: { id: 1, name: 'Test User' }, status: 200 } as AxiosResponse;
+    const apiResponse = { data: { data: { id: 1, name: 'Test User' } }, status: 200 } as AxiosResponse;
 
     mockApi.getCurrentUser.mockResolvedValue(apiResponse);
 

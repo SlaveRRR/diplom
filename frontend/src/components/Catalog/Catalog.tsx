@@ -7,7 +7,6 @@ import {
   Rate,
   Row,
   Segmented,
-  Select,
   Skeleton,
   Space,
   Tag,
@@ -19,17 +18,19 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/shallow';
 
 import { colors } from '@constants';
+import { usePlatformTaxonomy } from '@hooks';
+import { Select } from '@components/shared';
 
 import { useCatalogStore } from './hooks';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 const { Search } = Input;
 
 type SortKey = 'popular' | 'new' | 'reviews';
 
 export const Catalog = () => {
   const {
-    token: { borderRadius, borderRadiusLG, colorBgContainer, colorBorderSecondary, colorTextSecondary },
+    token: { borderRadius, borderRadiusLG, colorBgContainer, colorBorderSecondary },
   } = theme.useToken();
 
   const { items, isLoading, init } = useCatalogStore(
@@ -39,6 +40,8 @@ export const Catalog = () => {
       isLoading: state.isLoading,
     })),
   );
+
+  const { data, isLoading: isLoadingTaxonomy } = usePlatformTaxonomy();
 
   const [searchValue, setSearchValue] = useState('');
   const [genre, setGenre] = useState<string | undefined>();
@@ -61,9 +64,6 @@ export const Catalog = () => {
       window.sessionStorage.setItem(firstVisitKey, 'true');
     }
   }, [init]);
-
-  const genres = useMemo(() => Array.from(new Set(items.map((item) => item.genre))), [items]);
-  const allTags = useMemo(() => Array.from(new Set(items.flatMap((item) => item.tags))), [items]);
 
   const filteredItems = useMemo(() => {
     let filtered = [...items];
@@ -135,6 +135,7 @@ export const Catalog = () => {
   return (
     <>
       <section
+        className="mb-5"
         style={{
           borderRadius: borderRadiusLG,
           padding: 24,
@@ -146,8 +147,8 @@ export const Catalog = () => {
         }}
       >
         <Row gutter={[24, 24]} align="middle">
-          <Col xs={24} md={14}>
-            <Space direction="vertical" size={16} style={{ width: '100%' }}>
+          <Col xs={24} md={12} xl={10}>
+            <Space orientation="vertical" size={16} style={{ width: '100%' }}>
               <Title
                 level={2}
                 style={{
@@ -158,21 +159,9 @@ export const Catalog = () => {
                   textWrap: 'balance',
                 }}
               >
-                Откройте для себя мир манги и комиксов
+                Откройте для себя мир комиксов
               </Title>
-              <Paragraph
-                style={{
-                  margin: 0,
-                  maxWidth: 520,
-                  color: colorTextSecondary,
-                  fontSize: 'var(--font-body)',
-                  lineHeight: 'var(--line-body)',
-                }}
-              >
-                Яркий каталог новинок, трендов и любимой классики. Фильтруйте, ищите и собирайте свою идеальную
-                библиотеку в пару кликов.
-              </Paragraph>
-              <Space direction="vertical" size={12} style={{ width: '100%' }} ref={searchRef}>
+              <Space orientation="vertical" size={12} style={{ width: '100%' }} ref={searchRef}>
                 <Search
                   allowClear
                   size="large"
@@ -183,21 +172,26 @@ export const Catalog = () => {
                 />
                 <Space wrap ref={filtersRef}>
                   <Select
+                    isLoading={isLoadingTaxonomy}
                     allowClear
                     placeholder="Жанр"
-                    style={{ minWidth: 160 }}
-                    options={genres.map((value) => ({ value, label: value }))}
+                    className="min-w-48"
+                    options={data?.genres}
                     onChange={(value) => setGenre(value)}
                     value={genre}
+                    mode="multiple"
+                    showSearch
                   />
                   <Select
+                    isLoading={isLoadingTaxonomy}
                     allowClear
                     placeholder="Теги"
-                    style={{ minWidth: 200 }}
-                    options={allTags.map((value) => ({ value, label: value }))}
+                    className="min-w-48"
+                    options={data?.tags}
                     onChange={(value) => setTag(value)}
                     value={tag}
                     showSearch
+                    mode="multiple"
                   />
                   <Segmented<SortKey>
                     value={sort}
@@ -212,10 +206,10 @@ export const Catalog = () => {
               </Space>
             </Space>
           </Col>
-          <Col xs={24} md={10} ref={carouselRef}>
+          <Col xs={24} md={12} xl={14} ref={carouselRef}>
             {isLoading || highlighted.length === 0 ? (
-              <Card style={{ borderRadius: borderRadiusLG, overflow: 'hidden' }} bodyStyle={{ padding: 24 }}>
-                <Space direction="vertical" size={16} style={{ width: '100%' }}>
+              <Card className="p-4">
+                <Space orientation="vertical" size={16} style={{ width: '100%' }}>
                   <Skeleton.Button active style={{ width: 120 }} />
                   <Skeleton active title paragraph={{ rows: 2 }} />
                   <Skeleton.Input active style={{ width: 160 }} />
@@ -239,7 +233,7 @@ export const Catalog = () => {
                         justifyContent: 'space-between',
                       }}
                     >
-                      <Space direction="vertical" size={12}>
+                      <Space orientation="vertical" size={12}>
                         <Space wrap>
                           {item.isNew && <Tag color={colors.brand.secondary}>Новинка</Tag>}
                           {item.isTrending && <Tag color={colors.brand.accent}>В тренде</Tag>}
@@ -251,7 +245,7 @@ export const Catalog = () => {
                         {item.subtitle && <Text style={{ color: 'rgba(255,255,255,0.85)' }}>{item.subtitle}</Text>}
                       </Space>
                       <Space align="center" size={16} style={{ marginTop: 16 }}>
-                        <Space direction="vertical" size={4}>
+                        <Space orientation="vertical" size={4}>
                           <Space>
                             <Rate allowHalf disabled defaultValue={item.rating} />
                             <Text strong>{item.rating.toFixed(1)}</Text>
@@ -271,7 +265,7 @@ export const Catalog = () => {
       </section>
 
       <section ref={gridRef}>
-        <Space direction="vertical" size={16} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={16} style={{ width: '100%' }}>
           <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
             <Title
               level={3}
@@ -297,11 +291,10 @@ export const Catalog = () => {
                     style={{ borderRadius: borderRadiusLG, overflow: 'hidden' }}
                     cover={
                       <Skeleton.Image
+                        className="border-r w-full"
                         active
-                        style={{
-                          width: '100%',
-                          height: 244,
-                          borderRadius: borderRadiusLG,
+                        classNames={{
+                          content: `w-full h-[244px] rounded-[${borderRadiusLG}px]`,
                         }}
                       />
                     }
@@ -350,9 +343,9 @@ export const Catalog = () => {
                         </div>
                       }
                     >
-                      <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                      <Space orientation="vertical" size={8} style={{ width: '100%' }}>
                         <Space align="baseline" style={{ justifyContent: 'space-between', width: '100%' }}>
-                          <Space direction="vertical" size={4} style={{ maxWidth: '70%' }}>
+                          <Space orientation="vertical" size={4} style={{ maxWidth: '70%' }}>
                             <Text
                               strong
                               ellipsis

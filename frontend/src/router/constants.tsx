@@ -1,4 +1,4 @@
-import { CatalogPage, HomePage, LayoutPage, SignInPage, SignUpPage, SwaggerPage } from '@pages';
+import { CatalogPage, CreateComicPage, HomePage, LayoutPage, SignInPage, SignUpPage, SwaggerPage } from '@pages';
 
 import { Route } from './types';
 
@@ -26,6 +26,11 @@ export const ROUTES: Route[] = [
       {
         path: '/swagger',
         page: <SwaggerPage />,
+      },
+      {
+        path: '/comics/create',
+        page: <CreateComicPage />,
+        privateRoute: true,
       },
     ],
   },

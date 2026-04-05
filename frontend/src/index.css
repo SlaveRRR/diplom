@@ -1,8 +1,13 @@
 @layer theme, base, antd, anticon, components, utilities;
 
-@import "tailwindcss/theme.css" layer(theme);
-@import "tailwindcss/preflight.css" layer(base);
-@import "tailwindcss/utilities.css" layer(utilities);
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/preflight.css' layer(base);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+.anticon {
+  /* Css hack, restore layer priority */
+  color: revert-layer;
+}
 
 @font-face {
   font-family: 'Manrope';

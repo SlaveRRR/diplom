@@ -9,6 +9,7 @@ vi.mock('@pages', () => ({
   SignUpPage: () => <></>,
   SwaggerPage: () => <></>,
   CatalogPage: () => <></>,
+  CreateComicPage: () => <></>,
 }));
 
 vi.mock('./utils', () => ({

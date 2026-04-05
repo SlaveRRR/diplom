@@ -1,5 +1,7 @@
-from django.contrib.auth.models import User
+﻿from django.contrib.auth import get_user_model
 from rest_framework import serializers
+
+User = get_user_model()
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
@@ -8,14 +10,14 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('email', 'name', 'surname')
+        fields = ('email', 'name', 'surname', 'avatar', 'role')
+        read_only_fields = ('role',)
 
 
 class CurrentUserSerializer(serializers.ModelSerializer):
     active = serializers.BooleanField(source='is_active', read_only=True)
     name = serializers.SerializerMethodField()
     surname = serializers.SerializerMethodField()
-    role = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -28,6 +30,7 @@ class CurrentUserSerializer(serializers.ModelSerializer):
             'active',
             'name',
             'surname',
+            'avatar',
             'role',
         )
 
@@ -36,10 +39,3 @@ class CurrentUserSerializer(serializers.ModelSerializer):
 
     def get_surname(self, obj):
         return obj.last_name
-
-    def get_role(self, obj):
-        if obj.is_superuser:
-            return 'admin'
-        if obj.is_staff:
-            return 'moderator'
-        return 'reader'

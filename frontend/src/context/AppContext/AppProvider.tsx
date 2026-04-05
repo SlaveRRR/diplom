@@ -1,4 +1,4 @@
-import { createContext, FC, PropsWithChildren, useCallback, useEffect, useMemo, useState } from 'react';
+import { createContext, FC, PropsWithChildren, useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { api } from '@api';
@@ -11,32 +11,68 @@ export const appContext = createContext<AppContext>({} as AppContext);
 
 export const AppProvider: FC<PropsWithChildren> = ({ children }) => {
   const [auth, setAuth] = useState(false);
+  const [isAuthResolved, setIsAuthResolved] = useState(false);
 
-  const { data: user } = useCurrentUser();
+  const { data: user } = useCurrentUser({
+    enabled: auth && isAuthResolved,
+  });
 
   const queryClient = useQueryClient();
 
-  const { getItem, setItem } = useLocalStorage();
+  const { getItem, removeItem, setItem } = useLocalStorage();
 
   const refreshToken = useCallback(async () => {
-    const response = await api.refreshToken();
+    try {
+      const response = await api.refreshToken();
 
-    if (response.status === 200) {
       setAuth(true);
       setItem('token', response.data['access_token']);
       queryClient.invalidateQueries([CURRENT_USER_QUERY_KEY]);
+
+      return true;
+    } catch {
+      removeItem('token');
+      setAuth(false);
+      queryClient.removeQueries([CURRENT_USER_QUERY_KEY]);
+
+      return false;
     }
-  }, [queryClient, setItem]);
+  }, [queryClient, removeItem, setItem]);
 
   const providerProps = useMemo(() => ({ auth, user, setAuth }), [auth, user, setAuth]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const token = getItem<string>('token');
 
-    if (token && getIsTokenExpired(token)) {
-      refreshToken();
+    if (!token) {
+      setAuth(false);
+      setIsAuthResolved(true);
+      return;
     }
-  }, [refreshToken, getItem]);
+
+    setAuth(true);
+
+    const syncAuth = async () => {
+      try {
+        if (getIsTokenExpired(token)) {
+          await refreshToken();
+        }
+      } catch {
+        removeItem('token');
+        setAuth(false);
+      } finally {
+        setIsAuthResolved(true);
+      }
+    };
+
+    syncAuth();
+  }, [refreshToken, getItem, removeItem]);
+
+  useLayoutEffect(() => {
+    if (!auth) {
+      setIsAuthResolved(true);
+    }
+  }, [auth]);
 
   return <appContext.Provider value={providerProps}>{children}</appContext.Provider>;
 };

@@ -4,3 +4,4 @@ export * from './shared';
 export * from './SignIn';
 export * from './SignUp';
 export * from './Catalog';
+export * from './ComicCreate';

@@ -1,4 +1,4 @@
-import os
+﻿import os
 from datetime import timedelta
 from pathlib import Path
 
@@ -20,6 +20,14 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1'] if MODE == 'DEV' else [os.getenv('FRO
 CORS_ALLOWED_ORIGINS = ['http://localhost:5173'] if MODE == 'DEV' else [os.getenv('FRONTEND_URL', 'http://localhost:5173')]
 CORS_ALLOW_CREDENTIALS = True
 REFRESH_TOKEN_COOKIE_NAME = 'refresh_token'
+AUTH_USER_MODEL = 'users.User'
+
+S3_ENDPOINT_URL = os.getenv('S3_ENDPOINT_URL')
+S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
+S3_ACCESS_KEY_ID = os.getenv('S3_ACCESS_KEY_ID')
+S3_SECRET_ACCESS_KEY = os.getenv('S3_SECRET_ACCESS_KEY') 
+S3_REGION_NAME = os.getenv('S3_REGION_NAME')
+S3_PRESIGNED_EXPIRATION = int(os.getenv('S3_PRESIGNED_EXPIRATION'))
 
 INSTALLED_APPS = [
     'corsheaders',
@@ -33,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'authentication',
+    'comics',
     'users',
 ]
 
@@ -119,6 +128,11 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_RENDERER_CLASSES': [
+        'core.renderers.ApiEnvelopeJSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    ],
+    'EXCEPTION_HANDLER': 'core.exceptions.api_exception_handler',
 }
 
 SIMPLE_JWT = {
@@ -131,10 +145,11 @@ SIMPLE_JWT = {
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Graf Comics API',
-    'DESCRIPTION': 'API для платформы чтения и публикации комиксов',
+    'DESCRIPTION': 'API for comics reading and publishing platform',
     'VERSION': '1.0.0',
     'TAGS': [
         {'name': 'Authentication', 'description': 'Authentication and token management endpoints'},
         {'name': 'Users', 'description': 'Current user profile endpoints'},
+        {'name': 'Comics', 'description': 'Comics domain endpoints'},
     ],
 }

@@ -11,17 +11,9 @@ import {
   CategoryCard,
   CategoryMedia,
   CategoryTitle,
-  HeroActions,
-  HeroBadge,
-  HeroCopy,
-  HeroDescription,
-  HeroShell,
-  HeroTitle,
   PageRoot,
-  PrimaryAction,
   QuoteMeta,
   QuoteText,
-  SecondaryAction,
   SectionBlock,
   SectionDescription,
   SectionEyebrow,
@@ -233,211 +225,174 @@ const shortcuts: ShortcutItem[] = [
 
 export const Home: FC = () => {
   return (
-    <div className="my-container">
-      <PageRoot vertical>
-        <HeroShell>
-          <HeroCopy vertical>
-            <HeroBadge>Digital comics platform</HeroBadge>
-            <HeroTitle level={1} data-testid="title">
-              Главная, которая продаёт атмосферу платформы уже с первого экрана
-            </HeroTitle>
-            <HeroDescription>
-              Здесь можно открыть новые комиксы, быстро перейти в каталог, вернуться к чтению и почувствовать, что
-              сервис сделан не как шаблонный список карточек, а как живая редакционная витрина.
-            </HeroDescription>
-            <HeroActions>
-              <Link to="/catalog">
-                <PrimaryAction type="primary" size="large" icon={<CompassOutlined />}>
-                  Смотреть каталог
-                </PrimaryAction>
-              </Link>
-              <Link to="/signup">
-                <SecondaryAction size="large" icon={<EditOutlined />}>
-                  Начать как автор
-                </SecondaryAction>
-              </Link>
-            </HeroActions>
-          </HeroCopy>
-        </HeroShell>
+    <PageRoot vertical>
+      <SectionBlock vertical>
+        <CarouselFrame>
+          <Carousel autoplay dots draggable>
+            {editorialSlides.map((slide) => (
+              <div key={slide.title}>
+                <SlideInner $image={slide.image}>
+                  <SlideCopy vertical>
+                    <SlideTextGroup vertical>
+                      <SlideMeta>
+                        {slide.tags.map((tag) => (
+                          <SlideTag key={tag}>{tag}</SlideTag>
+                        ))}
+                      </SlideMeta>
+                      <SlideTitle level={2}>{slide.title}</SlideTitle>
+                      <SlideDescription>{slide.description}</SlideDescription>
+                    </SlideTextGroup>
 
-        <SectionBlock vertical>
-          <SectionHeader>
-            <SectionTitleGroup vertical>
-              <SectionEyebrow>Editorial carousel</SectionEyebrow>
-              <SectionTitle level={2}>Главная как крупная витрина с сильным первым экраном</SectionTitle>
-            </SectionTitleGroup>
-            <SectionDescription>
-              Карусель вынесена в отдельный широкий блок под hero, чтобы ощущаться как центральная обложка страницы.
-            </SectionDescription>
-          </SectionHeader>
+                    <Link to="/catalog">
+                      <Button type="primary" size="large" icon={<ArrowRightOutlined />}>
+                        Перейти к тайтлам
+                      </Button>
+                    </Link>
+                  </SlideCopy>
 
-          <CarouselFrame>
-            <Carousel autoplay dots draggable>
-              {editorialSlides.map((slide) => (
-                <div key={slide.title}>
-                  <SlideInner $image={slide.image}>
-                    <SlideCopy vertical>
-                      <SlideTextGroup vertical>
-                        <SlideMeta>
-                          {slide.tags.map((tag) => (
-                            <SlideTag key={tag}>{tag}</SlideTag>
-                          ))}
-                        </SlideMeta>
-                        <SlideTitle level={2}>{slide.title}</SlideTitle>
-                        <SlideDescription>{slide.description}</SlideDescription>
-                      </SlideTextGroup>
+                  <SlideAside>
+                    <SlideQuote>
+                      <QuoteText>{slide.quote}</QuoteText>
+                      <QuoteMeta>{slide.quoteMeta}</QuoteMeta>
+                    </SlideQuote>
+                  </SlideAside>
+                </SlideInner>
+              </div>
+            ))}
+          </Carousel>
+        </CarouselFrame>
+      </SectionBlock>
 
-                      <Link to="/catalog">
-                        <Button type="primary" size="large" icon={<ArrowRightOutlined />}>
-                          Перейти к тайтлам
-                        </Button>
-                      </Link>
-                    </SlideCopy>
+      <SectionBlock vertical>
+        <SectionHeader>
+          <SectionTitleGroup vertical>
+            <SectionEyebrow>Fresh picks</SectionEyebrow>
+            <SectionTitle level={2}>Популярное и новинки в двух быстрых витринах</SectionTitle>
+          </SectionTitleGroup>
+          <SectionDescription>
+            Два похожих блока помогают сразу показать, что сейчас читают чаще всего и какие релизы только появились.
+          </SectionDescription>
+        </SectionHeader>
 
-                    <SlideAside>
-                      <SlideQuote>
-                        <QuoteText>{slide.quote}</QuoteText>
-                        <QuoteMeta>{slide.quoteMeta}</QuoteMeta>
-                      </SlideQuote>
-                    </SlideAside>
-                  </SlideInner>
-                </div>
-              ))}
-            </Carousel>
-          </CarouselFrame>
-        </SectionBlock>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} lg={12}>
+            <ShowcasePanel>
+              <ShowcaseHeading>
+                <ShowcaseTitle level={3}>Популярное</ShowcaseTitle>
+                <ShowcaseBadge $background={colors.surface.brandSubtle} $color={colors.brand.primary}>
+                  Popular
+                </ShowcaseBadge>
+              </ShowcaseHeading>
+              <Row gutter={[16, 16]}>
+                {popularItems.map((item) => (
+                  <Col key={item.title} xs={24} sm={12}>
+                    <CardLink to="/catalog">
+                      <ShowcaseCard cover={<ShowcaseCover className="home-showcase-cover" $image={item.image} />}>
+                        <ShowcaseCardTitle level={4}>{item.title}</ShowcaseCardTitle>
+                        <ShowcaseCardMeta>{item.subtitle}</ShowcaseCardMeta>
+                        <ShowcaseCardMeta>{item.meta}</ShowcaseCardMeta>
+                      </ShowcaseCard>
+                    </CardLink>
+                  </Col>
+                ))}
+              </Row>
+            </ShowcasePanel>
+          </Col>
 
-        <SectionBlock vertical>
-          <SectionHeader>
-            <SectionTitleGroup vertical>
-              <SectionEyebrow>Fresh picks</SectionEyebrow>
-              <SectionTitle level={2}>Популярное и новинки в двух быстрых витринах</SectionTitle>
-            </SectionTitleGroup>
-            <SectionDescription>
-              Два похожих блока помогают сразу показать, что сейчас читают чаще всего и какие релизы только появились.
-            </SectionDescription>
-          </SectionHeader>
+          <Col xs={24} lg={12}>
+            <ShowcasePanel>
+              <ShowcaseHeading>
+                <ShowcaseTitle level={3}>Новинки</ShowcaseTitle>
+                <ShowcaseBadge $background={colors.surface.infoSubtle} $color={colors.brand.secondary}>
+                  New
+                </ShowcaseBadge>
+              </ShowcaseHeading>
+              <Row gutter={[16, 16]}>
+                {newItems.map((item) => (
+                  <Col key={item.title} xs={24} sm={12}>
+                    <CardLink to="/catalog">
+                      <ShowcaseCard cover={<ShowcaseCover className="home-showcase-cover" $image={item.image} />}>
+                        <ShowcaseCardTitle level={4}>{item.title}</ShowcaseCardTitle>
+                        <ShowcaseCardMeta>{item.subtitle}</ShowcaseCardMeta>
+                        <ShowcaseCardMeta>{item.meta}</ShowcaseCardMeta>
+                      </ShowcaseCard>
+                    </CardLink>
+                  </Col>
+                ))}
+              </Row>
+            </ShowcasePanel>
+          </Col>
+        </Row>
+      </SectionBlock>
 
-          <Row gutter={[16, 16]}>
-            <Col xs={24} lg={12}>
-              <ShowcasePanel>
-                <ShowcaseHeading>
-                  <ShowcaseTitle level={3}>Популярное</ShowcaseTitle>
-                  <ShowcaseBadge $background={colors.surface.brandSubtle} $color={colors.brand.primary}>
-                    Popular
-                  </ShowcaseBadge>
-                </ShowcaseHeading>
-                <Row gutter={[16, 16]}>
-                  {popularItems.map((item) => (
-                    <Col key={item.title} xs={24} sm={12}>
-                      <CardLink to="/catalog">
-                        <ShowcaseCard cover={<ShowcaseCover className="home-showcase-cover" $image={item.image} />}>
-                          <ShowcaseCardTitle level={4}>{item.title}</ShowcaseCardTitle>
-                          <ShowcaseCardMeta>{item.subtitle}</ShowcaseCardMeta>
-                          <ShowcaseCardMeta>{item.meta}</ShowcaseCardMeta>
-                        </ShowcaseCard>
-                      </CardLink>
-                    </Col>
-                  ))}
-                </Row>
-              </ShowcasePanel>
-            </Col>
+      <SectionBlock vertical>
+        <SectionHeader>
+          <SectionTitleGroup vertical>
+            <SectionEyebrow>Genres</SectionEyebrow>
+            <SectionTitle level={2}>Жанры как отдельная визуальная витрина</SectionTitle>
+          </SectionTitleGroup>
+          <SectionDescription>
+            Этот блок ближе к референсу: крупные карточки категорий, на которые хочется нажать даже без дополнительного
+            текста.
+          </SectionDescription>
+        </SectionHeader>
 
-            <Col xs={24} lg={12}>
-              <ShowcasePanel>
-                <ShowcaseHeading>
-                  <ShowcaseTitle level={3}>Новинки</ShowcaseTitle>
-                  <ShowcaseBadge $background={colors.surface.infoSubtle} $color={colors.brand.secondary}>
-                    New
-                  </ShowcaseBadge>
-                </ShowcaseHeading>
-                <Row gutter={[16, 16]}>
-                  {newItems.map((item) => (
-                    <Col key={item.title} xs={24} sm={12}>
-                      <CardLink to="/catalog">
-                        <ShowcaseCard cover={<ShowcaseCover className="home-showcase-cover" $image={item.image} />}>
-                          <ShowcaseCardTitle level={4}>{item.title}</ShowcaseCardTitle>
-                          <ShowcaseCardMeta>{item.subtitle}</ShowcaseCardMeta>
-                          <ShowcaseCardMeta>{item.meta}</ShowcaseCardMeta>
-                        </ShowcaseCard>
-                      </CardLink>
-                    </Col>
-                  ))}
-                </Row>
-              </ShowcasePanel>
-            </Col>
-          </Row>
-        </SectionBlock>
+        <Masonry
+          columns={{ xs: 1, sm: 2, md: 3, lg: 3, xl: 3, xxl: 3 }}
+          gutter={[20, 20]}
+          items={genreMasonryItems}
+          itemRender={({ data }) => (
+            <CardLink to="/catalog">
+              <CategoryCard $height={data.height}>
+                <CategoryMedia className="home-category-media" $image={data.image} />
+                <CategoryTitle level={3}>{data.title}</CategoryTitle>
+              </CategoryCard>
+            </CardLink>
+          )}
+        />
+      </SectionBlock>
 
-        <SectionBlock vertical>
-          <SectionHeader>
-            <SectionTitleGroup vertical>
-              <SectionEyebrow>Genres</SectionEyebrow>
-              <SectionTitle level={2}>Жанры как отдельная визуальная витрина</SectionTitle>
-            </SectionTitleGroup>
-            <SectionDescription>
-              Этот блок ближе к референсу: крупные карточки категорий, на которые хочется нажать даже без
-              дополнительного текста.
-            </SectionDescription>
-          </SectionHeader>
+      <SectionBlock vertical>
+        <SectionHeader>
+          <SectionTitleGroup vertical>
+            <SectionEyebrow>Fast actions</SectionEyebrow>
+            <SectionTitle level={2}>Быстрые переходы для ключевых сценариев</SectionTitle>
+          </SectionTitleGroup>
+          <SectionDescription>
+            Главная должна не только вдохновлять, но и быстро вести пользователя в нужный раздел без лишнего поиска по
+            меню.
+          </SectionDescription>
+        </SectionHeader>
 
-          <Masonry
-            columns={{ xs: 1, sm: 2, md: 3, lg: 3, xl: 3, xxl: 3 }}
-            gutter={[20, 20]}
-            items={genreMasonryItems}
-            itemRender={({ data }) => (
-              <CardLink to="/catalog">
-                <CategoryCard $height={data.height}>
-                  <CategoryMedia className="home-category-media" $image={data.image} />
-                  <CategoryTitle level={3}>{data.title}</CategoryTitle>
-                </CategoryCard>
-              </CardLink>
-            )}
-          />
-        </SectionBlock>
-
-        <SectionBlock vertical>
-          <SectionHeader>
-            <SectionTitleGroup vertical>
-              <SectionEyebrow>Fast actions</SectionEyebrow>
-              <SectionTitle level={2}>Быстрые переходы для ключевых сценариев</SectionTitle>
-            </SectionTitleGroup>
-            <SectionDescription>
-              Главная должна не только вдохновлять, но и быстро вести пользователя в нужный раздел без лишнего поиска по
-              меню.
-            </SectionDescription>
-          </SectionHeader>
-
-          <Row gutter={[16, 16]}>
-            {shortcuts.map((shortcut) => (
-              <Col key={shortcut.title} xs={24} sm={12} xl={6}>
-                <ShortcutCard $accent={shortcut.accent}>
-                  <ShortcutIconWrap $background={shortcut.iconBackground} $color={shortcut.iconColor}>
-                    {shortcut.icon}
-                  </ShortcutIconWrap>
-                  <ShortcutTextGroup vertical>
-                    <ShortcutTitle level={3}>{shortcut.title}</ShortcutTitle>
-                    <ShortcutText>{shortcut.description}</ShortcutText>
-                  </ShortcutTextGroup>
-                  <ShortcutFooter>
-                    {shortcut.disabled ? (
-                      <Button block disabled>
+        <Row gutter={[16, 16]}>
+          {shortcuts.map((shortcut) => (
+            <Col key={shortcut.title} xs={24} sm={12} xl={6}>
+              <ShortcutCard $accent={shortcut.accent}>
+                <ShortcutIconWrap $background={shortcut.iconBackground} $color={shortcut.iconColor}>
+                  {shortcut.icon}
+                </ShortcutIconWrap>
+                <ShortcutTextGroup vertical>
+                  <ShortcutTitle level={3}>{shortcut.title}</ShortcutTitle>
+                  <ShortcutText>{shortcut.description}</ShortcutText>
+                </ShortcutTextGroup>
+                <ShortcutFooter>
+                  {shortcut.disabled ? (
+                    <Button block disabled>
+                      {shortcut.cta}
+                    </Button>
+                  ) : (
+                    <Link to={shortcut.href}>
+                      <Button block type="default" icon={<ArrowRightOutlined />}>
                         {shortcut.cta}
                       </Button>
-                    ) : (
-                      <Link to={shortcut.href}>
-                        <Button block type="default" icon={<ArrowRightOutlined />}>
-                          {shortcut.cta}
-                        </Button>
-                      </Link>
-                    )}
-                  </ShortcutFooter>
-                </ShortcutCard>
-              </Col>
-            ))}
-          </Row>
-        </SectionBlock>
-      </PageRoot>
-    </div>
+                    </Link>
+                  )}
+                </ShortcutFooter>
+              </ShortcutCard>
+            </Col>
+          ))}
+        </Row>
+      </SectionBlock>
+    </PageRoot>
   );
 };

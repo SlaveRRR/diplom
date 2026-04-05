@@ -24,7 +24,7 @@ export const useCatalogStore = create<CatalogStore>((set) => ({
     // эмуляция загрузки с бэкенда
     setTimeout(() => {
       if (import.meta.env.VITE_IS_MOCK_ACTIVE) {
-        set({ items: initialItems, isLoading: false });
+        set({ items: initialItems, isLoading: true });
       }
     }, 600);
   },

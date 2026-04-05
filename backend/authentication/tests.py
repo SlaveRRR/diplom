@@ -1,6 +1,8 @@
-from django.contrib.auth.models import User
+﻿from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.test import APITestCase
+
+User = get_user_model()
 
 
 class AuthenticationApiTests(APITestCase):
@@ -34,3 +36,18 @@ class AuthenticationApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('access_token', response.data)
         self.assertIn('refresh_token', response.cookies)
+
+    def test_signup_cannot_assign_admin_role(self):
+        response = self.client.post(
+            '/api/v1/signup/',
+            {
+                'username': 'reader4',
+                'email': 'reader4@example.com',
+                'password': 'strongpass123',
+                'role': 'admin',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('role', response.data)

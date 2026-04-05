@@ -1,5 +1,7 @@
-from django.contrib.auth.models import User
+﻿from django.contrib.auth import get_user_model
 from rest_framework import serializers
+
+User = get_user_model()
 
 
 class AccessTokenResponseSerializer(serializers.Serializer):
@@ -11,7 +13,15 @@ class SignUpSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('username', 'email', 'password')
+        fields = ('username', 'email', 'password', 'role')
+        extra_kwargs = {
+            'role': {'required': False},
+        }
+
+    def validate_role(self, value):
+        if value == User.Role.ADMIN:
+            raise serializers.ValidationError('Admin role cannot be assigned during sign up.')
+        return value
 
     def create(self, validated_data):
         return User.objects.create_user(**validated_data)

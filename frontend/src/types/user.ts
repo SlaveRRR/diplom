@@ -1,11 +1,9 @@
 export interface User {
   username: string;
   email: string;
-  is_staff: string;
-  is_active: string;
+  is_staff: boolean;
+  is_active: boolean;
   is_superuser: boolean;
-  active: boolean;
-  name: string;
-  surname: string;
+  avatar?: string | null;
   role: string;
 }

@@ -11,8 +11,10 @@ export const ThemeProvider: FC<PropsWithChildren> = ({ children }) => {
 
   const config = getAntConfig(theme);
   return (
-    <ConfigProvider locale={ruRU} theme={config}>
-      <StyleProvider layer>{children}</StyleProvider>
-    </ConfigProvider>
+    <StyleProvider layer>
+      <ConfigProvider locale={ruRU} theme={config}>
+        {children}
+      </ConfigProvider>
+    </StyleProvider>
   );
 };
