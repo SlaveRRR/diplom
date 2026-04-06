@@ -1,10 +1,12 @@
 ﻿from rest_framework.views import exception_handler
 
 EXCLUDED_RESPONSE_PREFIXES = (
+    '/_allauth/',
     '/api/v1/signup/',
     '/api/v1/signin/',
     '/api/v1/token/refresh/',
     '/api/v1/logout/',
+    '/api/v1/social/',
     '/api/v1/schema/',
     '/api/v1/docs/',
 )

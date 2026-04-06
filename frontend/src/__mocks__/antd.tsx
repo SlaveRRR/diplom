@@ -41,6 +41,8 @@ export const Drawer = ({ children }) => <div data-testid="drawer">{children}</di
 
 export const Image = ({ children }) => <div data-testid="image">{children}</div>;
 
+export const Divider = () => <></>;
+
 export const Menu = ({ children }) => <div data-testid="menu">{children}</div>;
 
 export const Space = ({ children }) => <div data-testid="space">{children}</div>;

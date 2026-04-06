@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+
 import { RequiredAuth } from './RequiredAuth';
 
 const AuthorizedContent = <div data-testid="auth-required" />;
@@ -11,14 +12,14 @@ vi.mock('@hooks', () => ({
 
 describe('RequiredAuth', () => {
   test('проверка отрисовки компонента для авторизованного пользователя', () => {
-    mockUseApp.mockReturnValue({ auth: true });
+    mockUseApp.mockReturnValue({ isAuth: true });
     render(<RequiredAuth>{AuthorizedContent}</RequiredAuth>);
 
     expect(screen.getByTestId('auth-required')).toBeInTheDocument();
   });
 
   test('проверка отрисовки компонента для неавторизованного пользователя', () => {
-    mockUseApp.mockReturnValue({ auth: false });
+    mockUseApp.mockReturnValue({ isAuth: false });
     render(<RequiredAuth>{AuthorizedContent}</RequiredAuth>);
 
     expect(screen.queryByTestId('auth-required')).not.toBeInTheDocument();

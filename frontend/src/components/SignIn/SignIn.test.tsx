@@ -1,4 +1,6 @@
+import { describe } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
+
 import { SignIn } from './SignIn';
 
 vi.mock('@hooks', () => ({
@@ -8,12 +10,24 @@ vi.mock('@hooks', () => ({
   }),
 }));
 
+vi.mock('@utils', () => ({
+  startHeadlessSocialAuth: vi.fn(),
+}));
+
 const mockMutate = vi.fn();
 
 vi.mock('./hooks', () => ({
   useSignInMutation: () => ({
     isLoading: false,
     mutate: () => mockMutate(),
+  }),
+  useSocialSessionExchange: () => ({
+    isLoading: false,
+    mutate: vi.fn(),
+  }),
+  useResendVerificationEmail: () => ({
+    isLoading: false,
+    mutateAsync: vi.fn(),
   }),
 }));
 

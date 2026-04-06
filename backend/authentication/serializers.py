@@ -8,6 +8,12 @@ class AccessTokenResponseSerializer(serializers.Serializer):
     access_token = serializers.CharField()
 
 
+class VerificationEmailResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+    email = serializers.EmailField()
+    retry_after = serializers.IntegerField()
+
+
 class SignUpSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
 
@@ -30,3 +36,7 @@ class SignUpSerializer(serializers.ModelSerializer):
 class SignInSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField(write_only=True)
+
+
+class ResendVerificationEmailSerializer(serializers.Serializer):
+    email = serializers.EmailField()

@@ -16,6 +16,7 @@ import {
 } from '@ant-design/icons';
 
 import { colors } from '@constants';
+import { useApp } from '@hooks';
 
 import {
   drawerStyles,
@@ -38,6 +39,8 @@ export const Layout: FC<PropsWithChildren> = ({ children }) => {
   const {
     token: { borderRadiusLG, colorBgContainer, colorBorderSecondary, colorPrimary, colorTextSecondary },
   } = theme.useToken();
+
+  const { user, isAuth } = useApp();
 
   useEffect(() => {
     const handleResize = () => {
@@ -125,15 +128,19 @@ export const Layout: FC<PropsWithChildren> = ({ children }) => {
             onClick={() => (isMobile ? setMobileMenuOpen(true) : setCollapsed((prev) => !prev))}
           />
 
-          <Space size="middle">
+          <Space size="middle" classNames={{ item: 'inline-flex' }}>
             <Badge count={5}>
               <NotificationIcon $color={colorTextSecondary} />
             </Badge>
             <UserAvatar
+              alt="user avatar"
               icon={<UserOutlined />}
               $background={colors.surface.brandSubtle}
               $color={colorPrimary}
               $borderColor={colorBorderSecondary}
+              {...(isAuth && {
+                src: user?.avatar,
+              })}
             />
           </Space>
         </MainHeader>

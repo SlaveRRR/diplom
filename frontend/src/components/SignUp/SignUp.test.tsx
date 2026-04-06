@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+
 import { SignUp } from './SignUp';
 
 vi.mock('@hooks', () => ({
@@ -6,6 +7,10 @@ vi.mock('@hooks', () => ({
     handleSubmit: (callback) => callback(),
     control: {},
   }),
+}));
+
+vi.mock('@utils', () => ({
+  startHeadlessSocialAuth: vi.fn(),
 }));
 
 const mockMutate = vi.fn();

@@ -1,0 +1,1 @@
+export { startHeadlessSocialAuth } from './socialAuth';

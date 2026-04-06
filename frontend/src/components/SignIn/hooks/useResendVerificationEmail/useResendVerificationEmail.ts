@@ -1,5 +1,5 @@
 import { AxiosError } from 'axios';
-import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useOutletContext } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 
 import { api } from '@api';
@@ -16,12 +16,11 @@ const getErrorMessage = (error: AxiosError<Record<string, string | string[]>>) =
   return error.message;
 };
 
-export const useSignUpMutation = () => {
+export const useResendVerificationEmail = () => {
   const { messageApi } = useOutletContext<OutletContext>();
-  const navigate = useNavigate();
 
   return useMutation({
-    mutationFn: api.signUp,
+    mutationFn: api.resendVerificationEmail,
     onError: (error: AxiosError<Record<string, string | string[]>>) => {
       messageApi.error(getErrorMessage(error));
     },
@@ -30,10 +29,7 @@ export const useSignUpMutation = () => {
         `verification-cooldown:${data.email.toLowerCase()}`,
         String(Date.now() + data.retry_after * 1000),
       );
-      messageApi.success('Письмо для подтверждения почты отправлено.');
-      navigate(`/signin?verification=pending&email=${encodeURIComponent(data.email)}&retryAfter=${data.retry_after}`, {
-        replace: true,
-      });
+      messageApi.success('Письмо для подтверждения отправлено повторно.');
     },
   });
 };

@@ -9,3 +9,18 @@ export const useLocation = () => ({
 });
 
 export const Link = () => <div data-testid="link" />;
+
+export const useOutletContext = () => ({
+  messageApi: {
+    error: () => '',
+    success: () => '',
+  },
+});
+
+export const useNavigate = () => () => '';
+
+export const useSearchParams = () => [
+  {
+    get: () => '',
+  },
+];

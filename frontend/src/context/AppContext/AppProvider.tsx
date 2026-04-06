@@ -10,11 +10,11 @@ import { AppContext } from './types';
 export const appContext = createContext<AppContext>({} as AppContext);
 
 export const AppProvider: FC<PropsWithChildren> = ({ children }) => {
-  const [auth, setAuth] = useState(false);
+  const [isAuth, setIsAuth] = useState(false);
   const [isAuthResolved, setIsAuthResolved] = useState(false);
 
   const { data: user } = useCurrentUser({
-    enabled: auth && isAuthResolved,
+    enabled: isAuth && isAuthResolved,
   });
 
   const queryClient = useQueryClient();
@@ -25,32 +25,32 @@ export const AppProvider: FC<PropsWithChildren> = ({ children }) => {
     try {
       const response = await api.refreshToken();
 
-      setAuth(true);
+      setIsAuth(true);
       setItem('token', response.data['access_token']);
       queryClient.invalidateQueries([CURRENT_USER_QUERY_KEY]);
 
       return true;
     } catch {
       removeItem('token');
-      setAuth(false);
+      setIsAuth(false);
       queryClient.removeQueries([CURRENT_USER_QUERY_KEY]);
 
       return false;
     }
   }, [queryClient, removeItem, setItem]);
 
-  const providerProps = useMemo(() => ({ auth, user, setAuth }), [auth, user, setAuth]);
+  const providerProps = useMemo(() => ({ isAuth, user, setIsAuth }), [isAuth, user, setIsAuth]);
 
   useLayoutEffect(() => {
     const token = getItem<string>('token');
 
     if (!token) {
-      setAuth(false);
+      setIsAuth(false);
       setIsAuthResolved(true);
       return;
     }
 
-    setAuth(true);
+    setIsAuth(true);
 
     const syncAuth = async () => {
       try {
@@ -59,7 +59,7 @@ export const AppProvider: FC<PropsWithChildren> = ({ children }) => {
         }
       } catch {
         removeItem('token');
-        setAuth(false);
+        setIsAuth(false);
       } finally {
         setIsAuthResolved(true);
       }
@@ -69,10 +69,10 @@ export const AppProvider: FC<PropsWithChildren> = ({ children }) => {
   }, [refreshToken, getItem, removeItem]);
 
   useLayoutEffect(() => {
-    if (!auth) {
+    if (!isAuth) {
       setIsAuthResolved(true);
     }
-  }, [auth]);
+  }, [isAuth]);
 
   return <appContext.Provider value={providerProps}>{children}</appContext.Provider>;
 };

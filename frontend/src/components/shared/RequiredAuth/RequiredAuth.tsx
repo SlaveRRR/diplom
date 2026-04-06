@@ -1,13 +1,15 @@
-import { useApp } from '@hooks';
 import { Button, Flex, Typography } from 'antd';
 import { FC } from 'react';
+
+import { useApp } from '@hooks';
+
 import { RequiredAuthProps } from './types';
 
 const { Title } = Typography;
 
 export const RequiredAuth: FC<RequiredAuthProps> = ({ children }) => {
-  const { auth } = useApp();
-  return auth ? (
+  const { isAuth } = useApp();
+  return isAuth ? (
     children
   ) : (
     <Flex justify="center" gap={15} vertical align="center" className="pt-20">

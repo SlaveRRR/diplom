@@ -9,3 +9,5 @@ djangorestframework-simplejwt==5.5.1
 django-cors-headers==4.7.0
 drf-spectacular==0.28.0
 boto3==1.38.46
+django-allauth[headless,socialaccount]==65.15.1
+Django-Verify-Email==3.0.3

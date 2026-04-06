@@ -8,6 +8,8 @@ import {
   REFRESH_TOKEN_ENDPOINT,
   SIGNIN_ENDPOINT,
   SIGNUP_ENDPOINT,
+  SIGNUP_RESEND_VERIFICATION_ENDPOINT,
+  SOCIAL_SESSION_EXCHANGE_ENDPOINT,
   TAXONOMY_PLATFORM_ENDPOINT,
 } from '@constants';
 import {
@@ -21,6 +23,7 @@ import {
   SignUpParams,
   TaxonomyPlatformData,
   User,
+  VerificationEmailResponse,
 } from '@types';
 
 import { axiosInstance } from './utils';
@@ -31,7 +34,11 @@ class Api {
   }
 
   async signUp(data: SignUpParams) {
-    return axiosInstance.post<AccesTokenResponse>(SIGNUP_ENDPOINT, data);
+    return axiosInstance.post<VerificationEmailResponse>(SIGNUP_ENDPOINT, data);
+  }
+
+  async resendVerificationEmail(email: string) {
+    return axiosInstance.post<VerificationEmailResponse>(SIGNUP_RESEND_VERIFICATION_ENDPOINT, { email });
   }
 
   async refreshToken() {
@@ -40,6 +47,10 @@ class Api {
 
   async logout() {
     return axiosInstance.post(LOGOUT_ENDPOINT);
+  }
+
+  async exchangeSocialSession() {
+    return axiosInstance.get<AccesTokenResponse>(SOCIAL_SESSION_EXCHANGE_ENDPOINT);
   }
 
   async getCurrentUser() {

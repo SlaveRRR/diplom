@@ -1,31 +1,22 @@
-import { api } from '@api';
 import { QueryClientProvider } from '@test-utils';
+import { AxiosError, AxiosResponse } from 'axios';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { AxiosResponse } from 'axios';
+
+import { api } from '@api';
+
 import { useSignUpMutation } from './useSignUpMutation';
 
-const mockInvalidateQueries = vi.fn();
-
-vi.mock('@tanstack/react-query', async (importOriginal) => {
-  const actual: object = await importOriginal();
-  return {
-    ...actual,
-    useQueryClient: () => ({
-      invalidateQueries: () => mockInvalidateQueries(),
-    }),
-  };
-});
-
-const mockSucces = vi.fn();
+const mockSuccess = vi.fn();
 const mockError = vi.fn();
-
 const mockNavigate = vi.fn();
+const mockSetItem = vi.fn();
+let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
 vi.mock('react-router-dom', () => ({
   useOutletContext: () => ({
     messageApi: {
-      success: () => mockSucces(),
-      error: () => mockError(),
+      success: mockSuccess,
+      error: mockError,
     },
   }),
   useNavigate: () => mockNavigate,
@@ -37,32 +28,41 @@ vi.mock('@api', () => ({
   },
 }));
 
-const mockSetItem = vi.fn();
+const sessionStorageMock = {
+  setItem: mockSetItem,
+  getItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+  key: vi.fn(),
+  length: 0,
+};
 
-const mockSetAuth = vi.fn();
-
-vi.mock('@hooks', async (importOriginal) => {
-  const actual: object = await importOriginal();
-  return {
-    ...actual,
-    useLocalStorage: () => ({
-      setItem: () => mockSetItem(),
-    }),
-    useApp: () => ({
-      setAuth: () => mockSetAuth(),
-    }),
-  };
+Object.defineProperty(window, 'sessionStorage', {
+  value: sessionStorageMock,
+  writable: true,
 });
 
 const mockApi = vi.mocked(api);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+});
+
+afterEach(() => {
+  consoleErrorSpy.mockRestore();
 });
 
 describe('useSignUpMutation', () => {
-  test('проверка работы хука при успешной мутации', async () => {
-    const apiResponse = { data: { access_token: '' }, status: 200 } as AxiosResponse;
+  test('успешная регистрация сохраняет cooldown и переводит на экран подтверждения почты', async () => {
+    const apiResponse = {
+      data: {
+        detail: 'Verification email sent successfully.',
+        email: 'test@example.com',
+        retry_after: 60,
+      },
+      status: 201,
+    } as AxiosResponse;
 
     mockApi.signUp.mockResolvedValue(apiResponse);
 
@@ -71,37 +71,55 @@ describe('useSignUpMutation', () => {
     });
 
     await act(async () => {
-      await result.current.mutateAsync({ username: 'test', password: 'test', email: '' });
+      await result.current.mutateAsync({
+        username: 'test',
+        password: 'password123',
+        email: 'test@example.com',
+      });
     });
 
-    await waitFor(async () => expect(result.current.isSuccess).toBe(true));
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(result.current.data).toBeDefined();
-
-    expect(mockSucces).toBeCalled();
-    expect(mockSetItem).toBeCalled();
-    expect(mockSetAuth).toBeCalled();
-    expect(mockInvalidateQueries).toBeCalled();
-    expect(mockNavigate).toBeCalled();
+    expect(mockSetItem).toHaveBeenCalledWith('verification-cooldown:test@example.com', expect.any(String));
+    expect(mockSuccess).toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalledWith('/signin?verification=pending&email=test%40example.com&retryAfter=60', {
+      replace: true,
+    });
   });
 
-  test('проверка работы хука при ошибке', async () => {
+  test('ошибка регистрации показывает сообщение от backend', async () => {
+    const backendError = new AxiosError('Request failed');
+
+    backendError.response = {
+      data: {
+        detail: 'User with this email already exists.',
+      },
+      status: 400,
+      statusText: 'Bad Request',
+      headers: {},
+      config: {} as never,
+    };
+
+    mockApi.signUp.mockRejectedValue(backendError);
+
     const { result } = renderHook(() => useSignUpMutation(), {
       wrapper: QueryClientProvider,
     });
 
-    const apiResponse = { data: undefined, status: 500 } as AxiosResponse;
-
-    mockApi.signUp.mockRejectedValue(apiResponse);
-
     await act(async () => {
       try {
-        await result.current.mutateAsync({ username: 'test', password: 'test', email: '' });
-      } catch {
-        await waitFor(() => {
-          expect(mockError).toBeCalled();
+        await result.current.mutateAsync({
+          username: 'test',
+          password: 'password123',
+          email: 'test@example.com',
         });
+      } catch {
+        /* empty */
       }
+    });
+
+    await waitFor(() => {
+      expect(mockError).toHaveBeenCalledWith('User with this email already exists.');
     });
   });
 });

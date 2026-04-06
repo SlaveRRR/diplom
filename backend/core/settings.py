@@ -21,6 +21,13 @@ CORS_ALLOWED_ORIGINS = ['http://localhost:5173'] if MODE == 'DEV' else [os.geten
 CORS_ALLOW_CREDENTIALS = True
 REFRESH_TOKEN_COOKIE_NAME = 'refresh_token'
 AUTH_USER_MODEL = 'users.User'
+HEADLESS_ONLY = True
+HEADLESS_FRONTEND_URLS = {
+    'account_confirm_email': f"{os.getenv('FRONTEND_URL', 'http://localhost:5173')}/account/verify-email/{{key}}",
+    'account_reset_password_from_key': f"{os.getenv('FRONTEND_URL', 'http://localhost:5173')}/account/password/reset/{{key}}",
+    'account_signup': f"{os.getenv('FRONTEND_URL', 'http://localhost:5173')}/signup",
+    'socialaccount_login_error': f"{os.getenv('FRONTEND_URL', 'http://localhost:5173')}/signin",
+}
 
 S3_ENDPOINT_URL = os.getenv('S3_ENDPOINT_URL')
 S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
@@ -34,16 +41,26 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
     'drf_spectacular',
+    'verify_email.apps.VerifyEmailConfig',
+    'allauth',
+    'allauth.account',
+    'allauth.headless',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+    'allauth.socialaccount.providers.yandex',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
+    'django.contrib.sites',
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'authentication',
     'comics',
     'users',
 ]
+
+SITE_ID = 1
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -52,6 +69,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -79,12 +97,12 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'PORT': os.getenv('DB_PORT', 5432),
+         'NAME': os.getenv('DB_NAME'),
     }
 }
 
 if MODE == 'DEV':
     DATABASES['default'].update({
-        'NAME': os.getenv('DB_NAME', 'grafComics'),
         'USER': os.getenv('DB_USER', 'postgres'),
         'PASSWORD': os.getenv('DB_PASSWORD', 'root'),
         'HOST': os.getenv('DB_HOST', 'localhost'),
@@ -92,7 +110,6 @@ if MODE == 'DEV':
 else:
     DATABASES['default'].update({
         'HOST': os.getenv('DB_HOST', 'localhost'),
-        'NAME': os.getenv('DB_NAME', 'grafComics'),
         'USER': os.getenv('DB_USER', 'postgres'),
         'PASSWORD': os.getenv('DB_PASSWORD', 'root'),
     })
@@ -111,6 +128,25 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+AUTHENTICATION_BACKENDS = (
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+)
+SOCIALACCOUNT_ADAPTER = 'authentication.adapters.SocialAccountAdapter'
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.getenv('EMAIL_HOST', '')
+EMAIL_PORT = 465
+EMAIL_USE_SSL = True
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+
+LOGIN_URL = f"{os.getenv('FRONTEND_URL').rstrip('/')}/signin?verification=success"
+VERIFICATION_SUCCESS_TEMPLATE = None
+EXPIRE_AFTER = os.getenv('VERIFY_EMAIL_EXPIRE_AFTER', '15m')
+MAX_RETRIES = int(os.getenv('VERIFY_EMAIL_MAX_RETRIES', '5'))
 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
@@ -144,7 +180,7 @@ SIMPLE_JWT = {
 }
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Graf Comics API',
+    'TITLE': 'ComicsHub API',
     'DESCRIPTION': 'API for comics reading and publishing platform',
     'VERSION': '1.0.0',
     'TAGS': [
@@ -152,4 +188,29 @@ SPECTACULAR_SETTINGS = {
         {'name': 'Users', 'description': 'Current user profile endpoints'},
         {'name': 'Comics', 'description': 'Comics domain endpoints'},
     ],
+}
+
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'APPS': [
+            {
+                'client_id': os.getenv('GOOGLE_CLIENT_ID'),
+                'secret': os.getenv('GOOGLE_CLIENT_SECRET'),
+                'settings': {
+                    'scope': ['profile', 'email'],
+                },
+            }
+        ]
+    },
+    'yandex': {
+        'APPS': [
+            {
+                'client_id': os.getenv('YANDEX_CLIENT_ID'),
+                'secret': os.getenv('YANDEX_CLIENT_SECRET'),
+                'settings': {
+                    'scope': ['login:avatar'],
+                },
+            }
+        ]
+    },
 }

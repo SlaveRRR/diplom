@@ -12,3 +12,9 @@ export interface SignInParams {
 export interface AccesTokenResponse {
   access_token: string;
 }
+
+export interface VerificationEmailResponse {
+  detail: string;
+  email: string;
+  retry_after: number;
+}

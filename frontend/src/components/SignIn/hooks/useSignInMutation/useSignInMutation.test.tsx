@@ -1,7 +1,9 @@
-import { api } from '@api';
 import { QueryClientProvider } from '@test-utils';
-import { act, renderHook, waitFor } from '@testing-library/react';
 import { AxiosResponse } from 'axios';
+import { act, renderHook, waitFor } from '@testing-library/react';
+
+import { api } from '@api';
+
 import { useSignInMutation } from './useSignInMutation';
 
 const mockInvalidateQueries = vi.fn();
@@ -49,7 +51,7 @@ vi.mock('@hooks', async (importOriginal) => {
       setItem: () => mockSetItem(),
     }),
     useApp: () => ({
-      setAuth: () => mockSetAuth(),
+      setIsAuth: () => mockSetAuth(),
     }),
   };
 });

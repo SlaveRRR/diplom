@@ -6,35 +6,24 @@ import { api } from '@api';
 import { CURRENT_USER_QUERY_KEY, useApp, useLocalStorage } from '@hooks';
 import { OutletContext } from '@pages';
 
-const getErrorMessage = (error: AxiosError<Record<string, string | string[]>>) => {
-  const detail = error.response?.data?.detail;
-
-  if (typeof detail === 'string') {
-    return detail;
-  }
-
-  return error.message;
-};
-
-export const useSignInMutation = () => {
+export const useSocialSessionExchange = () => {
   const { setItem } = useLocalStorage();
   const { setIsAuth } = useApp();
   const { messageApi } = useOutletContext<OutletContext>();
   const queryClient = useQueryClient();
-
   const navigate = useNavigate();
 
   return useMutation({
-    mutationFn: api.signIn,
+    mutationFn: api.exchangeSocialSession,
     onError: (error: AxiosError<Record<string, string | string[]>>) => {
-      messageApi.error(getErrorMessage(error));
+      messageApi.error(error.message);
+      navigate('/signin', { replace: true });
     },
     onSuccess: (data) => {
-      messageApi.success('Вы успешно вошли!');
       setItem('token', data.data['access_token']);
       setIsAuth(true);
       queryClient.invalidateQueries([CURRENT_USER_QUERY_KEY]);
-      navigate('/');
+      navigate('/', { replace: true });
     },
   });
 };
