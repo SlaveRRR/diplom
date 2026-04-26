@@ -231,12 +231,13 @@ class BlogPostConfirmView(BlogAccessMixin, APIView):
         if editable_post:
             editable_post.title = validated['title']
             editable_post.content = validated['content']
+            editable_post.age_rating = validated['ageRating']
             editable_post.status = target_status
             if draft.cover:
                 editable_post.cover = draft.cover
             if target_status != Post.Status.PUBLISHED:
                 editable_post.published_at = None
-            editable_post.save(update_fields=['title', 'content', 'status', 'cover', 'published_at', 'updated_at'])
+            editable_post.save(update_fields=['title', 'content', 'age_rating', 'status', 'cover', 'published_at', 'updated_at'])
             editable_post.tags.set(tags)
             post = editable_post
         else:
@@ -244,6 +245,7 @@ class BlogPostConfirmView(BlogAccessMixin, APIView):
                 title=validated['title'],
                 content=validated['content'],
                 cover=draft.cover,
+                age_rating=validated['ageRating'],
                 author=request.user,
                 status=target_status,
                 published_at=None,
@@ -259,6 +261,7 @@ class BlogPostConfirmView(BlogAccessMixin, APIView):
                     'id': post.id,
                     'title': post.title,
                     'coverUrl': build_public_media_url(post.cover),
+                    'age_rating': post.age_rating,
                     'status': post.status,
                 }
             ).data,

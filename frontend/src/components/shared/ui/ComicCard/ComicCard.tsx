@@ -1,8 +1,9 @@
 import { Badge, Button, Card, Rate, Skeleton, Space, Tag, theme, Typography } from 'antd';
-import type { ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
 import { colors } from '@constants';
+import { useAdultContentGate } from '@hooks';
 import { CatalogItem } from '@components/Catalog/hooks/useCatalogStore/types';
 
 const { Paragraph, Text } = Typography;
@@ -34,6 +35,8 @@ type ComicCardProps = {
   showStatus?: boolean;
 };
 
+const isAdultContent = (ageRating: string) => ageRating === '18+';
+
 export const ComicCard = ({
   item,
   action,
@@ -47,6 +50,12 @@ export const ComicCard = ({
   const {
     token: { borderRadius, borderRadiusLG, colorBgContainer },
   } = theme.useToken();
+  const { guardNavigation, adultContentModal, isAdultContentConfirmed } = useAdultContentGate();
+  const isAdult = isAdultContent(item.ageRating) && !isAdultContentConfirmed;
+
+  const handleProtectedLinkClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    guardNavigation({ href, ageRating: item.ageRating }, event);
+  };
 
   const card = (
     <Card
@@ -59,9 +68,10 @@ export const ComicCard = ({
             background: `linear-gradient(135deg, ${colors.surface.infoSubtle}, ${colors.surface.brandSubtle})`,
           }}
         >
-          <Link to={href}>
+          <Link to={href} onClick={handleProtectedLinkClick}>
             <div
               style={{
+                position: 'relative',
                 borderRadius,
                 overflow: 'hidden',
                 height: 220,
@@ -69,7 +79,26 @@ export const ComicCard = ({
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
               }}
-            />
+            >
+              {isAdult ? (
+                <div
+                  className="absolute inset-0 flex items-center justify-center"
+                  style={{
+                    background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(32, 20, 82, 0.58) 100%)',
+                    backdropFilter: 'blur(8px)',
+                  }}
+                >
+                  <div className="flex max-w-[190px] flex-col items-center gap-2.5 px-4 text-center text-white">
+                    <div className="rounded-[16px] bg-[rgba(255,255,255,0.14)] px-3 py-1.5 text-sm font-semibold tracking-[0.08em] shadow-[0_8px_18px_rgba(32,20,82,0.18)] backdrop-blur-sm">
+                      18+
+                    </div>
+                    <div className="text-sm font-medium leading-5 text-white/88">
+                      Откроется после подтверждения возраста
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </Link>
         </div>
       }
@@ -77,7 +106,7 @@ export const ComicCard = ({
       <Space direction="vertical" size={10} style={{ width: '100%' }}>
         <Space align="baseline" style={{ justifyContent: 'space-between', width: '100%' }}>
           <Space direction="vertical" size={4}>
-            <Link to={href}>
+            <Link to={href} onClick={handleProtectedLinkClick}>
               <Text
                 strong
                 ellipsis
@@ -114,6 +143,7 @@ export const ComicCard = ({
         </Space>
 
         <Space size={4} wrap>
+          <Tag color={isAdult ? 'volcano' : 'default'}>{item.ageRating}</Tag>
           {item.genre ? <Tag color={colors.brand.primary}>{item.genre}</Tag> : null}
           {item.tags.slice(0, 2).map((tagName) => (
             <Tag key={tagName}>{tagName}</Tag>
@@ -125,13 +155,21 @@ export const ComicCard = ({
   );
 
   if (!badgeText) {
-    return card;
+    return (
+      <>
+        {card}
+        {adultContentModal}
+      </>
+    );
   }
 
   return (
-    <Badge.Ribbon text={badgeText} color={badgeColor || colors.brand.secondary}>
-      {card}
-    </Badge.Ribbon>
+    <>
+      <Badge.Ribbon text={badgeText} color={badgeColor || colors.brand.secondary}>
+        {card}
+      </Badge.Ribbon>
+      {adultContentModal}
+    </>
   );
 };
 

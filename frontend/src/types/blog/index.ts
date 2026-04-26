@@ -26,6 +26,7 @@ export interface BlogPostListItem {
   excerpt: string;
   cover: string;
   coverUrl: string;
+  ageRating: string;
   tags: BlogTag[];
   author: BlogAuthor;
   commentsCount: number;
@@ -38,6 +39,7 @@ export interface BlogPostDetail {
   content: Record<string, unknown>;
   cover: string;
   coverUrl: string;
+  ageRating: string;
   tags: BlogTag[];
   author: BlogAuthor;
   comments: BlogComment[];
@@ -51,6 +53,7 @@ export interface BlogEditablePost {
   content: Record<string, unknown>;
   cover: string;
   coverUrl: string;
+  ageRating: string;
   tagIds: number[];
   status: 'draft' | 'under_review' | 'published' | 'blocked' | 'revision';
 }
@@ -91,6 +94,7 @@ export interface BlogPostConfirmPayload {
   postDraftId: number;
   title: string;
   content: Record<string, unknown>;
+  ageRating: string;
   tagIds: number[];
   status: 'draft' | 'under_review';
 }
@@ -99,6 +103,7 @@ export interface BlogPostCreateResponse {
   id: number;
   title: string;
   coverUrl: string;
+  ageRating: string;
   status: 'draft' | 'under_review' | 'published' | 'blocked' | 'revision';
 }
 

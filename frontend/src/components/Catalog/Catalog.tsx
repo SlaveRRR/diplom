@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { colors } from '@constants';
-import { usePlatformTaxonomy } from '@hooks';
+import { useAdultContentGate, usePlatformTaxonomy } from '@hooks';
 import { CatalogItem } from '@components/Catalog/hooks/useCatalogStore/types';
 import { ComicCard, ComicCardSkeleton, Select } from '@components/shared';
 
@@ -22,6 +22,7 @@ export const Catalog = () => {
 
   const { data: items = [], isLoading } = useCatalogQuery();
   const { data: taxonomy, isLoading: isLoadingTaxonomy } = usePlatformTaxonomy();
+  const { guardNavigation, adultContentModal } = useAdultContentGate();
 
   const [searchValue, setSearchValue] = useState('');
   const [genreId, setGenreId] = useState<SelectValue>();
@@ -260,7 +261,12 @@ export const Catalog = () => {
                             {item.reviews.toLocaleString('ru-RU')} отзывов
                           </Text>
                         </Space>
-                        <Link to={`/comics/${item.id}`}>
+                        <Link
+                          to={`/comics/${item.id}`}
+                          onClick={(event) =>
+                            guardNavigation({ href: `/comics/${item.id}`, ageRating: item.ageRating }, event)
+                          }
+                        >
                           <Button type="primary">Открыть страницу</Button>
                         </Link>
                       </Space>
@@ -317,6 +323,7 @@ export const Catalog = () => {
       </section>
 
       <Tour open={isTourOpen} onClose={() => setIsTourOpen(false)} steps={tourSteps} />
+      {adultContentModal}
     </>
   );
 };

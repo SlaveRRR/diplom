@@ -4,6 +4,8 @@ from django.db import models
 from django.utils import timezone
 from django.utils.text import slugify
 
+from comics.models import ComicAgeRating
+
 
 class TimeStampedModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
@@ -41,6 +43,7 @@ class Post(TimeStampedModel):
     title = models.CharField(max_length=255)
     content = models.JSONField(default=dict)
     cover = models.CharField(max_length=500, blank=True)
+    age_rating = models.CharField(max_length=4, choices=ComicAgeRating.choices, default=ComicAgeRating.AGE_16)
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='posts')
     tags = models.ManyToManyField(BlogTag, related_name='posts', blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)

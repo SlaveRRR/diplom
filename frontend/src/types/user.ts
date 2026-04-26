@@ -38,6 +38,7 @@ export interface UserProfilePost {
   excerpt: string;
   cover: string;
   coverUrl: string;
+  ageRating: string;
   status: 'draft' | 'under_review' | 'published' | 'blocked' | 'revision';
   tags: string[];
   commentsCount: number;

@@ -8,6 +8,7 @@ import { BLOG_POSTS_QUERY_KEY } from '@components/Blog/hooks';
 type CreateBlogPostMutationPayload = {
   postId?: number | null;
   title: string;
+  ageRating: string;
   tagIds: number[];
   content: Record<string, unknown>;
   coverFile: File | null;
@@ -76,6 +77,7 @@ export const useCreateBlogPostMutation = () => {
 
   return useMutation({
     mutationFn: async ({
+      ageRating,
       content,
       coverFile,
       inlineImages,
@@ -138,6 +140,7 @@ export const useCreateBlogPostMutation = () => {
         postId,
         postDraftId: uploadConfig.postDraftId,
         title,
+        ageRating,
         tagIds,
         status,
         content: finalContent,

@@ -86,6 +86,7 @@ class ProfilePostSerializer(serializers.Serializer):
     excerpt = serializers.CharField(allow_blank=True)
     cover = serializers.CharField(allow_blank=True)
     coverUrl = serializers.CharField(allow_blank=True)
+    ageRating = serializers.CharField()
     status = serializers.CharField()
     tags = serializers.ListField(child=serializers.CharField(), default=list)
     commentsCount = serializers.IntegerField()
@@ -185,6 +186,7 @@ class UserProfilePostBuilder:
             'excerpt': build_plain_text_excerpt(post.content),
             'cover': post.cover,
             'coverUrl': services.build_public_media_url(post.cover),
+            'ageRating': post.age_rating,
             'status': post.status,
             'tags': [tag.name for tag in post.tags.all()],
             'commentsCount': getattr(post, 'comments_total', 0),

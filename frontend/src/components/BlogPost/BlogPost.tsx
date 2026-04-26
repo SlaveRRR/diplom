@@ -130,6 +130,9 @@ export const BlogPost: FC = () => {
         />
         <Flex vertical gap={20} className="p-6 sm:p-8">
           <Flex gap={8} wrap="wrap">
+            <Tag color={data.ageRating === '18+' ? 'volcano' : 'default'} className="m-0 rounded-full px-3 py-1">
+              {data.ageRating}
+            </Tag>
             {data.tags.map((tag) => (
               <Tag key={tag.id} className="m-0 rounded-full border-0 bg-black/5 px-3 py-1">
                 #{tag.name}

@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarOutlined, CommentOutlined, EditOutlined, SearchOutlined } from '@ant-design/icons';
 
-import { useApp } from '@hooks';
+import { useAdultContentGate, useApp } from '@hooks';
 import { Select } from '@components/shared';
 
 import { useBlogPostsQuery, useBlogTagsQuery } from './hooks';
@@ -19,8 +19,11 @@ const formatDate = (value: string) =>
     year: 'numeric',
   }).format(new Date(value));
 
+const isAdultContent = (ageRating: string) => ageRating === '18+';
+
 export const Blog = () => {
   const { isAuth } = useApp();
+  const { guardNavigation, adultContentModal, isAdultContentConfirmed } = useAdultContentGate();
   const { data: posts = [], isLoading } = useBlogPostsQuery();
   const { data: tags = [], isLoading: isLoadingTags } = useBlogTagsQuery();
 
@@ -128,16 +131,39 @@ export const Blog = () => {
         <Row gutter={[24, 24]}>
           {filteredPosts.map((post) => (
             <Col key={post.id} xs={24} md={12} xl={8}>
-              <Link to={`/blog/${post.id}`}>
+              <Link
+                to={`/blog/${post.id}`}
+                onClick={(event) => guardNavigation({ href: `/blog/${post.id}`, ageRating: post.ageRating }, event)}
+              >
                 <Card
                   hoverable
                   className="h-full overflow-hidden border-0 shadow-sm transition-transform duration-200 hover:-translate-y-1"
                   cover={
-                    <img src={post.coverUrl || post.cover} alt={post.title} className="h-64 w-full object-cover" />
+                    <div className="relative h-64 w-full overflow-hidden">
+                      <img src={post.coverUrl || post.cover} alt={post.title} className="h-64 w-full object-cover" />
+                      {isAdultContent(post.ageRating) && !isAdultContentConfirmed ? (
+                        <div className="absolute inset-0 flex items-center justify-center bg-[linear-gradient(180deg,rgba(255,255,255,0.08)_0%,rgba(32,20,82,0.58)_100%)] backdrop-blur-[8px]">
+                          <Flex vertical align="center" gap={10} className="max-w-[190px] px-4 text-center text-white">
+                            <div className="rounded-[16px] bg-white/14 px-3 py-1.5 text-sm font-semibold tracking-[0.08em] shadow-[0_8px_18px_rgba(32,20,82,0.18)] backdrop-blur-sm">
+                              18+
+                            </div>
+                            <Text className="!text-sm !font-medium !leading-5 !text-white/88">
+                              Откроется после подтверждения возраста
+                            </Text>
+                          </Flex>
+                        </div>
+                      ) : null}
+                    </div>
                   }
                 >
                   <Flex vertical gap={14}>
                     <Flex gap={8} wrap="wrap">
+                      <Tag
+                        color={post.ageRating === '18+' ? 'volcano' : 'default'}
+                        className="m-0 rounded-full px-3 py-1"
+                      >
+                        {post.ageRating}
+                      </Tag>
                       {post.tags.slice(0, 3).map((tag) => (
                         <Tag key={tag.id} className="m-0 rounded-full border-0 bg-black/5 px-3 py-1">
                           #{tag.name}
@@ -176,6 +202,7 @@ export const Blog = () => {
           ))}
         </Row>
       )}
+      {adultContentModal}
     </Flex>
   );
 };

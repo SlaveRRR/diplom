@@ -113,6 +113,7 @@ class BlogApiTests(APITestCase):
             {
                 'postDraftId': config_payload['data']['postDraftId'],
                 'title': '????? ????',
+                'ageRating': '16+',
                 'tagIds': [self.tag.id],
                 'status': Post.Status.UNDER_REVIEW,
                 'content': {
@@ -163,6 +164,7 @@ class BlogApiTests(APITestCase):
             {
                 'postDraftId': config_payload['data']['postDraftId'],
                 'title': '???? ??? ???????',
+                'ageRating': '16+',
                 'tagIds': [self.tag.id],
                 'status': Post.Status.DRAFT,
                 'content': {
@@ -265,6 +267,7 @@ class BlogApiTests(APITestCase):
                 'postId': post.id,
                 'postDraftId': config_payload['data']['postDraftId'],
                 'title': '??????????? ????????',
+                'ageRating': '18+',
                 'tagIds': [self.tag.id],
                 'status': Post.Status.UNDER_REVIEW,
                 'content': {

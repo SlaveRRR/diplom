@@ -18,6 +18,7 @@ import { Editor, EditorContent, useEditor, useEditorState } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit';
 
 import { colors } from '@constants';
+import { usePlatformTaxonomy } from '@hooks';
 import { useBlogTagsQuery } from '@components/Blog/hooks';
 import { Select } from '@components/shared';
 import { OutletContext } from '@pages/LayoutPage/types';
@@ -69,9 +70,11 @@ export const BlogCreate: FC = () => {
   const docxInputRef = useRef<HTMLInputElement | null>(null);
 
   const { data: tags = [], isLoading: isLoadingTags } = useBlogTagsQuery();
+  const { data: taxonomy, isLoading: isLoadingTaxonomy } = usePlatformTaxonomy();
   const { data: editablePost, isLoading: isLoadingEditablePost } = useEditableBlogPostQuery(postId);
   const mutation = useCreateBlogPostMutation();
   const {
+    ageRating,
     editingPostId,
     coverFile,
     coverPreviewUrl,
@@ -79,6 +82,7 @@ export const BlogCreate: FC = () => {
     inlineImages,
     registerInlineImage,
     reset,
+    setAgeRating,
     setCoverFile,
     setTagIds,
     setTitle,
@@ -124,6 +128,7 @@ export const BlogCreate: FC = () => {
     hydrate({
       postId: editablePost.id,
       title: editablePost.title,
+      ageRating: editablePost.ageRating,
       tagIds: editablePost.tagIds,
       coverPreviewUrl: editablePost.coverUrl || '',
     });
@@ -307,10 +312,16 @@ export const BlogCreate: FC = () => {
       return;
     }
 
+    if (!ageRating) {
+      messageApi.error('Выберите возрастной рейтинг статьи.');
+      return;
+    }
+
     try {
       const createdPost = await mutation.mutateAsync({
         postId: editingPostId,
         title: title.trim(),
+        ageRating,
         tagIds,
         status: targetStatus,
         content: editor.getJSON() as Record<string, unknown>,
@@ -344,7 +355,7 @@ export const BlogCreate: FC = () => {
             <Paragraph className="!mb-0 text-base text-[var(--color-text-secondary)]">
               {editingPostId
                 ? 'Продолжайте работу над черновиком, обновляйте текст и снова сохраняйте его как черновик или отправляйте на модерацию.'
-                : 'Пишите статьи в JSON-редакторе, при желании добавляйте обложку, вставляйте изображения в тело поста и импортируйте черновик из `.docx`.'}
+                : 'Пишите статьи в JSON-редакторе, при желании добавляйте обложку, вставляйте изображения в тело поста и импортируйте черновик из .docx.'}
             </Paragraph>
           </Flex>
           <Flex gap={12} wrap="wrap">
@@ -403,6 +414,18 @@ export const BlogCreate: FC = () => {
                   </Tag>
                 ))}
             </Flex>
+          </Flex>
+
+          <Flex vertical gap={10}>
+            <Text strong>Возрастной рейтинг</Text>
+            <Select
+              isLoading={isLoadingTaxonomy}
+              placeholder="Выберите возрастной рейтинг"
+              value={ageRating}
+              disabled={isLoadingEditablePost}
+              options={taxonomy?.ageRatings}
+              onChange={(value) => setAgeRating(String(value))}
+            />
           </Flex>
         </Flex>
       </Card>

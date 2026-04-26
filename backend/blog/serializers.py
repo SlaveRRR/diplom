@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from comics import services as comic_services
+from comics.models import ComicAgeRating
 
 from blog.models import BlogTag, Post
 
@@ -49,6 +50,7 @@ class PostConfirmRequestSerializer(serializers.Serializer):
     postDraftId = serializers.IntegerField()
     title = serializers.CharField(max_length=255)
     content = serializers.JSONField()
+    ageRating = serializers.ChoiceField(choices=ComicAgeRating.choices)
     status = serializers.ChoiceField(choices=[Post.Status.DRAFT, Post.Status.UNDER_REVIEW])
     tagIds = serializers.ListField(child=serializers.IntegerField(min_value=1), allow_empty=True, default=list)
 
@@ -96,6 +98,7 @@ class BlogPostListItemSerializer(serializers.Serializer):
     excerpt = serializers.CharField(allow_blank=True)
     cover = serializers.CharField(allow_blank=True)
     coverUrl = serializers.CharField(allow_blank=True)
+    ageRating = serializers.CharField(source='age_rating')
     tags = BlogTagSerializer(many=True)
     author = BlogAuthorSerializer()
     commentsCount = serializers.IntegerField()
@@ -108,6 +111,7 @@ class BlogPostDetailSerializer(serializers.Serializer):
     content = serializers.JSONField()
     cover = serializers.CharField(allow_blank=True)
     coverUrl = serializers.CharField(allow_blank=True)
+    ageRating = serializers.CharField(source='age_rating')
     tags = BlogTagSerializer(many=True)
     author = BlogAuthorSerializer()
     comments = BlogCommentSerializer(many=True)
@@ -121,6 +125,7 @@ class BlogPostEditorSerializer(serializers.Serializer):
     content = serializers.JSONField()
     cover = serializers.CharField(allow_blank=True)
     coverUrl = serializers.CharField(allow_blank=True)
+    ageRating = serializers.CharField(source='age_rating')
     tagIds = serializers.ListField(child=serializers.IntegerField(), default=list)
     status = serializers.CharField()
 
@@ -129,6 +134,7 @@ class BlogPostCreateResponseSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     title = serializers.CharField()
     coverUrl = serializers.CharField(allow_blank=True)
+    ageRating = serializers.CharField(source='age_rating')
     status = serializers.CharField()
 
 
@@ -173,6 +179,7 @@ def build_post_list_payload(post, excerpt):
         'excerpt': excerpt,
         'cover': post.cover,
         'coverUrl': comic_services.build_public_media_url(post.cover),
+        'age_rating': post.age_rating,
         'tags': build_post_tags_payload(post),
         'author': build_post_author_payload(post.author),
         'commentsCount': getattr(post, 'comments_total', 0),
@@ -188,6 +195,7 @@ def build_post_detail_payload(post, resolved_content):
         'content': resolved_content,
         'cover': post.cover,
         'coverUrl': comic_services.build_public_media_url(post.cover),
+        'age_rating': post.age_rating,
         'tags': build_post_tags_payload(post),
         'author': build_post_author_payload(post.author),
         'comments': comments,
@@ -203,6 +211,7 @@ def build_post_editor_payload(post, resolved_content):
         'content': resolved_content,
         'cover': post.cover,
         'coverUrl': comic_services.build_public_media_url(post.cover),
+        'age_rating': post.age_rating,
         'tagIds': [tag.id for tag in post.tags.all()],
         'status': post.status,
     }

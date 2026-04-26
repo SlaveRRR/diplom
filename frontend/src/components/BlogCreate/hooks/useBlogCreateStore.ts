@@ -8,15 +8,23 @@ type InlineImageRecord = {
 type BlogCreateState = {
   editingPostId: number | null;
   title: string;
+  ageRating: string;
   tagIds: number[];
   coverFile: File | null;
   coverPreviewUrl: string;
   inlineImages: Record<string, InlineImageRecord>;
   setEditingPostId: (postId: number | null) => void;
   setTitle: (title: string) => void;
+  setAgeRating: (ageRating: string) => void;
   setTagIds: (tagIds: number[]) => void;
   setCoverFile: (file: File | null, previewUrl?: string) => void;
-  hydrate: (payload: { postId: number; title: string; tagIds: number[]; coverPreviewUrl?: string }) => void;
+  hydrate: (payload: {
+    postId: number;
+    title: string;
+    ageRating: string;
+    tagIds: number[];
+    coverPreviewUrl?: string;
+  }) => void;
   registerInlineImage: (uploadId: string, file: File, previewUrl: string) => void;
   removeInlineImage: (uploadId: string) => void;
   reset: () => void;
@@ -31,12 +39,14 @@ const revokeUrl = (url?: string) => {
 export const useBlogCreateStore = create<BlogCreateState>((set, get) => ({
   editingPostId: null,
   title: '',
+  ageRating: '16+',
   tagIds: [],
   coverFile: null,
   coverPreviewUrl: '',
   inlineImages: {},
   setEditingPostId: (editingPostId) => set({ editingPostId }),
   setTitle: (title) => set({ title }),
+  setAgeRating: (ageRating) => set({ ageRating }),
   setTagIds: (tagIds) => set({ tagIds }),
   setCoverFile: (file, previewUrl = '') =>
     set((state) => {
@@ -46,7 +56,7 @@ export const useBlogCreateStore = create<BlogCreateState>((set, get) => ({
         coverPreviewUrl: previewUrl,
       };
     }),
-  hydrate: ({ postId, title, tagIds, coverPreviewUrl = '' }) =>
+  hydrate: ({ postId, title, ageRating, tagIds, coverPreviewUrl = '' }) =>
     set((state) => {
       revokeUrl(state.coverPreviewUrl);
       Object.values(state.inlineImages).forEach((item) => revokeUrl(item.previewUrl));
@@ -54,6 +64,7 @@ export const useBlogCreateStore = create<BlogCreateState>((set, get) => ({
       return {
         editingPostId: postId,
         title,
+        ageRating,
         tagIds,
         coverFile: null,
         coverPreviewUrl,
@@ -93,6 +104,7 @@ export const useBlogCreateStore = create<BlogCreateState>((set, get) => ({
     set({
       editingPostId: null,
       title: '',
+      ageRating: '16+',
       tagIds: [],
       coverFile: null,
       coverPreviewUrl: '',
