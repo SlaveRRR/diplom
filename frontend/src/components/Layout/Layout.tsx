@@ -2,22 +2,20 @@
 import { FC, PropsWithChildren, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  BookOutlined,
-  ClockCircleOutlined,
   CompassOutlined,
-  FireOutlined,
   HeartOutlined,
   HistoryOutlined,
   HomeOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  TeamOutlined,
+  ReadOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 
 import { colors } from '@constants';
 import { useApp } from '@hooks';
 import { buildAuthPath, getCurrentRelativeUrl } from '@utils';
+import { useNotificationsQuery } from '@components/Notifications/hooks';
 
 import {
   drawerStyles,
@@ -42,6 +40,7 @@ export const Layout: FC<PropsWithChildren> = ({ children }) => {
   } = theme.useToken();
 
   const { user, isAuth } = useApp();
+  const { data: notifications } = useNotificationsQuery(isAuth);
   const isReaderRoute = /^\/comics\/[^/]+\/chapters\/[^/]+/.test(location.pathname);
   const signInHref = buildAuthPath('/signin', {
     redirectTo: getCurrentRelativeUrl(location.pathname, location.search, location.hash),
@@ -76,8 +75,16 @@ export const Layout: FC<PropsWithChildren> = ({ children }) => {
       return 'catalog';
     }
 
+    if (location.pathname.startsWith('/blog')) {
+      return 'blog';
+    }
+
     if (location.pathname.startsWith('/favorites')) {
       return 'favorites';
+    }
+
+    if (location.pathname.startsWith('/history')) {
+      return 'history';
     }
 
     if (location.pathname.startsWith('/profile') || location.pathname.startsWith('/account')) {
@@ -91,14 +98,11 @@ export const Layout: FC<PropsWithChildren> = ({ children }) => {
     () => [
       { key: 'home', icon: <HomeOutlined />, label: <Link to="/">Главная</Link> },
       { key: 'catalog', icon: <CompassOutlined />, label: <Link to="/catalog">Каталог</Link> },
-      { key: 'popular', icon: <FireOutlined />, label: 'Популярное' },
-      { key: 'blog', icon: <ClockCircleOutlined />, label: 'Блог' },
-      { key: 'history', icon: <HistoryOutlined />, label: 'История' },
+      { key: 'blog', icon: <ReadOutlined />, label: <Link to="/blog">Блог</Link> },
+      { key: 'history', icon: <HistoryOutlined />, label: <Link to="/history">История</Link> },
       { key: 'favorites', icon: <HeartOutlined />, label: <Link to="/favorites">Избранное</Link> },
-      { key: 'library', icon: <BookOutlined />, label: 'Моя библиотека' },
-      { type: 'divider' as const },
-      { key: 'community', icon: <TeamOutlined />, label: 'Сообщество' },
-      { key: 'profile', icon: <UserOutlined />, label: <Link to={accountHref}>Кабинет</Link> },
+      // { type: 'divider' as const },
+      // { key: 'profile', icon: <UserOutlined />, label: <Link to={accountHref}>Личный кабинет</Link> },
     ],
     [accountHref],
   );
@@ -147,9 +151,11 @@ export const Layout: FC<PropsWithChildren> = ({ children }) => {
 
             <Space size="middle" classNames={{ item: 'inline-flex' }}>
               {isAuth ? (
-                <Badge count={5}>
-                  <NotificationIcon $color={colorTextSecondary} />
-                </Badge>
+                <Link to="/notifications">
+                  <Badge count={notifications?.unreadCount ?? 0} size="small">
+                    <NotificationIcon $color={colorTextSecondary} />
+                  </Badge>
+                </Link>
               ) : null}
 
               {isAuth ? (

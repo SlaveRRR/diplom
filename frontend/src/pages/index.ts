@@ -1,4 +1,7 @@
 export * from './AccountPage';
+export * from './BlogPage';
+export * from './BlogPostPage';
+export * from './CreateBlogPostPage';
 export * from './HomePage';
 export * from './LayoutPage';
 export * from './SignInPage';
@@ -10,3 +13,5 @@ export * from './ComicDetailsPage';
 export * from './ComicReaderPage';
 export * from './ProfilePage';
 export * from './FavoritesPage';
+export * from './NotificationsPage';
+export * from './HistoryPage';

@@ -21,13 +21,26 @@ export interface UserProfileComic {
   cover: string;
   coverUrl: string;
   ageRating: string;
-  status: 'draft' | 'under_review' | 'published';
+  status: 'draft' | 'under_review' | 'published' | 'blocked' | 'revision';
   genre: string | null;
   tags: string[];
   likesCount: number;
   commentsCount: number;
   readersCount: number;
   chaptersCount: number;
+  updatedAt: string;
+  publishedAt: string | null;
+}
+
+export interface UserProfilePost {
+  id: number;
+  title: string;
+  excerpt: string;
+  cover: string;
+  coverUrl: string;
+  status: 'draft' | 'under_review' | 'published' | 'blocked' | 'revision';
+  tags: string[];
+  commentsCount: number;
   updatedAt: string;
   publishedAt: string | null;
 }
@@ -58,6 +71,7 @@ export interface UserAccount {
   followingCount: number;
   publicProfilePath: string;
   comics: UserProfileComic[];
+  posts: UserProfilePost[];
 }
 
 export interface UserProfileUpdatePayload {

@@ -4,11 +4,18 @@ import {
   ACCOUNT_AVATAR_CONFIRM_ENDPOINT,
   ACCOUNT_AVATAR_UPLOAD_CONFIG_ENDPOINT,
   ACCOUNT_ENDPOINT,
+  BLOG_CONFIRM_ENDPOINT,
+  BLOG_POSTS_ENDPOINT,
+  BLOG_TAGS_ENDPOINT,
+  BLOG_UPLOAD_CONFIG_ENDPOINT,
   COMICS_CATALOG_ENDPOINT,
   COMICS_CONFIRM_ENDPOINT,
   COMICS_UPLOAD_CONFIG_ENDPOINT,
   CURRENT_USER_ENDPOINT,
   FAVORITE_COMICS_ENDPOINT,
+  getBlogPostCommentsEndpoint,
+  getBlogPostEditorEndpoint,
+  getBlogPostEndpoint,
   getComicCommentsEndpoint,
   getComicDetailsEndpoint,
   getComicFavoriteEndpoint,
@@ -18,6 +25,9 @@ import {
   getUserFollowEndpoint,
   getUserProfileEndpoint,
   LOGOUT_ENDPOINT,
+  NOTIFICATIONS_ENDPOINT,
+  NOTIFICATIONS_READ_ENDPOINT,
+  READING_HISTORY_ENDPOINT,
   REFRESH_TOKEN_ENDPOINT,
   SIGNIN_ENDPOINT,
   SIGNUP_ENDPOINT,
@@ -31,6 +41,16 @@ import {
   AvatarUploadConfigResponse,
   AvatarUploadConfirmPayload,
   AvatarUploadConfirmResponse,
+  BlogComment,
+  BlogCommentCreatePayload,
+  BlogEditablePost,
+  BlogPostConfirmPayload,
+  BlogPostCreateResponse,
+  BlogPostDetail,
+  BlogPostListItem,
+  BlogPostUploadConfigPayload,
+  BlogPostUploadConfigResponse,
+  BlogTag,
   CatalogComicResponse,
   ComicComment,
   ComicCommentCreatePayload,
@@ -42,6 +62,10 @@ import {
   ComicReadingProgress,
   ComicUploadConfigPayload,
   ComicUploadConfigResponse,
+  NotificationListResponse,
+  NotificationMarkReadPayload,
+  NotificationMarkReadResponse,
+  ReadingHistoryResponse,
   Response,
   SignInParams,
   SignUpParams,
@@ -101,6 +125,18 @@ class Api {
     return axiosInstance.post<Response<AvatarUploadConfirmResponse>>(ACCOUNT_AVATAR_CONFIRM_ENDPOINT, data);
   }
 
+  async getNotifications() {
+    return axiosInstance.get<Response<NotificationListResponse>>(NOTIFICATIONS_ENDPOINT);
+  }
+
+  async markNotificationsRead(data: NotificationMarkReadPayload) {
+    return axiosInstance.post<Response<NotificationMarkReadResponse>>(NOTIFICATIONS_READ_ENDPOINT, data);
+  }
+
+  async getReadingHistory() {
+    return axiosInstance.get<Response<ReadingHistoryResponse>>(READING_HISTORY_ENDPOINT);
+  }
+
   async getUserProfile(userId: string | number) {
     return axiosInstance.get<Response<UserProfile>>(getUserProfileEndpoint(userId));
   }
@@ -123,6 +159,36 @@ class Api {
 
   async getPlatformTaxonomy() {
     return axiosInstance.get<Response<TaxonomyPlatformData>>(TAXONOMY_PLATFORM_ENDPOINT);
+  }
+
+  async getBlogPosts() {
+    return axiosInstance.get<Response<BlogPostListItem[]>>(BLOG_POSTS_ENDPOINT);
+  }
+
+  async getBlogTags() {
+    return axiosInstance.get<Response<BlogTag[]>>(BLOG_TAGS_ENDPOINT);
+  }
+
+  async getBlogPost(postId: string | number, params?: { preview?: boolean }) {
+    return axiosInstance.get<Response<BlogPostDetail>>(getBlogPostEndpoint(postId), {
+      params: params?.preview ? { preview: 'true' } : undefined,
+    });
+  }
+
+  async getEditableBlogPost(postId: string | number) {
+    return axiosInstance.get<Response<BlogEditablePost>>(getBlogPostEditorEndpoint(postId));
+  }
+
+  async getBlogPostUploadConfig(data: BlogPostUploadConfigPayload) {
+    return axiosInstance.post<Response<BlogPostUploadConfigResponse>>(BLOG_UPLOAD_CONFIG_ENDPOINT, data);
+  }
+
+  async confirmBlogPost(data: BlogPostConfirmPayload) {
+    return axiosInstance.post<Response<BlogPostCreateResponse>>(BLOG_CONFIRM_ENDPOINT, data);
+  }
+
+  async createBlogComment(postId: string | number, data: BlogCommentCreatePayload) {
+    return axiosInstance.post<Response<BlogComment>>(getBlogPostCommentsEndpoint(postId), data);
   }
 
   async getComicDetails(comicId: string | number) {

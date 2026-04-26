@@ -1,4 +1,4 @@
-import {
+﻿import {
   Avatar,
   Button,
   Card,
@@ -8,6 +8,7 @@ import {
   Form,
   Input,
   Row,
+  Segmented,
   Skeleton,
   Space,
   Statistic,
@@ -23,6 +24,7 @@ import {
   CommentOutlined,
   EditOutlined,
   EyeOutlined,
+  FileTextOutlined,
   HeartOutlined,
   LinkOutlined,
   LogoutOutlined,
@@ -30,7 +32,7 @@ import {
 } from '@ant-design/icons';
 
 import { colors } from '@constants';
-import { UserProfileComic, UserProfileUpdatePayload } from '@types';
+import { UserProfileComic, UserProfilePost, UserProfileUpdatePayload } from '@types';
 import { useUpdateCurrentProfileMutation } from '@components/Profile/hooks/useUpdateCurrentProfileMutation';
 import { OutletContext } from '@pages/LayoutPage/types';
 
@@ -44,17 +46,48 @@ const roleLabels: Record<string, string> = {
   reader: 'Читатель',
 };
 
-const statusLabels: Record<UserProfileComic['status'], string> = {
+const comicStatusLabels: Record<UserProfileComic['status'], string> = {
   draft: 'Черновик',
   under_review: 'На модерации',
   published: 'Опубликован',
+  blocked: 'Заблокирован',
+  revision: 'На доработке',
 };
 
-const statusColors: Record<UserProfileComic['status'], string> = {
+const comicStatusColors: Record<UserProfileComic['status'], string> = {
   draft: 'default',
   under_review: 'processing',
   published: 'success',
+  blocked: 'error',
+  revision: 'warning',
 };
+
+const postStatusLabels: Record<UserProfilePost['status'], string> = {
+  draft: 'Черновик',
+  under_review: 'На модерации',
+  published: 'Опубликован',
+  blocked: 'Заблокирован',
+  revision: 'На доработке',
+};
+
+const postStatusColors: Record<UserProfilePost['status'], string> = {
+  draft: 'default',
+  under_review: 'processing',
+  published: 'success',
+  blocked: 'error',
+  revision: 'warning',
+};
+
+type PostFilterValue = 'all' | UserProfilePost['status'];
+
+const postFilterOptions: Array<{ value: PostFilterValue; label: string }> = [
+  { value: 'all', label: 'Все' },
+  { value: 'draft', label: 'Черновики' },
+  { value: 'under_review', label: 'Модерация' },
+  { value: 'published', label: 'Опубликованные' },
+  { value: 'revision', label: 'Доработка' },
+  { value: 'blocked', label: 'Заблокированные' },
+];
 
 const formatCount = (value: number) => value.toLocaleString('ru-RU');
 
@@ -75,6 +108,7 @@ export const Account: FC = () => {
   const [form] = Form.useForm<UserProfileUpdatePayload>();
   const [isEditing, setIsEditing] = useState(false);
   const [localAvatarPreview, setLocalAvatarPreview] = useState<string | null>(null);
+  const [postFilter, setPostFilter] = useState<PostFilterValue>('all');
 
   const { data, isLoading, isError } = useAccountQuery();
   const updateProfileMutation = useUpdateCurrentProfileMutation(data?.id);
@@ -104,7 +138,15 @@ export const Account: FC = () => {
 
   const resolvedAvatar = localAvatarPreview || data?.avatar || undefined;
   const authorComics = useMemo(() => data?.comics ?? [], [data?.comics]);
-  const isAuthor = data?.role === 'author';
+  const authorPosts = useMemo(() => data?.posts ?? [], [data?.posts]);
+  const filteredAuthorPosts = useMemo(() => {
+    if (postFilter === 'all') {
+      return authorPosts;
+    }
+
+    return authorPosts.filter((post) => post.status === postFilter);
+  }, [authorPosts, postFilter]);
+  const isCreator = data?.role === 'author' || Boolean(authorComics.length) || Boolean(authorPosts.length);
 
   const handleSaveProfile = async (values: UserProfileUpdatePayload) => {
     try {
@@ -225,7 +267,8 @@ export const Account: FC = () => {
                   <Flex gap={12} wrap="wrap">
                     <AccountMetric label="Подписчики" value={formatCount(data.followersCount)} />
                     <AccountMetric label="Подписки" value={formatCount(data.followingCount)} />
-                    {isAuthor ? <AccountMetric label="Мои комиксы" value={formatCount(authorComics.length)} /> : null}
+                    {isCreator ? <AccountMetric label="Комиксы" value={formatCount(authorComics.length)} /> : null}
+                    {isCreator ? <AccountMetric label="Посты" value={formatCount(authorPosts.length)} /> : null}
                   </Flex>
                 </Flex>
               </Flex>
@@ -252,6 +295,9 @@ export const Account: FC = () => {
                     <Link to="/comics/create">
                       <Button icon={<BookOutlined />}>Создать комикс</Button>
                     </Link>
+                    <Link to="/blog/create">
+                      <Button icon={<FileTextOutlined />}>Создать пост</Button>
+                    </Link>
                     <Button
                       icon={<LogoutOutlined />}
                       danger
@@ -261,11 +307,6 @@ export const Account: FC = () => {
                       Выйти из аккаунта
                     </Button>
                   </Flex>
-
-                  <Text className="text-sm text-[var(--color-text-secondary)]">
-                    Публичный профиль видят все, а кабинет содержит только ваши персональные данные и все работы,
-                    включая черновики.
-                  </Text>
                 </Flex>
               </Card>
             </Col>
@@ -275,13 +316,9 @@ export const Account: FC = () => {
 
       <Card className="border-0 shadow-sm">
         <Flex vertical gap={20}>
-          <Flex justify="space-between" align="center" wrap="wrap" gap={12}>
-            <Flex vertical gap={4}>
-              <Title level={3} className="!mb-0">
-                Личные данные
-              </Title>
-            </Flex>
-          </Flex>
+          <Title level={3} className="!mb-0">
+            Личные данные
+          </Title>
 
           <Form<UserProfileUpdatePayload>
             form={form}
@@ -327,19 +364,14 @@ export const Account: FC = () => {
         </Flex>
       </Card>
 
-      {isAuthor ? (
+      {isCreator ? (
         <Card className="border-0 shadow-sm">
           <Flex vertical gap={20}>
-            <Flex justify="space-between" align="center" wrap="wrap" gap={12}>
-              <Flex vertical gap={4}>
-                <Title level={3} className="!mb-0">
-                  Мои работы
-                </Title>
-                <Text type="secondary">
-                  В кабинете собраны все ваши комиксы, поэтому здесь удобно отслеживать статусы публикации и живые
-                  метрики по каждой работе.
-                </Text>
-              </Flex>
+            <Flex vertical gap={4}>
+              <Title level={3} className="!mb-0">
+                Мои комиксы
+              </Title>
+              <Text type="secondary">Здесь собраны все ваши комиксы, включая черновики и публикации на модерации.</Text>
             </Flex>
 
             {authorComics.length ? (
@@ -360,6 +392,54 @@ export const Account: FC = () => {
           </Flex>
         </Card>
       ) : null}
+
+      {isCreator ? (
+        <Card className="border-0 shadow-sm">
+          <Flex vertical gap={20}>
+            <Flex justify="space-between" align="start" wrap="wrap" gap={12}>
+              <Flex vertical gap={4}>
+                <Title level={3} className="!mb-0">
+                  Мои посты
+                </Title>
+                <Text type="secondary">
+                  В блоге отображаются только опубликованные посты, а здесь видны все статусы: от черновика до доработки
+                  или блокировки.
+                </Text>
+              </Flex>
+
+              <Segmented<PostFilterValue>
+                value={postFilter}
+                onChange={(value) => setPostFilter(value)}
+                options={postFilterOptions}
+              />
+            </Flex>
+
+            {filteredAuthorPosts.length ? (
+              <Row gutter={[16, 16]}>
+                {filteredAuthorPosts.map((post) => (
+                  <Col key={post.id} xs={24} lg={12}>
+                    <AuthorPostCard post={post} />
+                  </Col>
+                ))}
+              </Row>
+            ) : (
+              <Empty
+                description={
+                  authorPosts.length
+                    ? 'По выбранному фильтру постов не найдено.'
+                    : 'Пока нет постов. Первый можно отправить на модерацию из редактора блога.'
+                }
+              >
+                {!authorPosts.length ? (
+                  <Link to="/blog/create">
+                    <Button type="primary">Создать пост</Button>
+                  </Link>
+                ) : null}
+              </Empty>
+            )}
+          </Flex>
+        </Card>
+      ) : null}
     </Flex>
   );
 };
@@ -373,18 +453,24 @@ const AccountMetric: FC<{ label: string; value: string }> = ({ label, value }) =
 const AuthorComicCard: FC<{ comic: UserProfileComic }> = ({ comic }) => (
   <Card className="h-full border border-black/6 shadow-none transition-transform duration-200 hover:-translate-y-0.5">
     <Flex gap={16} align="start" wrap>
-      <img
-        alt={comic.title}
-        src={comic.coverUrl || comic.cover}
-        className="h-32 w-24 rounded-2xl object-cover sm:h-36 sm:w-28"
-      />
+      {comic.coverUrl || comic.cover ? (
+        <img
+          alt={comic.title}
+          src={comic.coverUrl || comic.cover}
+          className="h-32 w-24 rounded-2xl object-cover sm:h-36 sm:w-28"
+        />
+      ) : (
+        <div className="flex h-32 w-24 items-center justify-center rounded-2xl bg-black/[0.04] text-xs text-[var(--color-text-secondary)] sm:h-36 sm:w-28">
+          Нет обложки
+        </div>
+      )}
 
       <Flex vertical gap={12} className="min-w-0 flex-1">
         <Flex justify="space-between" align="start" gap={12} wrap="wrap">
           <Flex vertical gap={8} className="min-w-0">
             <Space wrap>
-              <Tag color={statusColors[comic.status]} className="m-0 rounded-full px-3 py-1 text-xs font-semibold">
-                {statusLabels[comic.status]}
+              <Tag color={comicStatusColors[comic.status]} className="m-0 rounded-full px-3 py-1 text-xs font-semibold">
+                {comicStatusLabels[comic.status]}
               </Tag>
               <Tag className="m-0 rounded-full border-0 bg-black/5 px-3 py-1 text-xs font-semibold">
                 {comic.ageRating}
@@ -422,16 +508,16 @@ const AuthorComicCard: FC<{ comic: UserProfileComic }> = ({ comic }) => (
 
         <Row gutter={[12, 12]}>
           <Col xs={12} sm={8}>
-            <ComicStat icon={<HeartOutlined />} label="Лайки" value={formatCount(comic.likesCount)} />
+            <ItemStat icon={<HeartOutlined />} label="Лайки" value={formatCount(comic.likesCount)} />
           </Col>
           <Col xs={12} sm={8}>
-            <ComicStat icon={<CommentOutlined />} label="Комментарии" value={formatCount(comic.commentsCount)} />
+            <ItemStat icon={<CommentOutlined />} label="Комментарии" value={formatCount(comic.commentsCount)} />
           </Col>
           <Col xs={12} sm={8}>
-            <ComicStat icon={<EyeOutlined />} label="Читатели" value={formatCount(comic.readersCount)} />
+            <ItemStat icon={<EyeOutlined />} label="Читатели" value={formatCount(comic.readersCount)} />
           </Col>
           <Col xs={12} sm={8}>
-            <ComicStat icon={<BookOutlined />} label="Главы" value={formatCount(comic.chaptersCount)} />
+            <ItemStat icon={<BookOutlined />} label="Главы" value={formatCount(comic.chaptersCount)} />
           </Col>
         </Row>
 
@@ -444,7 +530,86 @@ const AuthorComicCard: FC<{ comic: UserProfileComic }> = ({ comic }) => (
   </Card>
 );
 
-const ComicStat: FC<{ icon: ReactNode; label: string; value: string }> = ({ icon, label, value }) => (
+const AuthorPostCard: FC<{ post: UserProfilePost }> = ({ post }) => (
+  <Card className="h-full border border-black/6 shadow-none transition-transform duration-200 hover:-translate-y-0.5">
+    <Flex gap={16} align="start" wrap>
+      {post.coverUrl || post.cover ? (
+        <img
+          alt={post.title}
+          src={post.coverUrl || post.cover}
+          className="h-32 w-24 rounded-2xl object-cover sm:h-36 sm:w-28"
+        />
+      ) : (
+        <div className="flex h-32 w-24 items-center justify-center rounded-2xl bg-black/[0.04] text-xs text-[var(--color-text-secondary)] sm:h-36 sm:w-28">
+          Нет обложки
+        </div>
+      )}
+
+      <Flex vertical gap={12} className="min-w-0 flex-1">
+        <Flex justify="space-between" align="start" gap={12} wrap="wrap">
+          <Flex vertical gap={8} className="min-w-0">
+            <Tag
+              color={postStatusColors[post.status]}
+              className="m-0 w-fit rounded-full px-3 py-1 text-xs font-semibold"
+            >
+              {postStatusLabels[post.status]}
+            </Tag>
+
+            <div>
+              <Title level={4} className="!mb-1" ellipsis={{ rows: 1 }}>
+                {post.title}
+              </Title>
+              <Text type="secondary">
+                {post.status === 'published'
+                  ? `Опубликован: ${formatDate(post.publishedAt)}`
+                  : `Обновлён: ${formatDate(post.updatedAt)}`}
+              </Text>
+            </div>
+          </Flex>
+
+          {post.status === 'published' ? (
+            <Link to={`/blog/${post.id}`}>
+              <Button icon={<LinkOutlined />}>Страница поста</Button>
+            </Link>
+          ) : post.status === 'draft' || post.status === 'revision' ? (
+            <Link to={`/blog/${post.id}/edit`}>
+              <Button icon={<EditOutlined />}>Продолжить редактирование</Button>
+            </Link>
+          ) : (
+            <Tag className="m-0 rounded-full border-0 bg-black/5 px-3 py-1 text-xs">Пока скрыт из блога</Tag>
+          )}
+        </Flex>
+
+        <Paragraph className="!mb-0" type="secondary" ellipsis={{ rows: 4 }}>
+          {post.excerpt || 'Текст поста пока слишком короткий для превью.'}
+        </Paragraph>
+
+        <Flex gap={8} wrap="wrap">
+          {post.tags.length ? (
+            post.tags.map((tag) => (
+              <Tag key={tag} className="m-0 rounded-full border-0 bg-[rgba(46,144,250,0.08)] px-3 py-1">
+                #{tag}
+              </Tag>
+            ))
+          ) : (
+            <Tag className="m-0 rounded-full">Без тегов</Tag>
+          )}
+        </Flex>
+
+        <Row gutter={[12, 12]}>
+          <Col xs={12} sm={8}>
+            <ItemStat icon={<CommentOutlined />} label="Комментарии" value={formatCount(post.commentsCount)} />
+          </Col>
+          <Col xs={12} sm={8}>
+            <ItemStat icon={<FileTextOutlined />} label="Статус" value={postStatusLabels[post.status]} />
+          </Col>
+        </Row>
+      </Flex>
+    </Flex>
+  </Card>
+);
+
+const ItemStat: FC<{ icon: ReactNode; label: string; value: string }> = ({ icon, label, value }) => (
   <Flex vertical gap={4} className="rounded-2xl bg-black/[0.025] p-3">
     <Text type="secondary" className="flex items-center gap-1.5 text-xs">
       {icon}

@@ -102,7 +102,7 @@ export interface ComicDetailsResponse {
   coverUrl: string;
   banner: string;
   bannerUrl: string;
-  status: 'draft' | 'under_review' | 'published';
+  status: 'draft' | 'under_review' | 'published' | 'blocked' | 'revision';
   ageRating: string;
   genre: ComicTaxonomyItem | null;
   tags: ComicTaxonomyItem[];
@@ -145,7 +145,7 @@ export interface CatalogComicResponse {
   reviews: number;
   likesCount: number;
   readersCount: number;
-  status: 'draft' | 'under_review' | 'published';
+  status: 'draft' | 'under_review' | 'published' | 'blocked' | 'revision';
   isNew: boolean;
   isTrending: boolean;
 }

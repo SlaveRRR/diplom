@@ -28,7 +28,8 @@ from comics.serializers import (
     TaxonomyResponseSerializer,
 )
 from core.api import error_response, success_response
-from interactions.models import Comment, ComicFavorite, ComicLike
+from interactions.models import Comment, ComicFavorite, ComicLike, Notification
+from interactions.services import create_notification
 
 AGE_RATING_DESCRIPTIONS = {
     ComicAgeRating.AGE_0: 'Подходит для самого широкого возраста без чувствительных сцен.',
@@ -477,6 +478,20 @@ class ComicCommentCreateView(ComicsAccessMixin, APIView):
             text=serializer.validated_data['text'],
             reply_to=reply_to,
         )
+
+        if comic.author_id != request.user.id:
+            create_notification(
+                user=comic.author,
+                message=f'{request.user.username} оставил комментарий к вашему комиксу «{comic.title}».',
+                notification_type=Notification.Type.INFO,
+            )
+
+        if reply_to and reply_to.user_id not in {request.user.id, comic.author_id}:
+            create_notification(
+                user=reply_to.user,
+                message=f'{request.user.username} ответил на ваш комментарий под комиксом «{comic.title}».',
+                notification_type=Notification.Type.INFO,
+            )
 
         return success_response(ComicCommentSerializer(comment).data, status.HTTP_201_CREATED)
 

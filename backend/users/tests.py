@@ -6,6 +6,7 @@ from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from blog.models import Post
 from comics.models import Comic
 from users.models import AvatarUploadDraft, UserFollow
 
@@ -75,6 +76,18 @@ class UsersApiTests(APITestCase):
             author=author,
             status=Comic.Status.DRAFT,
         )
+        Post.objects.create(
+            title='Published post',
+            content={'type': 'doc', 'content': []},
+            author=author,
+            status=Post.Status.PUBLISHED,
+        )
+        Post.objects.create(
+            title='Post on moderation',
+            content={'type': 'doc', 'content': []},
+            author=author,
+            status=Post.Status.UNDER_REVIEW,
+        )
 
         self.client.force_authenticate(user=author)
         response = self.client.get('/api/v1/account/')
@@ -85,6 +98,8 @@ class UsersApiTests(APITestCase):
         self.assertEqual(payload['data']['publicProfilePath'], f'/profile/{author.id}')
         self.assertEqual(payload['data']['avatar'], 'https://cdn.example.com/users/1/avatars/current.png')
         self.assertEqual(len(payload['data']['comics']), 2)
+        self.assertEqual(len(payload['data']['posts']), 2)
+        self.assertEqual({post['status'] for post in payload['data']['posts']}, {Post.Status.PUBLISHED, Post.Status.UNDER_REVIEW})
 
     def test_public_profile_returns_only_published_comics_for_guest(self):
         author = User.objects.create_user(

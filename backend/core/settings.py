@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'authentication',
+    'blog',
     'comics',
     'interactions',
     'users',
@@ -190,6 +191,7 @@ SPECTACULAR_SETTINGS = {
         {'name': 'Users', 'description': 'Current user profile endpoints'},
         {'name': 'Comics', 'description': 'Comics domain endpoints'},
         {'name': 'Interactions', 'description': 'Comments, likes and favorites endpoints'},
+        {'name': 'Blog', 'description': 'Blog posts, tags, uploads and comments endpoints'},
     ],
 }
 

@@ -97,3 +97,51 @@ class ComicLike(TimeStampedModel):
 
     def __str__(self):
         return f'{self.user} likes {self.comic}'
+
+
+class Notification(TimeStampedModel):
+    class Type(models.TextChoices):
+        INFO = 'info', 'Info'
+        SUCCESS = 'success', 'Success'
+        WARNING = 'warning', 'Warning'
+        ERROR = 'error', 'Error'
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='notifications',
+    )
+    message = models.CharField(max_length=255)
+    type = models.CharField(max_length=16, choices=Type.choices, default=Type.INFO)
+    read_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ('read_at', '-created_at')
+
+    def __str__(self):
+        return f'Notification #{self.pk} for {self.user}'
+
+
+class PostReadingHistory(TimeStampedModel):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='post_reading_history',
+    )
+    post = models.ForeignKey(
+        'blog.Post',
+        on_delete=models.CASCADE,
+        related_name='reading_history',
+    )
+
+    class Meta:
+        ordering = ('-updated_at', '-created_at')
+        constraints = [
+            models.UniqueConstraint(
+                fields=('user', 'post'),
+                name='unique_post_reading_history_per_user',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.user} read {self.post}'

@@ -75,6 +75,8 @@ class Comic(TimeStampedModel):
         DRAFT = 'draft', 'Черновик'
         UNDER_REVIEW = 'under_review', 'На модерации'
         PUBLISHED = 'published', 'Опубликован'
+        BLOCKED = 'blocked', 'Заблокирован'
+        REVISION = 'revision', 'На доработке'
 
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
@@ -292,3 +294,4 @@ class ComicReadingProgress(TimeStampedModel):
 
     def __str__(self):
         return f'{self.user.username} progress for {self.comic.title}'
+

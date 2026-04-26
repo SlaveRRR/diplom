@@ -1,4 +1,4 @@
-﻿from datetime import timedelta
+from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -10,9 +10,12 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 
+from blog.models import Post
 from comics import services
 from comics.models import Comic
 from core.api import error_response, success_response
+from interactions.models import Notification
+from interactions.services import create_notification
 from users.models import AvatarUploadDraft, UserFollow
 from users.serializers import (
     AvatarUploadConfigRequestSerializer,
@@ -23,6 +26,7 @@ from users.serializers import (
     UserAccountSerializer,
     UserFollowToggleSerializer,
     UserProfileComicBuilder,
+    UserProfilePostBuilder,
     UserProfileSerializer,
     UserUpdateSerializer,
 )
@@ -48,8 +52,22 @@ def get_user_comics_queryset(user, include_unpublished=False):
     return comics
 
 
+def get_user_posts_queryset(user, include_unpublished=False):
+    posts = (
+        user.posts.prefetch_related('tags')
+        .annotate(comments_total=Count('comments', distinct=True))
+        .order_by('-updated_at', '-created_at')
+    )
+
+    if not include_unpublished:
+        posts = posts.filter(status=Post.Status.PUBLISHED)
+
+    return posts
+
+
 def build_account_payload(user):
     comics = [UserProfileComicBuilder.build(comic) for comic in get_user_comics_queryset(user, include_unpublished=True)]
+    posts = [UserProfilePostBuilder.build(post) for post in get_user_posts_queryset(user, include_unpublished=True)]
 
     return {
         'id': user.id,
@@ -63,6 +81,7 @@ def build_account_payload(user):
         'followingCount': user.following_relationships.count(),
         'publicProfilePath': f'/profile/{user.id}',
         'comics': comics,
+        'posts': posts,
     }
 
 
@@ -229,6 +248,11 @@ class UserFollowToggleView(APIView):
             is_active = False
         else:
             is_active = True
+            create_notification(
+                user=target_user,
+                message=f'{request.user.username} подписался на вас.',
+                notification_type=Notification.Type.SUCCESS,
+            )
 
         return success_response(
             {

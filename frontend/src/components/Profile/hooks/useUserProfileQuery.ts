@@ -12,7 +12,7 @@ export const useUserProfileQuery = (userId?: string | number) =>
     staleTime: STALE_TIME,
     queryFn: async () => {
       if (!userId) {
-        throw new Error('??????? ???????????? ?? ??????.');
+        throw new Error('Идентификатор пользователя не найден.');
       }
 
       const response = await api.getUserProfile(userId);

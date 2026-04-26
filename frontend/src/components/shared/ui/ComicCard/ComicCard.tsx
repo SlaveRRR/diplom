@@ -11,6 +11,16 @@ const statusLabels: Record<CatalogItem['status'], string> = {
   draft: 'Черновик',
   under_review: 'На модерации',
   published: 'Опубликован',
+  blocked: 'Заблокирован',
+  revision: 'На доработке',
+};
+
+const statusColors: Record<CatalogItem['status'], string> = {
+  draft: 'default',
+  under_review: 'processing',
+  published: 'success',
+  blocked: 'error',
+  revision: 'warning',
 };
 
 type ComicCardProps = {
@@ -100,7 +110,7 @@ export const ComicCard = ({
               ({item.reviews.toLocaleString('ru-RU')})
             </Text>
           </Space>
-          {showStatus ? <Tag color={colors.success[500]}>{statusLabels[item.status]}</Tag> : null}
+          {showStatus ? <Tag color={statusColors[item.status]}>{statusLabels[item.status]}</Tag> : null}
         </Space>
 
         <Space size={4} wrap>

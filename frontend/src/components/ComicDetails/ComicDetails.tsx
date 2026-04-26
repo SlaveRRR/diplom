@@ -1,4 +1,4 @@
-import {
+﻿import {
   Alert,
   Avatar,
   Button,
@@ -59,15 +59,17 @@ const formatDate = (value: string) =>
   }).format(new Date(value));
 
 const roleLabels: Record<string, string> = {
-  admin: 'администратор',
-  author: 'автор',
-  reader: 'читатель',
+  admin: 'Администратор',
+  author: 'Автор',
+  reader: 'Читатель',
 };
 
-const statusLabels: Record<'draft' | 'under_review' | 'published', string> = {
+const statusLabels: Record<'draft' | 'under_review' | 'published' | 'blocked' | 'revision', string> = {
   draft: 'Черновик',
   under_review: 'На модерации',
   published: 'Опубликован',
+  blocked: 'Заблокирован',
+  revision: 'На доработке',
 };
 
 const getChapterPreviewUrl = (chapter: ComicDetailChapter) => chapter.previewUrl || chapter.pageKeys[0] || '';

@@ -121,7 +121,7 @@ export const ComicReader = () => {
     lastSavedPageRef.current = resumePage;
     initializedChapterRef.current = data.chapter.id;
     setIsReaderChromeVisible(!isPreview);
-  }, [data, resumePage]);
+  }, [data, resumePage, isPreview]);
 
   useEffect(() => {
     if (!data || hasInitialScrollRef.current) {

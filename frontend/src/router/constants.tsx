@@ -1,12 +1,17 @@
 import {
   AccountPage,
+  BlogPage,
+  BlogPostPage,
   CatalogPage,
   ComicDetailsPage,
   ComicReaderPage,
+  CreateBlogPostPage,
   CreateComicPage,
   FavoritesPage,
+  HistoryPage,
   HomePage,
   LayoutPage,
+  NotificationsPage,
   ProfilePage,
   SignInPage,
   SignUpPage,
@@ -29,8 +34,36 @@ export const ROUTES: Route[] = [
         page: <CatalogPage />,
       },
       {
+        path: '/blog',
+        page: <BlogPage />,
+      },
+      {
+        path: '/blog/create',
+        page: <CreateBlogPostPage />,
+        privateRoute: true,
+      },
+      {
+        path: '/blog/:postId/edit',
+        page: <CreateBlogPostPage />,
+        privateRoute: true,
+      },
+      {
+        path: '/blog/:postId',
+        page: <BlogPostPage />,
+      },
+      {
         path: '/favorites',
         page: <FavoritesPage />,
+        privateRoute: true,
+      },
+      {
+        path: '/history',
+        page: <HistoryPage />,
+        privateRoute: true,
+      },
+      {
+        path: '/notifications',
+        page: <NotificationsPage />,
         privateRoute: true,
       },
       {

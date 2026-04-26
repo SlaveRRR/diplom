@@ -10,7 +10,7 @@ export const useToggleUserFollowMutation = (userId?: string | number) => {
   return useMutation({
     mutationFn: async () => {
       if (!userId) {
-        throw new Error('??????? ???????????? ?? ??????.');
+        throw new Error('Идентификатор пользователя не найден.');
       }
 
       const response = await api.toggleUserFollow(userId);

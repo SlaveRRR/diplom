@@ -16,6 +16,9 @@ export const CURRENT_USER_ENDPOINT = '/users/me/';
 export const ACCOUNT_ENDPOINT = '/account/';
 export const ACCOUNT_AVATAR_UPLOAD_CONFIG_ENDPOINT = '/account/avatar-upload-config/';
 export const ACCOUNT_AVATAR_CONFIRM_ENDPOINT = '/account/avatar-confirm/';
+export const NOTIFICATIONS_ENDPOINT = '/notifications/';
+export const NOTIFICATIONS_READ_ENDPOINT = '/notifications/read/';
+export const READING_HISTORY_ENDPOINT = '/history/';
 
 export const getUserProfileEndpoint = (userId: string | number) => `/profiles/${userId}/`;
 
@@ -26,6 +29,13 @@ export const COMICS_UPLOAD_CONFIG_ENDPOINT = '/comics/upload-config/';
 export const COMICS_CONFIRM_ENDPOINT = '/comics/confirm/';
 
 export const TAXONOMY_PLATFORM_ENDPOINT = '/taxonomy';
+export const BLOG_POSTS_ENDPOINT = '/posts/';
+export const BLOG_TAGS_ENDPOINT = '/posts/tags/';
+export const BLOG_UPLOAD_CONFIG_ENDPOINT = '/posts/upload-config/';
+export const BLOG_CONFIRM_ENDPOINT = '/posts/confirm/';
+export const getBlogPostEndpoint = (postId: string | number) => `/posts/${postId}/`;
+export const getBlogPostEditorEndpoint = (postId: string | number) => `/posts/${postId}/editor/`;
+export const getBlogPostCommentsEndpoint = (postId: string | number) => `/posts/${postId}/comments/`;
 
 export const getComicDetailsEndpoint = (comicId: string | number) => `/comics/${comicId}/`;
 

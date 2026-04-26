@@ -1,4 +1,7 @@
 export * from './Account';
+export * from './Blog';
+export * from './BlogCreate';
+export * from './BlogPost';
 export * from './Home';
 export * from './Layout';
 export * from './shared';
@@ -10,3 +13,5 @@ export * from './ComicDetails';
 export * from './ComicReader';
 export * from './Profile';
 export * from './Favorites';
+export * from './Notifications';
+export * from './History';

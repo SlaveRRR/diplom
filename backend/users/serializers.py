@@ -1,6 +1,8 @@
-﻿from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
+from blog.models import Post
+from blog.services import build_plain_text_excerpt
 from comics import services
 from comics.models import Comic
 
@@ -78,6 +80,19 @@ class ProfileComicSerializer(serializers.Serializer):
     publishedAt = serializers.DateTimeField(allow_null=True)
 
 
+class ProfilePostSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    title = serializers.CharField()
+    excerpt = serializers.CharField(allow_blank=True)
+    cover = serializers.CharField(allow_blank=True)
+    coverUrl = serializers.CharField(allow_blank=True)
+    status = serializers.CharField()
+    tags = serializers.ListField(child=serializers.CharField(), default=list)
+    commentsCount = serializers.IntegerField()
+    updatedAt = serializers.DateTimeField()
+    publishedAt = serializers.DateTimeField(allow_null=True)
+
+
 class UserProfileSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     username = serializers.CharField()
@@ -104,6 +119,7 @@ class UserAccountSerializer(serializers.Serializer):
     followingCount = serializers.IntegerField()
     publicProfilePath = serializers.CharField()
     comics = ProfileComicSerializer(many=True)
+    posts = ProfilePostSerializer(many=True)
 
 
 class UserFollowToggleSerializer(serializers.Serializer):
@@ -157,4 +173,21 @@ class UserProfileComicBuilder:
             'chaptersCount': getattr(comic, 'chapters_total', 0),
             'updatedAt': comic.updated_at,
             'publishedAt': comic.published_at,
+        }
+
+
+class UserProfilePostBuilder:
+    @staticmethod
+    def build(post: Post):
+        return {
+            'id': post.id,
+            'title': post.title,
+            'excerpt': build_plain_text_excerpt(post.content),
+            'cover': post.cover,
+            'coverUrl': services.build_public_media_url(post.cover),
+            'status': post.status,
+            'tags': [tag.name for tag in post.tags.all()],
+            'commentsCount': getattr(post, 'comments_total', 0),
+            'updatedAt': post.updated_at,
+            'publishedAt': post.published_at,
         }

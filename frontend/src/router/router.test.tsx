@@ -15,6 +15,11 @@ vi.mock('@pages', () => ({
   ProfilePage: () => <></>,
   ComicDetailsPage: () => <></>,
   ComicReaderPage: () => <></>,
+  HistoryPage: () => <></>,
+  NotificationsPage: () => <></>,
+  CreateBlogPostPage: () => <></>,
+  BlogPage: () => <></>,
+  BlogPostPage: () => <></>,
 }));
 
 vi.mock('./utils', () => ({

@@ -12,4 +12,6 @@ urlpatterns = [
     path('api/v1/', include('authentication.urls')),
     path('api/v1/', include('users.urls')),
     path('api/v1/', include('comics.urls')),
+    path('api/v1/', include('blog.urls')),
+    path('api/v1/', include('interactions.urls')),
 ]
