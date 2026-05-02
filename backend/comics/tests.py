@@ -438,6 +438,9 @@ class ComicsApiTests(APITestCase):
         self.assertTrue(payload['data']['isLiked'])
         self.assertEqual(payload['data']['favoritesCount'], 1)
         self.assertTrue(payload['data']['isFavorite'])
+        self.assertEqual(payload['data']['averageRating'], 5.0)
+        self.assertEqual(payload['data']['ratingsCount'], 1)
+        self.assertEqual(payload['data']['userRating'], 5)
         self.assertEqual(payload['data']['chaptersCount'], 1)
         self.assertEqual(
             payload['data']['chapters'][0]['previewUrl'],
@@ -529,6 +532,37 @@ class ComicsApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(payload['data']['isActive'])
         self.assertEqual(payload['data']['count'], 1)
+
+    def test_user_can_rate_comic(self):
+        comic = Comic.objects.create(title='Лунная Башня', author=self.author, genre=self.genre)
+        self.client.force_authenticate(self.reader)
+
+        response = self.client.put(
+            reverse('comic-rating', kwargs={'comic_id': comic.id}),
+            {'value': 4},
+            format='json',
+        )
+        response.render()
+        payload = json.loads(response.content)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(payload['data']['value'], 4)
+        self.assertEqual(payload['data']['averageRating'], 4.0)
+        self.assertEqual(payload['data']['ratingsCount'], 1)
+        self.assertEqual(ComicRating.objects.get(comic=comic, user=self.reader).value, 4)
+
+        response = self.client.put(
+            reverse('comic-rating', kwargs={'comic_id': comic.id}),
+            {'value': 5},
+            format='json',
+        )
+        response.render()
+        payload = json.loads(response.content)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(payload['data']['value'], 5)
+        self.assertEqual(payload['data']['averageRating'], 5.0)
+        self.assertEqual(payload['data']['ratingsCount'], 1)
 
     def test_reader_returns_pages_and_navigation(self):
         comic = Comic.objects.create(title='Лунная Башня', author=self.author, genre=self.genre, status=Comic.Status.PUBLISHED)

@@ -9,6 +9,7 @@
   Form,
   Input,
   List,
+  Rate,
   Row,
   Segmented,
   Skeleton,
@@ -45,6 +46,7 @@ import {
   useComicDetailsQuery,
   useComicFavoriteMutation,
   useComicLikeMutation,
+  useComicRatingMutation,
 } from './hooks';
 import { EpisodeSortOrder } from './types';
 
@@ -124,6 +126,7 @@ export const ComicDetails: FC = () => {
   const likeMutation = useComicLikeMutation(comicId);
   const favoriteMutation = useComicFavoriteMutation(comicId);
   const commentMutation = useComicCommentMutation(comicId);
+  const ratingMutation = useComicRatingMutation(comicId);
   useComicCommentsSocket(comicId);
   const [commentText, setCommentText] = useState('');
   const [replyToComment, setReplyToComment] = useState<ComicComment | null>(null);
@@ -155,6 +158,8 @@ export const ComicDetails: FC = () => {
   const continueReadingChapterId = data?.continueReading?.chapterId ?? null;
   const firstChapterId = data?.chapters[0]?.id ?? null;
   const primaryReaderChapterId = continueReadingChapterId ?? firstChapterId;
+  const averageRating = Number(data?.averageRating ?? 0);
+  const ratingsCount = Number(data?.ratingsCount ?? 0);
 
   const openReader = (chapterId: number) => {
     navigate(`/comics/${data?.id}/chapters/${chapterId}`);
@@ -220,6 +225,20 @@ export const ComicDetails: FC = () => {
       messageApi.success('Ссылка на комикс скопирована.');
     } catch {
       messageApi.error('Не удалось скопировать ссылку.');
+    }
+  };
+
+  const handleRateComic = async (value: number) => {
+    if (!isAuth) {
+      redirectToAuth('rate');
+      return;
+    }
+
+    try {
+      await ratingMutation.mutateAsync(value);
+      messageApi.success('Оценка сохранена.');
+    } catch (error) {
+      messageApi.error(error instanceof Error ? error.message : 'Не удалось сохранить оценку.');
     }
   };
 
@@ -381,6 +400,28 @@ export const ComicDetails: FC = () => {
                     </Col>
                   ))}
                 </Row>
+
+                <Card className="border-0 bg-white/8 shadow-none backdrop-blur-sm" styles={{ body: { padding: 16 } }}>
+                  <Flex vertical gap={8}>
+                    <Flex justify="space-between" align="center" gap={12} wrap="wrap">
+                      <Text className="text-white/64">Рейтинг читателей</Text>
+                      <Text className="text-white/64">
+                        {averageRating.toFixed(1)} из 5 • {formatCount(ratingsCount)} оценок
+                      </Text>
+                    </Flex>
+                    <Rate
+                      allowClear={false}
+                      value={data.userRating ?? 0}
+                      onChange={(value) => void handleRateComic(value)}
+                      disabled={ratingMutation.isLoading}
+                    />
+                    <Text className="text-white/64">
+                      {data.userRating
+                        ? `Ваша оценка: ${data.userRating}/5`
+                        : 'Поставьте оценку, чтобы помочь другим читателям.'}
+                    </Text>
+                  </Flex>
+                </Card>
               </Flex>
             </Col>
 

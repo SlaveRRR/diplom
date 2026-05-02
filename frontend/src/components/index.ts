@@ -15,3 +15,4 @@ export * from './Profile';
 export * from './Favorites';
 export * from './Notifications';
 export * from './History';
+export * from './Analytics';

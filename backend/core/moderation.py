@@ -3,6 +3,8 @@ import os
 from django.conf import settings
 from django.core.mail import send_mail
 
+from analytics.models import AnalyticsEvent
+from analytics.services import record_content_event
 from interactions.models import Notification
 from interactions.services import create_notification
 
@@ -87,4 +89,16 @@ def notify_moderation_result(*, user, item_label: str, title: str, status: str, 
         settings.DEFAULT_FROM_EMAIL,
         [user.email],
         fail_silently=False,
+    )
+
+
+def record_publication_event(*, user, item_label: str, object_id: int, title: str):
+    content_kind = AnalyticsEvent.ContentKind.COMIC if item_label == 'комикс' else AnalyticsEvent.ContentKind.POST
+    record_content_event(
+        owner=user,
+        actor=user,
+        content_kind=content_kind,
+        object_id=object_id,
+        title_snapshot=title,
+        event_type=AnalyticsEvent.EventType.PUBLICATION,
     )

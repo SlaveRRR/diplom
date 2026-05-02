@@ -31,6 +31,10 @@ export const message = {
   useMessage: () => [{}, <div data-testid="context-holder" />],
 };
 
+export const notification = {
+  useNotification: () => [{}, <></>],
+};
+
 export const ConfigProvider: FC<PropsWithChildren> = ({ children }) => <div>{children}</div>;
 
 export const Avatar = ({ children }) => <div data-testid="avatar">{children}</div>;

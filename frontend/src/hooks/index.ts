@@ -6,3 +6,4 @@ export * from './useLocalStorage';
 export * from './useRequireAuthAction';
 export * from './useTheme';
 export * from './usePlatformTaxonomy';
+export * from './usePageOnboarding';

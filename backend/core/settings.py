@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'authentication',
+    'analytics',
     'blog',
     'comics',
     'interactions',
@@ -148,8 +149,9 @@ SOCIALACCOUNT_ADAPTER = 'authentication.adapters.SocialAccountAdapter'
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.getenv('EMAIL_HOST', '')
-EMAIL_PORT = 465
-EMAIL_USE_SSL = True
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '465'))
+EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'true').lower() == 'true'
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'false').lower() == 'true'
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
@@ -200,6 +202,7 @@ SPECTACULAR_SETTINGS = {
         {'name': 'Comics', 'description': 'Comics domain endpoints'},
         {'name': 'Interactions', 'description': 'Comments, likes and favorites endpoints'},
         {'name': 'Blog', 'description': 'Blog posts, tags, uploads and comments endpoints'},
+        {'name': 'Analytics', 'description': 'Author analytics dashboard and report export endpoints'},
     ],
 }
 

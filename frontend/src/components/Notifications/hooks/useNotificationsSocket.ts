@@ -12,6 +12,10 @@ type NotificationSocketMessage = {
   unreadCount: number;
 };
 
+type UseNotificationsSocketOptions = {
+  onCreated?: (notification: NotificationItem) => void;
+};
+
 const readStoredToken = () => {
   const rawToken = window.localStorage.getItem(LS_ACCESS_TOKEN);
 
@@ -51,8 +55,9 @@ const mergeNotification = (
   };
 };
 
-export const useNotificationsSocket = (enabled: boolean) => {
+export const useNotificationsSocket = (enabled: boolean, options?: UseNotificationsSocketOptions) => {
   const queryClient = useQueryClient();
+  const onCreated = options?.onCreated;
 
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') {
@@ -83,6 +88,7 @@ export const useNotificationsSocket = (enabled: boolean) => {
           queryClient.setQueryData<NotificationListResponse | undefined>([NOTIFICATIONS_QUERY_KEY], (currentData) =>
             mergeNotification(currentData, payload.notification, payload.unreadCount),
           );
+          onCreated?.(payload.notification);
         } catch {
           queryClient.invalidateQueries([NOTIFICATIONS_QUERY_KEY]);
         }
@@ -112,5 +118,5 @@ export const useNotificationsSocket = (enabled: boolean) => {
 
       socket?.close();
     };
-  }, [enabled, queryClient]);
+  }, [enabled, onCreated, queryClient]);
 };

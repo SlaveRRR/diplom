@@ -4,6 +4,8 @@ import {
   ACCOUNT_AVATAR_CONFIRM_ENDPOINT,
   ACCOUNT_AVATAR_UPLOAD_CONFIG_ENDPOINT,
   ACCOUNT_ENDPOINT,
+  ANALYTICS_ENDPOINT,
+  ANALYTICS_EXPORT_ENDPOINT,
   BLOG_CONFIRM_ENDPOINT,
   BLOG_POSTS_ENDPOINT,
   BLOG_TAGS_ENDPOINT,
@@ -20,6 +22,7 @@ import {
   getComicDetailsEndpoint,
   getComicFavoriteEndpoint,
   getComicLikeEndpoint,
+  getComicRatingEndpoint,
   getComicReaderEndpoint,
   getComicReadingProgressEndpoint,
   getUserFollowEndpoint,
@@ -38,6 +41,8 @@ import {
 } from '@constants';
 import {
   AccesTokenResponse,
+  AnalyticsQueryParams,
+  AnalyticsResponse,
   AvatarUploadConfigPayload,
   AvatarUploadConfigResponse,
   AvatarUploadConfirmPayload,
@@ -59,6 +64,7 @@ import {
   ComicConfirmResponse,
   ComicDetailsResponse,
   ComicInteractionResponse,
+  ComicRatingResponse,
   ComicReaderResponse,
   ComicReadingProgress,
   ComicUploadConfigPayload,
@@ -130,6 +136,17 @@ class Api {
 
   async getNotifications() {
     return axiosInstance.get<Response<NotificationListResponse>>(NOTIFICATIONS_ENDPOINT);
+  }
+
+  async getAnalytics(params: AnalyticsQueryParams) {
+    return axiosInstance.get<Response<AnalyticsResponse>>(ANALYTICS_ENDPOINT, { params });
+  }
+
+  async exportAnalytics(params: AnalyticsQueryParams) {
+    return axiosInstance.get(ANALYTICS_EXPORT_ENDPOINT, {
+      params,
+      responseType: 'blob',
+    });
   }
 
   async markNotificationsRead(data: NotificationMarkReadPayload) {
@@ -220,6 +237,10 @@ class Api {
 
   async toggleComicLike(comicId: string | number) {
     return axiosInstance.post<Response<ComicInteractionResponse>>(getComicLikeEndpoint(comicId));
+  }
+
+  async rateComic(comicId: string | number, value: number) {
+    return axiosInstance.put<Response<ComicRatingResponse>>(getComicRatingEndpoint(comicId), { value });
   }
 
   async getComicReader(comicId: string | number, chapterId: string | number) {

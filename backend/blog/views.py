@@ -35,6 +35,8 @@ from blog.services import (
     collect_post_image_sources,
     resolve_post_content_media,
 )
+from analytics.models import AnalyticsEvent
+from analytics.services import record_content_event
 from comics.services import build_public_media_url
 from core.api import error_response, success_response
 from interactions.models import Comment, Notification, PostReadingHistory
@@ -91,6 +93,16 @@ class BlogPostDetailView(APIView):
                 user=request.user,
                 post=post,
                 defaults={},
+            )
+
+        if not is_preview:
+            record_content_event(
+                owner=post.author,
+                actor=request.user if request.user.is_authenticated else None,
+                content_kind=AnalyticsEvent.ContentKind.POST,
+                object_id=post.id,
+                title_snapshot=post.title,
+                event_type=AnalyticsEvent.EventType.VIEW,
             )
 
         payload = build_post_detail_payload(post, resolve_post_content_media(post.content))
@@ -292,6 +304,15 @@ class BlogCommentCreateView(BlogAccessMixin, APIView):
             content_object=post,
             text=serializer.validated_data['text'],
             reply_to=reply_to,
+        )
+
+        record_content_event(
+            owner=post.author,
+            actor=request.user,
+            content_kind=AnalyticsEvent.ContentKind.POST,
+            object_id=post.id,
+            title_snapshot=post.title,
+            event_type=AnalyticsEvent.EventType.COMMENT,
         )
 
         if post.author_id != request.user.id:

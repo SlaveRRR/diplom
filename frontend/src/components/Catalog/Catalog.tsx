@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { colors } from '@constants';
-import { useAdultContentGate, usePlatformTaxonomy } from '@hooks';
+import { useAdultContentGate, usePageOnboarding, usePlatformTaxonomy } from '@hooks';
 import { CatalogItem } from '@components/Catalog/hooks/useCatalogStore/types';
 import { ComicCard, ComicCardSkeleton, Select } from '@components/shared';
 
@@ -29,22 +29,14 @@ export const Catalog = () => {
   const [genreId, setGenreId] = useState<SelectValue>();
   const [tagIds, setTagIds] = useState<SelectValue[]>([]);
   const [sort, setSort] = useState<SortKey>('popular');
-  const [isTourOpen, setIsTourOpen] = useState(false);
 
   const searchRef = useRef<HTMLDivElement | null>(null);
   const filtersRef = useRef<HTMLDivElement | null>(null);
   const carouselRef = useRef<HTMLDivElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const firstVisitKey = 'catalog_onboarding_shown';
-    const isShown = window.sessionStorage.getItem(firstVisitKey);
-
-    if (!isShown) {
-      setIsTourOpen(true);
-      window.sessionStorage.setItem(firstVisitKey, 'true');
-    }
-  }, []);
+  const { isOpen: isTourOpen, close: closeTour } = usePageOnboarding({
+    storageKey: 'catalog_onboarding_shown',
+  });
 
   useEffect(() => {
     const genreParam = searchParams.get('genre');
@@ -342,7 +334,7 @@ export const Catalog = () => {
         </Space>
       </section>
 
-      <Tour open={isTourOpen} onClose={() => setIsTourOpen(false)} steps={tourSteps} />
+      <Tour open={isTourOpen} onClose={closeTour} steps={tourSteps} />
       {adultContentModal}
     </>
   );

@@ -1,5 +1,6 @@
 import {
   AccountPage,
+  AnalyticsPage,
   BlogPage,
   BlogPostPage,
   CatalogPage,
@@ -65,6 +66,11 @@ export const ROUTES: Route[] = [
       {
         path: '/notifications',
         page: <NotificationsPage />,
+        privateRoute: true,
+      },
+      {
+        path: '/analytics',
+        page: <AnalyticsPage />,
         privateRoute: true,
       },
       {

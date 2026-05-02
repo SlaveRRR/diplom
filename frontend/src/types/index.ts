@@ -6,3 +6,4 @@ export * from './user';
 export * from './theme';
 export * from './common';
 export * from './activity';
+export * from './analytics';

@@ -78,6 +78,16 @@ class ComicInteractionResponseSerializer(serializers.Serializer):
     count = serializers.IntegerField()
 
 
+class ComicRatingRequestSerializer(serializers.Serializer):
+    value = serializers.IntegerField(min_value=1, max_value=5)
+
+
+class ComicRatingResponseSerializer(serializers.Serializer):
+    value = serializers.IntegerField()
+    averageRating = serializers.FloatField()
+    ratingsCount = serializers.IntegerField()
+
+
 class TaxonomyItemSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     name = serializers.CharField()
@@ -201,6 +211,9 @@ class ComicDetailSerializer(serializers.Serializer):
     isLiked = serializers.BooleanField()
     favoritesCount = serializers.IntegerField()
     isFavorite = serializers.BooleanField()
+    averageRating = serializers.FloatField()
+    ratingsCount = serializers.IntegerField()
+    userRating = serializers.IntegerField(allow_null=True)
     commentsCount = serializers.IntegerField()
     readersCount = serializers.IntegerField()
     chaptersCount = serializers.IntegerField()

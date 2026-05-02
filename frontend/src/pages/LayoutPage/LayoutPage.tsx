@@ -1,15 +1,19 @@
-import { Layout } from '@components';
-import { message } from 'antd';
+import { message, notification } from 'antd';
 import { Outlet } from 'react-router-dom';
+
+import { Layout } from '@components';
 
 import { OutletContext } from './types';
 
 export const LayoutPage = () => {
   const [messageApi, contextHolder] = message.useMessage();
+  const [notificationApi, notificationContextHolder] = notification.useNotification();
+
   return (
-    <Layout>
+    <Layout notificationApi={notificationApi}>
       {contextHolder}
-      <Outlet context={{ messageApi } satisfies OutletContext} />
+      {notificationContextHolder}
+      <Outlet context={{ messageApi, notificationApi } satisfies OutletContext} />
     </Layout>
   );
 };

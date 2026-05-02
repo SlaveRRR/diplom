@@ -1,7 +1,8 @@
 ﻿import { Badge, Button, Drawer, Space, theme } from 'antd';
-import { FC, PropsWithChildren, useEffect, useMemo, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { FC, PropsWithChildren, useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
+  BarChartOutlined,
   CompassOutlined,
   HeartOutlined,
   HistoryOutlined,
@@ -11,10 +12,13 @@ import {
   ReadOutlined,
   UserOutlined,
 } from '@ant-design/icons';
+import { NotificationInstance } from 'antd/es/notification/interface';
 
 import { colors } from '@constants';
 import { useApp } from '@hooks';
+import { NotificationItem } from '@types';
 import { buildAuthPath, getCurrentRelativeUrl } from '@utils';
+import { useAccountQuery } from '@components/Account/hooks/useAccountQuery';
 import { useNotificationsQuery, useNotificationsSocket } from '@components/Notifications/hooks';
 
 import {
@@ -30,8 +34,20 @@ import {
   UserAvatar,
 } from './styled';
 
-export const Layout: FC<PropsWithChildren> = ({ children }) => {
+type LayoutProps = PropsWithChildren<{
+  notificationApi: NotificationInstance;
+}>;
+
+const notificationTitles: Record<NotificationItem['type'], string> = {
+  info: 'Новое уведомление',
+  success: 'Хорошая новость',
+  warning: 'Требуется внимание',
+  error: 'Важное уведомление',
+};
+
+export const Layout: FC<LayoutProps> = ({ children, notificationApi }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
@@ -40,13 +56,34 @@ export const Layout: FC<PropsWithChildren> = ({ children }) => {
   } = theme.useToken();
 
   const { user, isAuth } = useApp();
+  const { data: account } = useAccountQuery(isAuth);
   const { data: notifications } = useNotificationsQuery(isAuth);
-  useNotificationsSocket(isAuth);
+
+  const handleNotificationCreated = useCallback(
+    (item: NotificationItem) => {
+      notificationApi.open({
+        key: `notification-${item.id}`,
+        message: notificationTitles[item.type] ?? 'Новое уведомление',
+        description: item.message,
+        placement: 'topRight',
+        duration: 5,
+        showProgress: true,
+        onClick: () => navigate(item.link || '/notifications'),
+        classNames: { root: 'cursor-pointer' },
+      });
+    },
+    [navigate, notificationApi],
+  );
+
+  useNotificationsSocket(isAuth, {
+    onCreated: handleNotificationCreated,
+  });
+
+  const hasAnalyticsAccess = Boolean(account && ((account.comics?.length ?? 0) || (account.posts?.length ?? 0)));
   const isReaderRoute = /^\/comics\/[^/]+\/chapters\/[^/]+/.test(location.pathname);
   const signInHref = buildAuthPath('/signin', {
     redirectTo: getCurrentRelativeUrl(location.pathname, location.search, location.hash),
   });
-  const accountHref = isAuth ? '/account' : signInHref;
 
   useEffect(() => {
     const handleResize = () => {
@@ -92,6 +129,10 @@ export const Layout: FC<PropsWithChildren> = ({ children }) => {
       return 'profile';
     }
 
+    if (location.pathname.startsWith('/analytics')) {
+      return 'analytics';
+    }
+
     return '';
   }, [location.pathname]);
 
@@ -100,19 +141,20 @@ export const Layout: FC<PropsWithChildren> = ({ children }) => {
       { key: 'home', icon: <HomeOutlined />, label: <Link to="/">Главная</Link> },
       { key: 'catalog', icon: <CompassOutlined />, label: <Link to="/catalog">Каталог</Link> },
       { key: 'blog', icon: <ReadOutlined />, label: <Link to="/blog">Блог</Link> },
+      ...(hasAnalyticsAccess
+        ? [{ key: 'analytics', icon: <BarChartOutlined />, label: <Link to="/analytics">Аналитика</Link> }]
+        : []),
       { key: 'history', icon: <HistoryOutlined />, label: <Link to="/history">История</Link> },
       { key: 'favorites', icon: <HeartOutlined />, label: <Link to="/favorites">Избранное</Link> },
-      // { type: 'divider' as const },
-      // { key: 'profile', icon: <UserOutlined />, label: <Link to={accountHref}>Личный кабинет</Link> },
     ],
-    [accountHref],
+    [hasAnalyticsAccess],
   );
 
   const menuContent = () => <NavigationMenu mode="inline" selectedKeys={[selectedKey]} items={menuItems} />;
 
   return (
     <RootLayout>
-      {!isReaderRoute && !isMobile && (
+      {!isReaderRoute && !isMobile ? (
         <Sidebar
           collapsible
           collapsed={collapsed}
@@ -124,7 +166,7 @@ export const Layout: FC<PropsWithChildren> = ({ children }) => {
         >
           {menuContent()}
         </Sidebar>
-      )}
+      ) : null}
 
       {!isReaderRoute ? (
         <Drawer

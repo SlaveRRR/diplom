@@ -13,3 +13,4 @@ boto3==1.38.46
 django-allauth[headless,socialaccount]==65.15.1
 Django-Verify-Email==3.0.3
 daphne==4.2.1
+openpyxl==3.1.5

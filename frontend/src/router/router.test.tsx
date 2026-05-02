@@ -21,6 +21,7 @@ vi.mock('@pages', () => ({
   BlogPage: () => <></>,
   BlogPostPage: () => <></>,
   UserAgreementPage: () => <></>,
+  AnalyticsPage: () => <></>,
 }));
 
 vi.mock('./utils', () => ({

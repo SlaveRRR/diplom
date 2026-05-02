@@ -111,6 +111,9 @@ export interface ComicDetailsResponse {
   isLiked: boolean;
   favoritesCount: number;
   isFavorite: boolean;
+  averageRating: number;
+  ratingsCount: number;
+  userRating: number | null;
   commentsCount: number;
   readersCount: number;
   chaptersCount: number;
@@ -122,6 +125,12 @@ export interface ComicDetailsResponse {
 export interface ComicInteractionResponse {
   isActive: boolean;
   count: number;
+}
+
+export interface ComicRatingResponse {
+  value: number;
+  averageRating: number;
+  ratingsCount: number;
 }
 
 export interface ComicCommentCreatePayload {

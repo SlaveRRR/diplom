@@ -1,7 +1,7 @@
 from django.contrib import admin, messages
 from django.utils import timezone
 
-from core.moderation import MODERATION_STATUS_LABELS, notify_moderation_result
+from core.moderation import MODERATION_STATUS_LABELS, notify_moderation_result, record_publication_event
 
 
 class ModerationAdminMixin(admin.ModelAdmin):
@@ -33,6 +33,13 @@ class ModerationAdminMixin(admin.ModelAdmin):
 
         if getattr(obj, 'status', None) == 'published':
             self.after_publish(obj)
+            if previous_status != obj.status:
+                record_publication_event(
+                    user=obj.author,
+                    item_label=self.moderation_item_label,
+                    object_id=obj.id,
+                    title=obj.title,
+                )
 
         if not change or previous_status == obj.status or obj.status not in {'published', 'revision', 'blocked'}:
             return

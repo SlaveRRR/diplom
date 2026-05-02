@@ -10,8 +10,10 @@ from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 
 from comics import services
-from comics.models import Chapter, ChapterUploadDraft, Comic, ComicAgeRating, ComicUploadDraft, Genre, Tag, UploadDraftStatus
+from comics.models import Chapter, ChapterUploadDraft, Comic, ComicAgeRating, ComicRating, ComicUploadDraft, Genre, Tag, UploadDraftStatus
 from comics.models import ComicReadingProgress, ComicStats
+from analytics.models import AnalyticsEvent
+from analytics.services import record_content_event
 from comics.serializers import (
     ComicCommentCreateSerializer,
     ComicCommentSerializer,
@@ -23,6 +25,8 @@ from comics.serializers import (
     ComicInteractionResponseSerializer,
     ComicReaderSerializer,
     ComicReadingProgressUpdateSerializer,
+    ComicRatingRequestSerializer,
+    ComicRatingResponseSerializer,
     ComicUploadConfigRequestSerializer,
     ComicUploadConfigResponseSerializer,
     TaxonomyResponseSerializer,
@@ -313,13 +317,17 @@ class ComicDetailView(APIView):
         comments = list(comic.comments.order_by('-created_at'))
         like_count = comic.likes.count()
         favorite_count = comic.favorites.count()
+        ratings_count = comic.ratings.count()
+        average_rating = comic.ratings.aggregate(value=Avg('value'))['value'] or 0
         comment_count = len(comments)
         is_liked = request.user.is_authenticated and comic.likes.filter(user=request.user).exists()
         is_favorite = request.user.is_authenticated and comic.favorites.filter(user=request.user).exists()
         continue_reading = None
+        user_rating = None
 
         if request.user.is_authenticated:
             continue_reading = ComicReadingProgress.objects.filter(user=request.user, comic=comic).first()
+            user_rating = comic.ratings.filter(user=request.user).values_list('value', flat=True).first()
 
         chapters = [
             {
@@ -377,6 +385,9 @@ class ComicDetailView(APIView):
             'isLiked': is_liked,
             'favoritesCount': favorite_count,
             'isFavorite': is_favorite,
+            'averageRating': round(float(average_rating), 2),
+            'ratingsCount': ratings_count,
+            'userRating': user_rating,
             'commentsCount': comment_count,
             'readersCount': comic.stats.unique_readers if hasattr(comic, 'stats') else 0,
             'chaptersCount': len(chapters),
@@ -479,6 +490,19 @@ class ComicCommentCreateView(ComicsAccessMixin, APIView):
             reply_to=reply_to,
         )
 
+        record_content_event(
+            owner=comic.author,
+            actor=request.user,
+            content_kind=AnalyticsEvent.ContentKind.COMIC,
+            object_id=comic.id,
+            title_snapshot=comic.title,
+            event_type=AnalyticsEvent.EventType.COMMENT,
+        )
+
+        comic_stats, _ = ComicStats.objects.get_or_create(comic=comic)
+        comic_stats.comments_count = comic.comments.count()
+        comic_stats.save(update_fields=['comments_count'])
+
         if comic.author_id != request.user.id:
             create_notification(
                 user=comic.author,
@@ -522,6 +546,18 @@ class ComicFavoriteToggleView(ComicsAccessMixin, APIView):
             is_active = False
         else:
             is_active = True
+            record_content_event(
+                owner=comic.author,
+                actor=request.user,
+                content_kind=AnalyticsEvent.ContentKind.COMIC,
+                object_id=comic.id,
+                title_snapshot=comic.title,
+                event_type=AnalyticsEvent.EventType.FAVORITE,
+            )
+
+        comic_stats, _ = ComicStats.objects.get_or_create(comic=comic)
+        comic_stats.favorites_count = comic.favorites.count()
+        comic_stats.save(update_fields=['favorites_count'])
 
         return success_response(
             {
@@ -551,11 +587,53 @@ class ComicLikeToggleView(ComicsAccessMixin, APIView):
             is_active = False
         else:
             is_active = True
+            record_content_event(
+                owner=comic.author,
+                actor=request.user,
+                content_kind=AnalyticsEvent.ContentKind.COMIC,
+                object_id=comic.id,
+                title_snapshot=comic.title,
+                event_type=AnalyticsEvent.EventType.LIKE,
+            )
 
         return success_response(
             {
                 'isActive': is_active,
                 'count': comic.likes.count(),
+            },
+            status.HTTP_200_OK,
+        )
+
+
+class ComicRatingView(ComicsAccessMixin, APIView):
+    @extend_schema(
+        tags=['Interactions'],
+        request=ComicRatingRequestSerializer,
+        responses={200: ComicRatingResponseSerializer},
+        summary='Create or update rating for comic',
+    )
+    def put(self, request, comic_id):
+        access_error = self.ensure_authenticated(request.user)
+        if access_error:
+            return access_error
+
+        comic = get_object_or_404(Comic, id=comic_id)
+        serializer = ComicRatingRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        rating, _ = ComicRating.objects.update_or_create(
+            comic=comic,
+            user=request.user,
+            defaults={'value': serializer.validated_data['value']},
+        )
+
+        average_rating = comic.ratings.aggregate(value=Avg('value'))['value'] or 0
+
+        return success_response(
+            {
+                'value': rating.value,
+                'averageRating': round(float(average_rating), 2),
+                'ratingsCount': comic.ratings.count(),
             },
             status.HTTP_200_OK,
         )
@@ -589,6 +667,18 @@ class ComicReaderView(APIView):
             progress = ComicReadingProgress.objects.filter(user=request.user, comic=comic).first()
             is_liked = comic.likes.filter(user=request.user).exists()
             is_favorite = comic.favorites.filter(user=request.user).exists()
+
+        comic_stats, _ = ComicStats.objects.get_or_create(comic=comic)
+        comic_stats.views += 1
+        comic_stats.save(update_fields=['views'])
+        record_content_event(
+            owner=comic.author,
+            actor=request.user if request.user.is_authenticated else None,
+            content_kind=AnalyticsEvent.ContentKind.COMIC,
+            object_id=comic.id,
+            title_snapshot=comic.title,
+            event_type=AnalyticsEvent.EventType.VIEW,
+        )
 
         payload = {
             'comicId': comic.id,

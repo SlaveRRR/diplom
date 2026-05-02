@@ -6,7 +6,7 @@ const AUTH_PENDING_REDIRECT_STORAGE_KEY = 'auth-pending-redirect';
 // иначе после входа можно случайно зациклить flow.
 const AUTH_PAGES = new Set(['/signin', '/signup']);
 
-export type AuthIntent = 'comment' | 'favorite' | 'follow' | 'like' | 'create' | 'library' | 'profile';
+export type AuthIntent = 'comment' | 'favorite' | 'follow' | 'like' | 'rate' | 'create' | 'library' | 'profile';
 
 const intentLabels: Record<AuthIntent, string> = {
   comment: 'оставить комментарий',
@@ -15,6 +15,7 @@ const intentLabels: Record<AuthIntent, string> = {
   follow: 'подписаться на автора',
   library: 'открыть личную библиотеку',
   like: 'поставить лайк',
+  rate: 'оставить оценку',
   profile: 'перейти в личный кабинет',
 };
 

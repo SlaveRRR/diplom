@@ -58,17 +58,17 @@ export const ComicCard = ({
   };
 
   const card = (
-    <Card
-      hoverable
-      style={{ borderRadius: borderRadiusLG, overflow: 'hidden', background: background || colorBgContainer }}
-      cover={
-        <div
-          style={{
-            padding: 12,
-            background: `linear-gradient(135deg, ${colors.surface.infoSubtle}, ${colors.surface.brandSubtle})`,
-          }}
-        >
-          <Link to={href} onClick={handleProtectedLinkClick}>
+    <Link to={href} onClick={handleProtectedLinkClick}>
+      <Card
+        hoverable
+        style={{ borderRadius: borderRadiusLG, overflow: 'hidden', background: background || colorBgContainer }}
+        cover={
+          <div
+            style={{
+              padding: 12,
+              background: `linear-gradient(135deg, ${colors.surface.infoSubtle}, ${colors.surface.brandSubtle})`,
+            }}
+          >
             <div
               style={{
                 position: 'relative',
@@ -99,14 +99,12 @@ export const ComicCard = ({
                 </div>
               ) : null}
             </div>
-          </Link>
-        </div>
-      }
-    >
-      <Space direction="vertical" size={10} style={{ width: '100%' }}>
-        <Space align="baseline" style={{ justifyContent: 'space-between', width: '100%' }}>
-          <Space direction="vertical" size={4}>
-            <Link to={href} onClick={handleProtectedLinkClick}>
+          </div>
+        }
+      >
+        <Space direction="vertical" size={10} style={{ width: '100%' }}>
+          <Space align="baseline" style={{ justifyContent: 'space-between', width: '100%' }}>
+            <Space direction="vertical" size={4}>
               <Text
                 strong
                 ellipsis
@@ -118,40 +116,41 @@ export const ComicCard = ({
               >
                 {item.title}
               </Text>
-            </Link>
-            {showAuthor ? (
+
+              {showAuthor ? (
+                <Text type="secondary" style={{ fontSize: 'var(--font-body-sm)', lineHeight: 1.45 }}>
+                  {item.author}
+                </Text>
+              ) : null}
+            </Space>
+            {action}
+          </Space>
+
+          <Paragraph type="secondary" ellipsis={{ rows: 2 }} style={{ marginBottom: 0, minHeight: 44 }}>
+            {item.description}
+          </Paragraph>
+
+          <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
+            <Space size={4}>
+              <Rate disabled allowHalf value={item.rating} style={{ fontSize: 14 }} />
               <Text type="secondary" style={{ fontSize: 'var(--font-body-sm)', lineHeight: 1.45 }}>
-                {item.author}
+                ({item.reviews.toLocaleString('ru-RU')})
               </Text>
-            ) : null}
+            </Space>
+            {showStatus ? <Tag color={statusColors[item.status]}>{statusLabels[item.status]}</Tag> : null}
           </Space>
-          {action}
-        </Space>
 
-        <Paragraph type="secondary" ellipsis={{ rows: 2 }} style={{ marginBottom: 0, minHeight: 44 }}>
-          {item.description}
-        </Paragraph>
-
-        <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
-          <Space size={4}>
-            <Rate disabled allowHalf value={item.rating} style={{ fontSize: 14 }} />
-            <Text type="secondary" style={{ fontSize: 'var(--font-body-sm)', lineHeight: 1.45 }}>
-              ({item.reviews.toLocaleString('ru-RU')})
-            </Text>
+          <Space size={4} wrap>
+            <Tag color={isAdult ? 'volcano' : 'default'}>{item.ageRating}</Tag>
+            {item.genre ? <Tag color={colors.brand.primary}>{item.genre}</Tag> : null}
+            {item.tags.slice(0, 2).map((tagName) => (
+              <Tag key={tagName}>{tagName}</Tag>
+            ))}
+            {item.tags.length > 2 ? <Tag color="default">+{item.tags.length - 2}</Tag> : null}
           </Space>
-          {showStatus ? <Tag color={statusColors[item.status]}>{statusLabels[item.status]}</Tag> : null}
         </Space>
-
-        <Space size={4} wrap>
-          <Tag color={isAdult ? 'volcano' : 'default'}>{item.ageRating}</Tag>
-          {item.genre ? <Tag color={colors.brand.primary}>{item.genre}</Tag> : null}
-          {item.tags.slice(0, 2).map((tagName) => (
-            <Tag key={tagName}>{tagName}</Tag>
-          ))}
-          {item.tags.length > 2 ? <Tag color="default">+{item.tags.length - 2}</Tag> : null}
-        </Space>
-      </Space>
-    </Card>
+      </Card>
+    </Link>
   );
 
   if (!badgeText) {

@@ -16,3 +16,4 @@ export * from './FavoritesPage';
 export * from './NotificationsPage';
 export * from './HistoryPage';
 export * from './UserAgreementPage';
+export * from './AnalyticsPage';

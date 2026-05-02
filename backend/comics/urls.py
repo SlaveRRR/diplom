@@ -6,6 +6,7 @@ from comics.views import (
     ComicDetailView,
     ComicFavoriteToggleView,
     ComicLikeToggleView,
+    ComicRatingView,
     FavoriteComicListView,
     ComicListView,
     ComicReaderView,
@@ -26,4 +27,5 @@ urlpatterns = [
     path('comics/<int:comic_id>/comments/', ComicCommentCreateView.as_view(), name='comic-comment-create'),
     path('comics/<int:comic_id>/favorite/', ComicFavoriteToggleView.as_view(), name='comic-favorite-toggle'),
     path('comics/<int:comic_id>/like/', ComicLikeToggleView.as_view(), name='comic-like-toggle'),
+    path('comics/<int:comic_id>/rating/', ComicRatingView.as_view(), name='comic-rating'),
 ]
