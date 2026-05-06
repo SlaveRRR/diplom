@@ -7,7 +7,6 @@ vi.mock('@pages', () => ({
   LayoutPage: () => <></>,
   SignInPage: () => <></>,
   SignUpPage: () => <></>,
-  SwaggerPage: () => <></>,
   CatalogPage: () => <></>,
   CreateComicPage: () => <></>,
   FavoritesPage: () => <></>,

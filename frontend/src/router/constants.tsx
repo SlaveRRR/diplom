@@ -16,7 +16,6 @@ import {
   ProfilePage,
   SignInPage,
   SignUpPage,
-  SwaggerPage,
   UserAgreementPage,
 } from '@pages';
 
@@ -88,10 +87,6 @@ export const ROUTES: Route[] = [
       {
         path: '/signup',
         page: <SignUpPage />,
-      },
-      {
-        path: '/swagger',
-        page: <SwaggerPage />,
       },
       {
         path: '/comics/create',

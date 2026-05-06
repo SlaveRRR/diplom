@@ -45,5 +45,5 @@
     "noUncheckedSideEffectImports": true
   },
   "include": ["**/*.ts", "**/*.tsx", "vite.config.ts"],
-  "exclude": ["node_modules", "__mocks__"]
+  "exclude": ["node_modules", "__mocks__", "cypress", "cypress.config.ts"]
 }

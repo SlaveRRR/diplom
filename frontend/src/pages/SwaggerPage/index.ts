@@ -1,1 +1,0 @@
-export { SwaggerPage } from './SwaggerPage';
