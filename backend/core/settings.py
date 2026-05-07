@@ -15,6 +15,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')
 MODE = os.getenv('MODE')
 DEBUG = MODE == 'DEV'
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1'] if MODE == 'DEV' else [os.getenv('FRONTEND_HOST', 'localhost')]
 CORS_ALLOWED_ORIGINS = ['http://localhost:5173'] if MODE == 'DEV' else [os.getenv('FRONTEND_URL', 'http://localhost:5173')]
@@ -166,7 +168,7 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = 'static/'
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
@@ -230,3 +232,4 @@ SOCIALACCOUNT_PROVIDERS = {
         ]
     },
 }
+
