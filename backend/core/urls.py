@@ -1,8 +1,11 @@
-﻿from django.contrib import admin
+from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+from core.admin_views import admin_logs_view
+
 urlpatterns = [
+    path('admin/logs/', admin.site.admin_view(admin_logs_view), name='admin-logs'),
     path('admin/', admin.site.urls),
     path('accounts/', include('allauth.urls')),
     path('_allauth/', include('allauth.headless.urls')),

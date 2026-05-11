@@ -6,6 +6,11 @@ import sys
 
 def main():
     """Run administrative tasks."""
+    if len(sys.argv) >= 2 and sys.argv[1] == 'runserver':
+        from core.logging_utils import clear_startup_log
+
+        clear_startup_log(os.path.dirname(__file__))
+
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
     try:
         from django.core.management import execute_from_command_line

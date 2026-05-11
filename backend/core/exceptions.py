@@ -1,4 +1,8 @@
-﻿from rest_framework.views import exception_handler
+import logging
+
+from rest_framework.views import exception_handler
+
+logger = logging.getLogger(__name__)
 
 EXCLUDED_RESPONSE_PREFIXES = (
     '/_allauth/',
@@ -12,15 +16,31 @@ EXCLUDED_RESPONSE_PREFIXES = (
 )
 
 
-
 def api_exception_handler(exc, context):
     response = exception_handler(exc, context)
-
-    if response is None:
-        return response
-
     request = context.get('request')
     path = request.path if request else ''
+    view = context.get('view')
+    view_name = view.__class__.__name__ if view else 'unknown'
+
+    if response is None:
+        logger.exception(
+            'Unhandled API exception. path=%s view=%s',
+            path,
+            view_name,
+            exc_info=exc,
+        )
+        return response
+
+    if response.status_code >= 500:
+        logger.exception(
+            'API server error. path=%s view=%s status_code=%s',
+            path,
+            view_name,
+            response.status_code,
+            exc_info=exc,
+        )
+
     if any(path.startswith(prefix) for prefix in EXCLUDED_RESPONSE_PREFIXES):
         return response
 
@@ -31,7 +51,6 @@ def api_exception_handler(exc, context):
         },
     }
     return response
-
 
 
 def _extract_message(data):
