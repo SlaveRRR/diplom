@@ -1,0 +1,103 @@
+{% extends "admin/base_site.html" %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+  :root {
+    --primary: #18212f;
+    --secondary: #242f42;
+    --accent: #6f72f6;
+    --primary-fg: #ffffff;
+    --body-bg: #f4f7fb;
+    --body-fg: #172033;
+    --body-quiet-color: #607089;
+    --link-fg: #4f55d9;
+    --link-hover-color: #3539a7;
+    --header-color: #ffffff;
+    --header-branding-color: #ffffff;
+    --header-bg: #18212f;
+    --header-link-color: #e8edff;
+    --breadcrumbs-bg: #242f42;
+    --breadcrumbs-fg: #d7def2;
+    --button-bg: #6f72f6;
+    --button-hover-bg: #5b5ee0;
+    --default-button-bg: #242f42;
+    --default-button-hover-bg: #18212f;
+  }
+
+  #header {
+    min-height: 56px;
+    box-shadow: 0 8px 24px rgba(24, 33, 47, 0.18);
+  }
+
+  #branding h1,
+  #branding h1 a:link,
+  #branding h1 a:visited {
+    font-weight: 800;
+    letter-spacing: 0;
+  }
+
+  #user-tools {
+    font-size: 12px;
+  }
+
+  #content {
+    padding: 24px 32px;
+  }
+
+  .module {
+    border: 1px solid #dbe3ef;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 10px 24px rgba(24, 33, 47, 0.06);
+  }
+
+  .module h2,
+  .module caption,
+  .inline-group h2 {
+    background: #242f42;
+    color: #ffffff;
+    font-weight: 700;
+  }
+
+  div.breadcrumbs {
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .admin-extra-nav {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-left: auto;
+  }
+
+  .admin-extra-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 12px;
+    border-radius: 6px;
+    background: #6f72f6;
+    color: #ffffff !important;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .admin-extra-nav a:hover {
+    background: #8588ff;
+  }
+
+  input[type=submit],
+  input[type=button],
+  .submit-row input,
+  a.button {
+    border-radius: 6px;
+  }
+</style>
+{% endblock %}
+
+{% block nav-global %}
+<div class="admin-extra-nav">
+  <a href="{% url 'admin-logs' %}">Журнал приложения</a>
+</div>
+{% endblock %}

@@ -21,7 +21,6 @@ import { FC, ReactNode, useMemo, useState } from 'react';
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { TelegramIcon, TelegramShareButton, VKIcon, VKShareButton } from 'react-share';
 import {
-  BookOutlined,
   CommentOutlined,
   CopyOutlined,
   EyeOutlined,
@@ -554,11 +553,11 @@ export const ComicDetails: FC = () => {
           <Flex vertical gap={24}>
             <Card id="comments" className="border-0 shadow-sm">
               <Row gutter={[16, 16]}>
-                <Col xs={12} sm={8} xl={12}>
+                <Col sm={8} xl={12} xs={24}>
                   <Statistic title="Статус" value={statusLabels[data.status]} />
                 </Col>
                 <Col xs={12} sm={8} xl={12}>
-                  <Statistic title="Глав" value={data.chaptersCount} prefix={<BookOutlined />} />
+                  <Statistic title="Глав" value={data.chaptersCount} />
                 </Col>
                 <Col xs={12} sm={8} xl={24}>
                   <Statistic title="Комментариев" value={data.commentsCount} prefix={<MessageOutlined />} />
