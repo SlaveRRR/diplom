@@ -1,5 +1,7 @@
 import { Card, Divider, Typography } from 'antd';
 
+import { DocumentContactNotice } from '@components/shared';
+
 const { Link, Title, Paragraph } = Typography;
 
 export const UserAgreementPage = () => {
@@ -87,6 +89,11 @@ export const UserAgreementPage = () => {
         блокировкой аккаунта или иными ограничениями, вызванными нарушением данного Соглашения.
       </Paragraph>
 
+      <Paragraph>
+        3.5. Максимальный срок модерации контента составляет 72 часа. Если контент требует доработки со стороны
+        пользователя, срок может увеличен.
+      </Paragraph>
+
       <Title level={4}>4. АВТОРСКИЕ ПРАВА</Title>
 
       <Paragraph>
@@ -147,6 +154,8 @@ export const UserAgreementPage = () => {
         7.3 Продолжение использования сайта после внесения изменений означает согласие Пользователя с обновленными
         условиями.
       </Paragraph>
+      <Divider />
+      <DocumentContactNotice />
     </Card>
   );
 };

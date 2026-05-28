@@ -5,6 +5,7 @@ interface ImportMetaEnv {
   readonly VITE_IS_MOCK_ACTIVE: string;
   readonly VITE_API: string;
   readonly VITE_BACKEND_URL?: string;
+  readonly VITE_SUPPORT_EMAIL?: string;
 }
 
 interface ImportMeta {

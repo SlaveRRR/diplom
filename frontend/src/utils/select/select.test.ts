@@ -1,7 +1,7 @@
 ﻿import { convertIdNamedObjectToSelectOption } from './select';
 
 describe('select utils', () => {
-  test('мапит id/name/description в select options по всем ключам объекта', () => {
+  test('преобразует поля id, name и description в опции Select по всем ключам объекта', () => {
     expect(
       convertIdNamedObjectToSelectOption({
         genres: [{ id: 1, name: 'Фэнтези', slug: '', description: 'Миры и магия' }],

@@ -11,7 +11,7 @@ vi.mock('@constants', () => ({
 }));
 
 describe('socialAuth utils', () => {
-  test('сохраняет redirect и переводит пользователя на start endpoint', () => {
+  test('сохраняет перенаправление и переводит пользователя на стартовый endpoint', () => {
     const originalLocation = window.location;
 
     Object.defineProperty(window, 'location', {

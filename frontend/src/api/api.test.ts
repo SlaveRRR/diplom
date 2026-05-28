@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+
 import { api } from './api';
 
 const mockAxiosGet = vi.fn();
@@ -21,7 +22,7 @@ vi.mock('./utils', () => ({
 }));
 
 describe('api', () => {
-  test('проверка методов api', () => {
+  test('проверка методов API', () => {
     expect(api).toMatchObject({
       signIn: expect.any(Function),
       signUp: expect.any(Function),
@@ -31,31 +32,31 @@ describe('api', () => {
     });
   });
 
-  test('проверка вызова signIn', () => {
+  test('проверка вызова входа', () => {
     api.signIn({ password: '', username: '' });
 
     expect(mockPost).toBeCalled();
   });
 
-  test('проверка вызова signUp', () => {
+  test('проверка вызова регистрации', () => {
     api.signUp({ password: '', username: '', email: '' });
 
     expect(mockPost).toBeCalled();
   });
 
-  test('проверка вызова refreshToken', () => {
+  test('проверка вызова обновления токена', () => {
     api.refreshToken();
 
     expect(mockAxiosGet).toBeCalled();
   });
 
-  test('проверка вызова logout', () => {
+  test('проверка вызова выхода из системы', () => {
     api.logout();
 
     expect(mockPost).toBeCalled();
   });
 
-  test('проверка вызова getCurrentUser', () => {
+  test('проверка вызова получения текущего пользователя', () => {
     api.getCurrentUser();
 
     expect(mockGet).toBeCalled();

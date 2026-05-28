@@ -35,8 +35,9 @@ import {
 } from '@ant-design/icons';
 
 import { colors } from '@constants';
-import { useApp, useRequireAuthAction } from '@hooks';
 import { ComicComment, ComicDetailChapter } from '@types';
+import { useApp } from '@hooks/useApp';
+import { useRequireAuthAction } from '@hooks/useRequireAuthAction';
 import { OutletContext } from '@pages/LayoutPage/types';
 
 import {

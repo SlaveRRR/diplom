@@ -1,7 +1,7 @@
-import { message, notification } from 'antd';
+﻿import { message, notification } from 'antd';
 import { Outlet } from 'react-router-dom';
 
-import { Layout } from '@components';
+import { Layout } from '@components/Layout';
 
 import { OutletContext } from './types';
 

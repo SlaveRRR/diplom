@@ -6,9 +6,8 @@ const mockNavigate = vi.fn();
 const mockStorePendingAuthRedirect = vi.fn();
 const mockUseApp = vi.fn();
 
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
-
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual: object = await importOriginal();
   return {
     ...actual,
     useNavigate: () => mockNavigate,
@@ -35,7 +34,7 @@ describe('useRequireAuthAction', () => {
     vi.clearAllMocks();
   });
 
-  test('редиректит неавторизованного пользователя на signin', () => {
+  test('перенаправляет неавторизованного пользователя на страницу входа', () => {
     mockUseApp.mockReturnValue({ isAuth: false });
 
     const { result } = renderHook(() => useRequireAuthAction());
@@ -50,7 +49,7 @@ describe('useRequireAuthAction', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/signin?mocked=true');
   });
 
-  test('runWithAuth выполняет action для авторизованного пользователя', () => {
+  test('runWithAuth выполняет действие для авторизованного пользователя', () => {
     mockUseApp.mockReturnValue({ isAuth: true });
     const action = vi.fn();
 
@@ -66,7 +65,7 @@ describe('useRequireAuthAction', () => {
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
-  test('runWithAuth уводит в auth flow, если пользователь не вошёл', () => {
+  test('runWithAuth запускает сценарий авторизации, если пользователь не вошёл', () => {
     mockUseApp.mockReturnValue({ isAuth: false });
     const action = vi.fn();
 

@@ -19,7 +19,7 @@ describe('getAntConfig', () => {
     expect(config.components?.Button?.borderRadius).toBe(8);
   });
 
-  test('переключает algorithm для dark theme', () => {
+  test('переключает algorithm для темной темы', () => {
     const config = getAntConfig('dark');
 
     expect(config.algorithm).toBe('dark-algorithm');

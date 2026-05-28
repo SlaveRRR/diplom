@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react';
+
 import { HomePage } from './HomePage';
 
-vi.mock('@components', () => ({
+vi.mock('@components/Home', () => ({
   Home: () => <div data-testid="home-page" />,
 }));
 

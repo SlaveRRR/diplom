@@ -2,7 +2,7 @@
 import { mockPublicApi } from '../support/mockApi';
 
 describe('Home page', () => {
-  it('renders key home sections from mocked API responses', () => {
+  it('отображает ключевые секции приложения', () => {
     mockPublicApi();
 
     cy.visitApp('/');

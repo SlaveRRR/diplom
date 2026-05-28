@@ -1,3 +1,3 @@
-import { ComicDetails } from '@components';
+import { ComicDetails } from '@components/ComicDetails';
 
 export const ComicDetailsPage = () => <ComicDetails />;

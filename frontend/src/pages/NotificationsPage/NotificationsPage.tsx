@@ -1,3 +1,3 @@
-import { Notifications } from '@components';
+﻿import { Notifications } from '@components/Notifications';
 
 export const NotificationsPage = () => <Notifications />;

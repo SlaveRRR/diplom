@@ -9,6 +9,7 @@ beforeAll(() => {
   vi.mock('antd');
   vi.mock('@ant-design/icons');
   vi.mock('react-router-dom');
+  vi.mock('react-share');
   vi.mock('react-hook-form-antd');
   vi.mock('swagger-ui-react');
 });

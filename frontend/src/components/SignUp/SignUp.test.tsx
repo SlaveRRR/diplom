@@ -4,7 +4,7 @@ import { SignUp } from './SignUp';
 
 const mockMutate = vi.fn();
 
-vi.mock('@hooks', () => ({
+vi.mock('@hooks/useForm', () => ({
   useForm: () => ({
     handleSubmit:
       (
@@ -14,6 +14,7 @@ vi.mock('@hooks', () => ({
           password: string;
           userAgreement: boolean;
           privacyPolicy: boolean;
+          personalDataPolicy: boolean;
         }) => void,
       ) =>
       () =>
@@ -23,6 +24,7 @@ vi.mock('@hooks', () => ({
           password: 'password123',
           userAgreement: true,
           privacyPolicy: true,
+          personalDataPolicy: true,
         }),
     control: {},
     formState: {
@@ -34,6 +36,7 @@ vi.mock('@hooks', () => ({
       password: 'password123',
       userAgreement: true,
       privacyPolicy: true,
+      personalDataPolicy: true,
     }),
     trigger: vi.fn(),
   }),

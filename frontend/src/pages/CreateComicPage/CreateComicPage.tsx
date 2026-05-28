@@ -1,3 +1,3 @@
-import { ComicCreate } from '@components';
+import { ComicCreate } from '@components/ComicCreate';
 
 export const CreateComicPage = () => <ComicCreate />;

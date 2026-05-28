@@ -9,7 +9,11 @@ export const useLocation = () => ({
   search: '',
 });
 
-export const Link = () => <div data-testid="link" />;
+export const Link = ({ children, onClick, to }) => (
+  <a data-testid="link" href={typeof to === 'string' ? to : '#'} onClick={onClick}>
+    {children}
+  </a>
+);
 
 export const useOutletContext = () => ({
   messageApi: {
@@ -25,3 +29,5 @@ export const useSearchParams = () => [
     get: () => '',
   },
 ];
+
+export const useParams = () => {};

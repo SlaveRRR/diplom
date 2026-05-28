@@ -34,7 +34,7 @@ export const Catalog = () => {
   const filtersRef = useRef<HTMLDivElement | null>(null);
   const carouselRef = useRef<HTMLDivElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
-  const { isOpen: isTourOpen, close: closeTour } = usePageOnboarding({
+  const { tourProps } = usePageOnboarding({
     storageKey: 'catalog_onboarding_shown',
   });
 
@@ -334,7 +334,7 @@ export const Catalog = () => {
         </Space>
       </section>
 
-      <Tour open={isTourOpen} onClose={closeTour} steps={tourSteps} />
+      <Tour {...tourProps} steps={tourSteps} />
       {adultContentModal}
     </>
   );

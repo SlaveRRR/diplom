@@ -16,7 +16,7 @@
   Tour,
   Typography,
 } from 'antd';
-import dayjs, { Dayjs } from 'dayjs';
+import { Dayjs } from 'dayjs';
 import { ReactNode, useMemo, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import {
@@ -26,75 +26,22 @@ import {
   LineChartOutlined,
   RiseOutlined,
 } from '@ant-design/icons';
-import { Column, Line, Pie } from '@ant-design/plots';
+import { Column, Line } from '@ant-design/plots';
 
 import { api } from '@api';
 import { colors } from '@constants';
-import { usePageOnboarding } from '@hooks';
-import {
-  AnalyticsContentType,
-  AnalyticsFilterItem,
-  AnalyticsInterval,
-  AnalyticsQueryParams,
-  AnalyticsTopItem,
-} from '@types';
+import { AnalyticsContentType, AnalyticsFilterItem, AnalyticsInterval, AnalyticsTopItem } from '@types';
 import { useAccountQuery } from '@components/Account/hooks/useAccountQuery';
+import { usePageOnboarding } from '@hooks/usePageOnboarding';
 import { OutletContext } from '@pages/LayoutPage/types';
 
+import { DEFAULT_PRESET, DEFAULT_RANGE, PRESET_LABELS, STATUS_LABELS } from './constants';
 import { useAnalyticsQuery } from './hooks';
+import { AnalyticsDatePreset } from './types';
+import { getParams, getPresetRange } from './utils';
 
 const { RangePicker } = DatePicker;
 const { Text, Title } = Typography;
-
-type AnalyticsDatePreset = '7d' | '30d' | '90d' | 'all' | 'custom';
-
-const PRESET_LABELS: Record<Exclude<AnalyticsDatePreset, 'custom'>, string> = {
-  '7d': '7 дней',
-  '30d': '30 дней',
-  '90d': '90 дней',
-  all: 'За всё время',
-};
-
-const buildPresetRange = (preset: Exclude<AnalyticsDatePreset, 'custom'>): [Dayjs, Dayjs] => {
-  const today = dayjs();
-
-  switch (preset) {
-    case '7d':
-      return [today.subtract(6, 'day'), today];
-    case '30d':
-      return [today.subtract(29, 'day'), today];
-    case '90d':
-      return [today.subtract(89, 'day'), today];
-    case 'all':
-      return [today.subtract(10, 'year'), today];
-    default:
-      return [today.subtract(29, 'day'), today];
-  }
-};
-
-const defaultPreset: Exclude<AnalyticsDatePreset, 'custom'> = '30d';
-const defaultRange: [Dayjs, Dayjs] = buildPresetRange(defaultPreset);
-
-const statusLabels: Record<string, string> = {
-  draft: 'Черновик',
-  under_review: 'На модерации',
-  published: 'Опубликован',
-  blocked: 'Заблокирован',
-  revision: 'На доработке',
-};
-
-const buildParams = (
-  contentType: AnalyticsContentType,
-  itemId: number | null,
-  range: [Dayjs, Dayjs],
-  interval: AnalyticsInterval,
-): AnalyticsQueryParams => ({
-  contentType,
-  itemId,
-  dateFrom: range[0].format('YYYY-MM-DD'),
-  dateTo: range[1].format('YYYY-MM-DD'),
-  interval,
-});
 
 const formatDelta = (value: number) => `${value > 0 ? '+' : ''}${value.toLocaleString('ru-RU')}`;
 
@@ -137,9 +84,9 @@ export const Analytics = () => {
   const { data: account, isLoading: isLoadingAccount } = useAccountQuery();
   const [contentType, setContentType] = useState<AnalyticsContentType>('all');
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
-  const [range, setRange] = useState<[Dayjs, Dayjs]>(defaultRange);
+  const [range, setRange] = useState<[Dayjs, Dayjs]>(DEFAULT_RANGE);
   const [interval, setInterval] = useState<AnalyticsInterval>('day');
-  const [datePreset, setDatePreset] = useState<AnalyticsDatePreset>(defaultPreset);
+  const [datePreset, setDatePreset] = useState<AnalyticsDatePreset>(DEFAULT_PRESET);
 
   const heroRef = useRef<HTMLDivElement | null>(null);
   const filtersRef = useRef<HTMLDivElement | null>(null);
@@ -147,14 +94,16 @@ export const Analytics = () => {
   const chartsRef = useRef<HTMLDivElement | null>(null);
   const topRef = useRef<HTMLDivElement | null>(null);
 
+  const [isLoadingExcel, setIsLoadingExcel] = useState(false);
+
   const params = useMemo(
-    () => buildParams(contentType, selectedItemId, range, interval),
+    () => getParams(contentType, selectedItemId, range, interval),
     [contentType, selectedItemId, range, interval],
   );
 
   const { data, isLoading, isError, refetch } = useAnalyticsQuery(params);
   const hasAnalyticsAccess = Boolean(account && ((account.comics?.length ?? 0) || (account.posts?.length ?? 0)));
-  const { isOpen: isTourOpen, close: closeTour } = usePageOnboarding({
+  const { tourProps } = usePageOnboarding({
     storageKey: 'analytics_onboarding_shown',
     enabled: !isLoadingAccount && !isLoading && hasAnalyticsAccess,
   });
@@ -164,22 +113,7 @@ export const Analytics = () => {
     [contentType, data?.availableItems],
   );
 
-  const pieData = useMemo(
-    () => [
-      {
-        type: 'Комиксы',
-        value: data?.totalsByContentType.comic.engagement ?? 0,
-      },
-      {
-        type: 'Посты',
-        value: data?.totalsByContentType.post.engagement ?? 0,
-      },
-    ],
-    [data?.totalsByContentType],
-  );
-
   const hasTimelineData = Boolean(data?.timeline.length);
-  const hasPieData = pieData.some((item) => item.value > 0);
   const hasContentSummaryData = Boolean(
     data &&
     (Object.values(data.totalsByContentType.comic).some((value) => value > 0) ||
@@ -209,7 +143,7 @@ export const Analytics = () => {
       key: 'reach',
     },
     {
-      title: 'Вовлечение',
+      title: 'Вовлеченность',
       dataIndex: 'engagement',
       key: 'engagement',
     },
@@ -217,6 +151,7 @@ export const Analytics = () => {
 
   const handleExport = async () => {
     try {
+      setIsLoadingExcel(true);
       const response = await api.exportAnalytics(params);
       const blobUrl = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
@@ -229,12 +164,14 @@ export const Analytics = () => {
       messageApi.success('Отчёт по аналитике скачан.');
     } catch (error) {
       messageApi.error(error instanceof Error ? error.message : 'Не удалось скачать отчёт.');
+    } finally {
+      setIsLoadingExcel(false);
     }
   };
 
   const handlePresetChange = (preset: Exclude<AnalyticsDatePreset, 'custom'>) => {
     setDatePreset(preset);
-    setRange(buildPresetRange(preset));
+    setRange(getPresetRange(preset));
   };
 
   const tourSteps = [
@@ -268,7 +205,7 @@ export const Analytics = () => {
   if (isLoadingAccount) {
     return (
       <Flex align="center" justify="center" className="min-h-[320px]">
-        <Spin size="large" />
+        <Spin />
       </Flex>
     );
   }
@@ -319,10 +256,10 @@ export const Analytics = () => {
                 Аналитика
               </Title>
               <Text type="secondary">
-                Сводная статистика по комиксам и постам: просмотры, охваты, вовлечение и экспорт отчёта в Excel.
+                Сводная статистика по комиксам и постам: просмотры, охваты, вовлеченность и экспорт отчёта в Excel.
               </Text>
             </div>
-            <Button type="primary" icon={<DownloadOutlined />} onClick={() => void handleExport()}>
+            <Button loading={isLoadingExcel} type="primary" icon={<DownloadOutlined />} onClick={handleExport}>
               Скачать Excel
             </Button>
           </Flex>
@@ -354,7 +291,7 @@ export const Analytics = () => {
                 value={selectedItemId}
                 className="!w-full md:!w-[320px]"
                 options={availableItems.map((item: AnalyticsFilterItem) => ({
-                  label: `${item.title} • ${statusLabels[item.status] ?? item.status}`,
+                  label: `${item.title} • ${STATUS_LABELS[item.status] ?? item.status}`,
                   value: item.id,
                 }))}
                 onChange={(value) => setSelectedItemId(value ?? null)}
@@ -446,7 +383,7 @@ export const Analytics = () => {
 
       <div ref={chartsRef}>
         <Row gutter={[16, 16]}>
-          <Col xs={24} xl={16}>
+          <Col xs={24} xl={24}>
             <AnalyticsChartCard
               title="Динамика просмотров и охвата"
               hasData={hasTimelineData}
@@ -460,25 +397,9 @@ export const Analytics = () => {
                 xField="period"
                 yField="value"
                 seriesField="metric"
-                color={[colors.brand.secondary, colors.success[500]]}
+                colorField="metric"
                 smooth
                 legend={{ position: 'top' }}
-              />
-            </AnalyticsChartCard>
-          </Col>
-          <Col xs={24} xl={8}>
-            <AnalyticsChartCard
-              title="Вклад типов контента"
-              hasData={hasPieData}
-              emptyDescription="Недостаточно данных, чтобы построить распределение по типам контента."
-            >
-              <Pie
-                data={pieData}
-                angleField="value"
-                colorField="type"
-                color={[colors.brand.primary, colors.brand.secondary]}
-                legend={{ position: 'bottom' }}
-                label={{ text: 'type' }}
               />
             </AnalyticsChartCard>
           </Col>
@@ -488,7 +409,7 @@ export const Analytics = () => {
       <Row gutter={[16, 16]}>
         <Col xs={24} xl={14}>
           <AnalyticsChartCard
-            title="Вовлечение по периодам"
+            title="Вовлеченность по периодам"
             hasData={hasTimelineData}
             emptyDescription="Пока нет активности, из которой можно собрать динамику вовлечения."
           >
@@ -498,6 +419,16 @@ export const Analytics = () => {
               yField="engagement"
               color={colors.brand.primary}
               label={false}
+              tooltip={{
+                title: (datum) => `Период: ${datum.period}`,
+                items: [
+                  {
+                    name: 'Вовлеченность',
+                    field: 'engagement',
+                    valueFormatter: (value) => value,
+                  },
+                ],
+              }}
             />
           </AnalyticsChartCard>
         </Col>
@@ -544,7 +475,7 @@ export const Analytics = () => {
         </Card>
       </div>
 
-      <Tour open={isTourOpen} onClose={closeTour} steps={tourSteps} />
+      <Tour {...tourProps} steps={tourSteps} />
     </Flex>
   );
 };

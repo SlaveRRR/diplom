@@ -3,9 +3,11 @@ import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '@api';
-import { CURRENT_USER_QUERY_KEY, useApp, useLocalStorage } from '@hooks';
 import { OutletContext } from '@pages';
 import { consumePendingAuthRedirect, getRedirectFromSearch } from '@utils';
+import { useApp } from '@hooks/useApp';
+import { CURRENT_USER_QUERY_KEY } from '@hooks/useCurrentUser';
+import { useLocalStorage } from '@hooks/useLocalStorage';
 
 export const useSocialSessionExchange = () => {
   const { setItem } = useLocalStorage();

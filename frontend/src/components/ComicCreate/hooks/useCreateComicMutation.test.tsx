@@ -94,7 +94,7 @@ describe('useCreateComicMutation', () => {
     consoleErrorSpy.mockRestore();
   });
 
-  test('uploads comic assets in order and confirms draft creation', async () => {
+  test('загружает ресурсы комикса по порядку и подтверждает создание черновика', async () => {
     const { queryClient, wrapper } = createWrapper();
     const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
@@ -197,7 +197,7 @@ describe('useCreateComicMutation', () => {
     expect(invalidateQueriesSpy).toHaveBeenCalledWith(['current_user']);
   });
 
-  test('shows message and resets state when upload config cannot be matched to chapters', async () => {
+  test('показывает сообщение и сбрасывает состояние, когда конфигурацию загрузки не удается сопоставить с главами', async () => {
     const { wrapper } = createWrapper();
 
     mockApi.getComicUploadConfig.mockResolvedValue({

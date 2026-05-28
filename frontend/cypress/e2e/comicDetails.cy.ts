@@ -2,7 +2,7 @@
 import { mockComicDetailsApi, mockPublicApi } from '../support/mockApi';
 
 describe('Comic details page', () => {
-  it('renders comic details, chapters and comments', () => {
+  it('отображает детальную информацию комикса', () => {
     mockPublicApi();
     mockComicDetailsApi();
 

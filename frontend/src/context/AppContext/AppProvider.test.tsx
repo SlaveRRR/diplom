@@ -54,7 +54,7 @@ describe('AppProvider', () => {
     mockUseCurrentUser.mockReturnValue({ data: {} });
   });
 
-  test('обновляет access token на старте, если текущий токен истекает', async () => {
+  test('обновляет токен доступа на старте, если текущий токен истекает', async () => {
     storageToken = 'token';
     mockGetIsTokenExpired.mockReturnValue(true);
     mockRefreshToken.mockResolvedValue({
@@ -73,7 +73,7 @@ describe('AppProvider', () => {
     expect(mockInvalidateQueries).toHaveBeenCalledWith(['current_user']);
   });
 
-  test('тихо очищает токен и user cache при неуспешном refresh', async () => {
+  test('тихо очищает токен и кэш пользователя при неуспешном обновлении', async () => {
     storageToken = 'token';
     mockGetIsTokenExpired.mockReturnValue(true);
     mockRefreshToken.mockRejectedValue(new Error('refresh failed'));
@@ -87,7 +87,7 @@ describe('AppProvider', () => {
     expect(mockRemoveQueries).toHaveBeenCalledWith(['current_user']);
   });
 
-  test('не делает refresh без токена', async () => {
+  test('не выполняет обновление без токена', async () => {
     render(<AppProvider />);
 
     await waitFor(() => {

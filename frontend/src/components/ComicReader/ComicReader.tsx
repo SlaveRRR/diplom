@@ -18,8 +18,9 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 
 import { api } from '@api';
-import { useApp, useRequireAuthAction } from '@hooks';
 import { CATALOG_QUERY_KEY } from '@components/Catalog/hooks/useCatalogStore/useCatalogStore';
+import { useApp } from '@hooks/useApp';
+import { useRequireAuthAction } from '@hooks/useRequireAuthAction';
 import { OutletContext } from '@pages/LayoutPage/types';
 
 import { COMIC_DETAILS_QUERY_KEY } from '../ComicDetails/hooks/useComicDetailsQuery';

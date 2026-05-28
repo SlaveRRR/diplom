@@ -8,7 +8,7 @@ describe('usePageOnboarding', () => {
     window.sessionStorage.clear();
   });
 
-  test('открывает onboarding один раз и пишет флаг в sessionStorage', () => {
+  test('открывает онбординг один раз и пишет флаг в sessionStorage', () => {
     const first = renderHook(() => usePageOnboarding({ storageKey: 'catalog_onboarding_shown' }));
 
     expect(first.result.current.isOpen).toBe(true);
@@ -18,7 +18,7 @@ describe('usePageOnboarding', () => {
     expect(second.result.current.isOpen).toBe(false);
   });
 
-  test('умеет работать с localStorage и reset/open/close', () => {
+  test('умеет работать с localStorage и действиями сброса, открытия и закрытия', () => {
     const { result } = renderHook(() =>
       usePageOnboarding({ storageKey: 'analytics_onboarding_shown', storage: 'local' }),
     );
@@ -34,9 +34,13 @@ describe('usePageOnboarding', () => {
     act(() => result.current.reset());
     expect(result.current.isOpen).toBe(true);
     expect(window.localStorage.getItem('analytics_onboarding_shown')).toBeNull();
+
+    act(() => result.current.skip());
+    expect(result.current.isOpen).toBe(false);
+    expect(window.localStorage.getItem('analytics_onboarding_shown')).toBe('true');
   });
 
-  test('не открывает onboarding, если enabled=false', () => {
+  test('не открывает онбординг, если флаг enabled выключен', () => {
     const { result } = renderHook(() => usePageOnboarding({ storageKey: 'disabled', enabled: false }));
 
     expect(result.current.isOpen).toBe(false);

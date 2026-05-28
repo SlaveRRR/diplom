@@ -1,5 +1,6 @@
-import { renderHook } from '@testing-library/react';
 import { z } from 'zod';
+import { renderHook } from '@testing-library/react';
+
 import { useForm } from './useForm';
 
 const testSchema = z.object({
@@ -7,7 +8,7 @@ const testSchema = z.object({
 });
 
 describe('useForm', () => {
-  test('должен проверка работы хука', () => {
+  test('проверка работы хука', () => {
     const { result } = renderHook(() => useForm(testSchema));
 
     expect(result.current.formState.isValid).toBe(false);

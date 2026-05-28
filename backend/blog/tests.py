@@ -34,7 +34,7 @@ class BlogApiTests(APITestCase):
             password='strongpass123',
             role=User.Role.ADMIN,
         )
-        self.tag = BlogTag.objects.create(name='??????')
+        self.tag = BlogTag.objects.create(name='Новости')
 
     @patch('blog.views.S3UploadService.generate_upload')
     def test_post_upload_config_returns_presigned_uploads(self, generate_upload_mock):
@@ -112,7 +112,7 @@ class BlogApiTests(APITestCase):
             '/api/v1/posts/confirm/',
             {
                 'postDraftId': config_payload['data']['postDraftId'],
-                'title': '????? ????',
+                'title': 'Новый пост',
                 'ageRating': '16+',
                 'tagIds': [self.tag.id],
                 'status': Post.Status.UNDER_REVIEW,
@@ -122,7 +122,7 @@ class BlogApiTests(APITestCase):
                         {
                             'type': 'paragraph',
                             'content': [
-                                {'type': 'text', 'text': '??????, ????!'},
+                                {'type': 'text', 'text': 'Привет, мир!'},
                             ],
                         },
                         {
@@ -138,7 +138,7 @@ class BlogApiTests(APITestCase):
         )
         response.render()
         payload = json.loads(response.content)
-        post = Post.objects.get(title='????? ????', author=self.author)
+        post = Post.objects.get(title='Новый пост', author=self.author)
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(post.status, Post.Status.UNDER_REVIEW)
@@ -163,7 +163,7 @@ class BlogApiTests(APITestCase):
             '/api/v1/posts/confirm/',
             {
                 'postDraftId': config_payload['data']['postDraftId'],
-                'title': '???? ??? ???????',
+                'title': 'Пост без обложки',
                 'ageRating': '16+',
                 'tagIds': [self.tag.id],
                 'status': Post.Status.DRAFT,
@@ -173,7 +173,7 @@ class BlogApiTests(APITestCase):
                         {
                             'type': 'paragraph',
                             'content': [
-                                {'type': 'text', 'text': '????? ??? ???????.'},
+                                {'type': 'text', 'text': 'Текст без обложки.'},
                             ],
                         }
                     ],
@@ -187,12 +187,12 @@ class BlogApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(payload['data']['coverUrl'], '')
         self.assertEqual(payload['data']['status'], Post.Status.DRAFT)
-        self.assertTrue(Post.objects.filter(title='???? ??? ???????', author=self.author, cover='', status=Post.Status.DRAFT).exists())
+        self.assertTrue(Post.objects.filter(title='Пост без обложки', author=self.author, cover='', status=Post.Status.DRAFT).exists())
         self.assertFalse(object_exists_mock.called)
 
     def test_editor_returns_draft_payload_for_author(self):
         post = Post.objects.create(
-            title='???????? ?????',
+            title='Черновик поста',
             content={
                 'type': 'doc',
                 'content': [
@@ -226,7 +226,7 @@ class BlogApiTests(APITestCase):
     @patch('blog.views.S3UploadService.object_exists', return_value=True)
     def test_confirm_updates_existing_draft_post(self, object_exists_mock):
         post = Post.objects.create(
-            title='?????? ????????',
+            title='Старый черновик',
             content={
                 'type': 'doc',
                 'content': [
@@ -266,7 +266,7 @@ class BlogApiTests(APITestCase):
             {
                 'postId': post.id,
                 'postDraftId': config_payload['data']['postDraftId'],
-                'title': '??????????? ????????',
+                'title': 'Обновленный черновик',
                 'ageRating': '18+',
                 'tagIds': [self.tag.id],
                 'status': Post.Status.UNDER_REVIEW,
@@ -296,20 +296,20 @@ class BlogApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(post.id, payload['data']['id'])
-        self.assertEqual(post.title, '??????????? ????????')
+        self.assertEqual(post.title, 'Обновленный черновик')
         self.assertEqual(post.status, Post.Status.UNDER_REVIEW)
         self.assertEqual(payload['data']['status'], Post.Status.UNDER_REVIEW)
 
     def test_post_list_and_detail_return_only_published_posts(self):
         published_post = Post.objects.create(
-            title='???? ? ????????',
+            title='Пост о публикации',
             content={
                 'type': 'doc',
                 'content': [
                     {
                         'type': 'paragraph',
                         'content': [
-                            {'type': 'text', 'text': '??? ????? ??????? ????? ??? ?????? ? ???????? ?????.'},
+                            {'type': 'text', 'text': 'Это опубликованный пост для проверки списка.'},
                         ],
                     }
                 ],
@@ -321,7 +321,7 @@ class BlogApiTests(APITestCase):
         )
         published_post.tags.add(self.tag)
         Post.objects.create(
-            title='???? ?? ?????????',
+            title='Пост на модерации',
             content={'type': 'doc', 'content': []},
             author=self.author,
             status=Post.Status.UNDER_REVIEW,
@@ -346,7 +346,7 @@ class BlogApiTests(APITestCase):
 
     def test_preview_can_open_unpublished_post(self):
         hidden_post = Post.objects.create(
-            title='????? ??? preview',
+            title='Пост для preview',
             content={'type': 'doc', 'content': []},
             author=self.author,
             status=Post.Status.UNDER_REVIEW,
@@ -362,7 +362,7 @@ class BlogApiTests(APITestCase):
 
     def test_authenticated_user_can_comment_on_published_post(self):
         post = Post.objects.create(
-            title='???? ? ?????????????',
+            title='Пост с комментариями',
             content={'type': 'doc', 'content': []},
             author=self.author,
             status=Post.Status.PUBLISHED,
@@ -373,7 +373,7 @@ class BlogApiTests(APITestCase):
         response = self.client.post(
             f'/api/v1/posts/{post.id}/comments/',
             {
-                'text': '????? ???????? ??????',
+                'text': 'Новый комментарий читателя',
             },
             format='json',
         )
@@ -382,6 +382,6 @@ class BlogApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(payload['data']['author']['id'], self.reader.id)
-        self.assertTrue(Comment.objects.filter(object_id=post.id, text='????? ???????? ??????').exists())
+        self.assertTrue(Comment.objects.filter(object_id=post.id, text='Новый комментарий читателя').exists())
 
 

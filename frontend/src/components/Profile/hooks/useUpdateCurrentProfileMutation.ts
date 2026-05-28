@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '@api';
-import { CURRENT_USER_QUERY_KEY } from '@hooks';
 import { Response, User, UserProfileUpdatePayload } from '@types';
+import { CURRENT_USER_QUERY_KEY } from '@hooks/useCurrentUser';
 
 import { USER_PROFILE_QUERY_KEY } from './useUserProfileQuery';
 

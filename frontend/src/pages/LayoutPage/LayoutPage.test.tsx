@@ -1,8 +1,9 @@
-import { render, screen } from '@testing-library/react';
 import { PropsWithChildren } from 'react';
+import { render, screen } from '@testing-library/react';
+
 import { LayoutPage } from './LayoutPage';
 
-vi.mock('@components', () => ({
+vi.mock('@components/Layout', () => ({
   Layout: ({ children }: PropsWithChildren) => <div data-testid="layout-page">{children}</div>,
 }));
 

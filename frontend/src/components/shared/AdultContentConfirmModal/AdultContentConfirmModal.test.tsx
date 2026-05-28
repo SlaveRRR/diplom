@@ -23,7 +23,7 @@ vi.mock('antd', () => ({
 }));
 
 describe('AdultContentConfirmModal', () => {
-  test('отрисовывает действия modal и вызывает обработчики', () => {
+  test('отображает действия модального окна и вызывает обработчики', () => {
     const onConfirm = vi.fn();
     const onCancel = vi.fn();
 

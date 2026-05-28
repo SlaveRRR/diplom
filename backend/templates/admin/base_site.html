@@ -1,7 +1,4 @@
-{% extends "admin/base_site.html" %}
-
-{% block extrastyle %}
-{{ block.super }}
+{% extends "admin/base_site.html" %} {% block extrastyle %} {{ block.super }}
 <style>
   :root {
     --primary: #18212f;
@@ -87,17 +84,18 @@
     background: #8588ff;
   }
 
-  input[type=submit],
-  input[type=button],
+  input[type="submit"],
+  input[type="button"],
   .submit-row input,
   a.button {
     border-radius: 6px;
   }
 </style>
-{% endblock %}
-
-{% block nav-global %}
+{% endblock %} {% block nav-global %}
 <div class="admin-extra-nav">
+  <a href="{{ site_url }}content-guidelines" target="_blank" rel="noreferrer"
+    >Памятка по модерации</a
+  >
   <a href="{% url 'admin-logs' %}">Журнал приложения</a>
 </div>
 {% endblock %}

@@ -38,7 +38,7 @@ const createValidPayload = (): CreateComicPayload => ({
 });
 
 describe('validateStep', () => {
-  test('returns invalid result for missing base info on step 0', () => {
+  test('возвращает невалидный результат при отсутствии базовых данных на шаге 0', () => {
     expect(validateStep(0, { description: 'text', ageRating: '16+', genreId: 1, tagIds: [1] })).toMatchObject({
       valid: false,
     });
@@ -47,14 +47,14 @@ describe('validateStep', () => {
     });
   });
 
-  test('returns invalid result for missing media on step 1', () => {
+  test('возвращает невалидный результат при отсутствии медиа на шаге 1', () => {
     const payload = createValidPayload();
 
     expect(validateStep(1, { banner: payload.banner })).toMatchObject({ valid: false });
     expect(validateStep(1, { cover: payload.cover })).toMatchObject({ valid: false });
   });
 
-  test('returns invalid result for incomplete chapters on step 2', () => {
+  test('возвращает невалидный результат при незаполненных главах на шаге 2', () => {
     expect(
       validateStep(2, {
         chapters: [
@@ -72,7 +72,7 @@ describe('validateStep', () => {
     });
   });
 
-  test('returns valid result for fully completed payload', () => {
+  test('возвращает валидный результат для полностью заполненных данных', () => {
     expect(validateStep(0, createValidPayload())).toEqual({ valid: true });
     expect(validateStep(1, createValidPayload())).toEqual({ valid: true });
     expect(validateStep(2, createValidPayload())).toEqual({ valid: true });

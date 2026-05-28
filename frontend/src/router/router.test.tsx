@@ -20,7 +20,9 @@ vi.mock('@pages', () => ({
   BlogPage: () => <></>,
   BlogPostPage: () => <></>,
   UserAgreementPage: () => <></>,
+  PersonalDataPage: () => <></>,
   PrivacyPolicyPage: () => <></>,
+  ContentGuidelinesPage: () => <></>,
   AnalyticsPage: () => <></>,
 }));
 

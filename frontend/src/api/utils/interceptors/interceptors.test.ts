@@ -38,7 +38,7 @@ describe('interceptors', () => {
   });
 
   describe('addAuthHeaderInterceptor', () => {
-    test('добавляет заголовок с токеном из localStorage', () => {
+    test('добавляет заголовок с токеном из локального хранилища', () => {
       const token = 'test-token';
 
       mockGetItem.mockReturnValue(JSON.stringify(token));
@@ -50,7 +50,7 @@ describe('interceptors', () => {
   });
 
   describe('refreshTokenOnError', () => {
-    test('обновляет токен и повторяет исходный запрос после 401', async () => {
+    test('обновляет токен и повторяет исходный запрос после ошибки 401', async () => {
       mockAxiosGet.mockResolvedValue({
         data: {
           access_token: 'next-token',
@@ -71,7 +71,7 @@ describe('interceptors', () => {
       expect(mockRequest.mock.calls[0][0].headers.Authorization).toBe('Bearer next-token');
     });
 
-    test('тихо очищает токен при ошибке refresh без показа сообщений', async () => {
+    test('тихо очищает токен при ошибке обновления без показа сообщений', async () => {
       mockAxiosGet.mockRejectedValue(new Error('refresh failed'));
 
       await expect(
@@ -87,7 +87,7 @@ describe('interceptors', () => {
       expect(mockRequest).not.toHaveBeenCalled();
     });
 
-    test('не пытается рефрешить сам refresh endpoint и просто очищает токен', async () => {
+    test('не пытается обновлять токен для самого endpoint обновления и просто очищает токен', async () => {
       const error = {
         config: { _retry: false, headers: {}, url: '/token/refresh/' },
         response: {

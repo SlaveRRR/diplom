@@ -4,12 +4,12 @@ import { Controller, SubmitHandler } from 'react-hook-form';
 import { FormItem } from 'react-hook-form-antd';
 import { useLocation } from 'react-router-dom';
 
-import { useForm } from '@hooks';
 import { SignUpParams } from '@types';
 import { getRedirectFromSearch, SocialProvider, startHeadlessSocialAuth } from '@utils';
 import GoogleIcon from '@assets/icons/google.svg';
 import VkIcon from '@assets/icons/vk.svg';
 import YandexIcon from '@assets/icons/yandex.svg';
+import { useForm } from '@hooks/useForm';
 
 import { SignUpFormSchema, signUpFormSchema } from './constants';
 import { useSignUpMutation } from './hooks';
@@ -40,106 +40,122 @@ export const SignUp: FC = () => {
 
     const values = getValues();
 
-    if (values?.email && values?.password && values?.userAgreement && values?.privacyPolicy && values?.username) {
+    if (values?.userAgreement && values?.privacyPolicy && values?.personalDataPolicy) {
       startHeadlessSocialAuth(type, redirectTo);
     }
   };
 
   return (
     <section className="py-4 sm:py-6 lg:py-8">
-      <div className="my-container">
-        <div className="mx-auto w-full max-w-[560px] rounded-[28px] bg-white p-5 shadow-sm sm:p-7 lg:p-8">
-          <Form data-testid="form" onFinish={handleSubmit(submitHanlder)} layout="vertical">
-            <Title className="text-center" level={3}>
-              Регистрация
-            </Title>
+      <div className="mx-auto w-full max-w-[560px] rounded-[28px] bg-white p-5 shadow-sm sm:p-7 lg:p-8">
+        <Form data-testid="form" onFinish={handleSubmit(submitHanlder)} layout="vertical">
+          <Title className="text-center" level={3}>
+            Регистрация
+          </Title>
 
-            <FormItem control={control} name="username" label="Имя пользователя">
-              <Input size="large" placeholder="Заполните это поле" />
-            </FormItem>
+          <FormItem control={control} name="username" label="Имя пользователя">
+            <Input size="large" placeholder="Заполните это поле" />
+          </FormItem>
 
-            <FormItem control={control} name="email" label="Электронная почта">
-              <Input size="large" placeholder="Заполните это поле" />
-            </FormItem>
+          <FormItem control={control} name="email" label="Электронная почта">
+            <Input size="large" placeholder="Заполните это поле" />
+          </FormItem>
 
-            <FormItem control={control} name="password" label="Пароль">
-              <Input.Password size="large" placeholder="Заполните это поле" />
-            </FormItem>
+          <FormItem control={control} name="password" label="Пароль">
+            <Input.Password size="large" placeholder="Заполните это поле" />
+          </FormItem>
 
-            <Divider plain>
-              <Text type="secondary">или создать аккаунт через</Text>
-            </Divider>
+          <Divider plain>
+            <Text type="secondary">или создать аккаунт через</Text>
+          </Divider>
 
-            <div className="mb-3 grid grid-cols-3 gap-3">
-              <Button
-                className="!flex !h-12 !items-center !justify-center [&_img]:inline"
-                size="large"
-                icon={<Image src={GoogleIcon} preview={false} />}
-                block
-                onClick={() => auth('google')}
-              />
-              <Button
-                className="!flex !h-12 !items-center !justify-center [&_img]:inline"
-                size="large"
-                icon={<Image src={YandexIcon} preview={false} />}
-                block
-                onClick={() => auth('yandex')}
-              />
-              <Button
-                className="!flex !h-12 !items-center !justify-center [&_img]:inline"
-                size="large"
-                icon={<Image src={VkIcon} preview={false} />}
-                block
-                onClick={() => auth('vk')}
-              />
-            </div>
+          <div className="mb-3 grid grid-cols-3 gap-3">
+            <Button
+              className="!flex !h-12 !items-center !justify-center [&_img]:inline"
+              size="large"
+              icon={<Image src={GoogleIcon} preview={false} />}
+              block
+              onClick={() => auth('google')}
+            />
+            <Button
+              className="!flex !h-12 !items-center !justify-center [&_img]:inline"
+              size="large"
+              icon={<Image src={YandexIcon} preview={false} />}
+              block
+              onClick={() => auth('yandex')}
+            />
+            <Button
+              className="!flex !h-12 !items-center !justify-center [&_img]:inline"
+              size="large"
+              icon={<Image src={VkIcon} preview={false} />}
+              block
+              onClick={() => auth('vk')}
+            />
+          </div>
 
-            <Flex justify="center" gap={9} align="center" vertical className="pt-3">
-              <Controller
-                name="userAgreement"
-                control={control}
-                render={({ field: { value, onChange, ...field } }) => (
-                  <Flex gap={12} vertical={false} align="start" className="w-full max-w-[420px]" wrap="nowrap">
-                    <Text className="flex-1 leading-6">
-                      Я ознакомлен с <Link href="/user-agreement">пользовательским соглашением</Link>
-                    </Text>
-                    <Checkbox
-                      {...field}
-                      checked={value}
-                      onChange={(e) => onChange(e.target.checked)}
-                      className="mt-1 shrink-0"
-                    />
-                  </Flex>
-                )}
-              />
-              {!!errors?.userAgreement?.message && <Text type="danger">{errors.userAgreement.message}</Text>}
+          <Flex justify="center" gap={9} align="center" vertical className="pt-3">
+            <Controller
+              name="userAgreement"
+              control={control}
+              render={({ field: { value, onChange, ...field } }) => (
+                <Flex gap={12} vertical={false} align="start" className="w-full max-w-[420px]" wrap="nowrap">
+                  <Text className="flex-1 leading-6">
+                    Я ознакомлен с <Link href="/user-agreement">пользовательским соглашением</Link>
+                  </Text>
+                  <Checkbox
+                    {...field}
+                    checked={value}
+                    onChange={(e) => onChange(e.target.checked)}
+                    className="mt-1 shrink-0"
+                  />
+                </Flex>
+              )}
+            />
+            {!!errors?.userAgreement?.message && <Text type="danger">{errors.userAgreement.message}</Text>}
 
-              <Controller
-                name="privacyPolicy"
-                control={control}
-                render={({ field: { value, onChange, ...field } }) => (
-                  <Flex gap={12} vertical={false} align="start" className="w-full max-w-[420px]" wrap="nowrap">
-                    <Text className="flex-1 leading-6">
-                      Я ознакомлен с <Link href="/privacy-policy">политикой обработки персональных данных</Link>
-                    </Text>
-                    <Checkbox
-                      {...field}
-                      checked={value}
-                      onChange={(e) => onChange(e.target.checked)}
-                      className="mt-1 shrink-0"
-                    />
-                  </Flex>
-                )}
-              />
-              {!!errors?.privacyPolicy?.message && <Text type="danger">{errors.privacyPolicy.message}</Text>}
+            <Controller
+              name="privacyPolicy"
+              control={control}
+              render={({ field: { value, onChange, ...field } }) => (
+                <Flex gap={12} vertical={false} align="start" className="w-full max-w-[420px]" wrap="nowrap">
+                  <Text className="flex-1 leading-6">
+                    Я ознакомлен с <Link href="/privacy-policy">политикой конфиденциальности</Link>
+                  </Text>
+                  <Checkbox
+                    {...field}
+                    checked={value}
+                    onChange={(e) => onChange(e.target.checked)}
+                    className="mt-1 shrink-0"
+                  />
+                </Flex>
+              )}
+            />
+            {!!errors?.privacyPolicy?.message && <Text type="danger">{errors.privacyPolicy.message}</Text>}
+            <Controller
+              name="personalDataPolicy"
+              control={control}
+              render={({ field: { value, onChange, ...field } }) => (
+                <Flex gap={12} vertical={false} align="start" className="w-full max-w-[420px]" wrap="nowrap">
+                  <Text className="flex-1 leading-6">
+                    Я ознакомлен с <Link href="/personal-data">политикой обработки персональных данных</Link>
+                  </Text>
+                  <Checkbox
+                    {...field}
+                    checked={value}
+                    onChange={(e) => onChange(e.target.checked)}
+                    className="mt-1 shrink-0"
+                  />
+                </Flex>
+              )}
+            />
+            {!!errors?.personalDataPolicy?.message && <Text type="danger">{errors.personalDataPolicy.message}</Text>}
 
-              <Button className="w-full sm:w-auto" loading={isLoading} size="large" type="primary" htmlType="submit">
-                Зарегистрироваться
-              </Button>
-              <Link href="/signin">Уже есть аккаунт?</Link>
-            </Flex>
-          </Form>
-        </div>
+            <Button className="w-full sm:w-auto" loading={isLoading} size="large" type="primary" htmlType="submit">
+              Зарегистрироваться
+            </Button>
+            <Link href="/signin">Уже есть аккаунт?</Link>
+          </Flex>
+        </Form>
       </div>
     </section>
   );

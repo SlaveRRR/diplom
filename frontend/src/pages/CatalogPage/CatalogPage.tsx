@@ -1,3 +1,3 @@
-import { Catalog } from '@components';
+﻿import { Catalog } from '@components/Catalog';
 
 export const CatalogPage = () => <Catalog />;

@@ -90,7 +90,7 @@ describe('useSignUpMutation', () => {
     });
   });
 
-  test('ошибка регистрации показывает сообщение от backend', async () => {
+  test('ошибка регистрации показывает сообщение от сервера', async () => {
     const backendError = new AxiosError('Request failed');
 
     backendError.response = {

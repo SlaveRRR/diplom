@@ -1,3 +1,3 @@
-import { ComicReader } from '@components';
+import { ComicReader } from '@components/ComicReader';
 
 export const ComicReaderPage = () => <ComicReader />;

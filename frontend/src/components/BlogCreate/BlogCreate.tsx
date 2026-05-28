@@ -1,7 +1,7 @@
-import { Button, Card, Col, Empty, Flex, Input, Row, Tag, Tooltip, Typography, Upload } from 'antd';
+import { Alert, Button, Card, Col, Empty, Flex, Input, Row, Tag, Tooltip, Typography, Upload } from 'antd';
 import mammoth from 'mammoth';
 import { FC, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import {
   BoldOutlined,
   FileWordOutlined,
@@ -26,7 +26,7 @@ import { OutletContext } from '@pages/LayoutPage/types';
 import { BlogImage } from './editor/blogImageExtension';
 import { useBlogCreateStore, useCreateBlogPostMutation, useEditableBlogPostQuery } from './hooks';
 
-const { Paragraph, Text, Title } = Typography;
+const { Text } = Typography;
 
 const createUploadId = () => `blog-image-${crypto.randomUUID()}`;
 
@@ -46,6 +46,20 @@ const blockTypeOptions = [
   { value: 'heading-3', label: 'Заголовок H3' },
   { value: 'blockquote', label: 'Цитата' },
 ] satisfies Array<{ value: BlockTypeValue; label: string }>;
+
+const MODERATION_ALERT = (
+  <Alert
+    type="info"
+    showIcon
+    message="Памятка по модерации и размещаемому контенту"
+    description={
+      <span>
+        Перед сохранением и отправкой поста на модерацию проверьте требования к допустимому контенту.{' '}
+        <RouterLink to="/content-guidelines">Открыть памятку</RouterLink>
+      </span>
+    }
+  />
+);
 
 const dataUrlToFile = async (src: string, filename: string) => {
   const response = await fetch(src);
@@ -346,38 +360,26 @@ export const BlogCreate: FC = () => {
 
   return (
     <Flex vertical gap={24} className="w-full">
-      <section className="rounded-[32px] border border-black/6 bg-[radial-gradient(circle_at_top_left,rgba(255,208,91,0.18),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(46,144,250,0.12),transparent_26%),linear-gradient(135deg,#fffef9_0%,#ffffff_100%)] p-6 shadow-[0_20px_60px_rgba(32,20,82,0.06)] sm:p-8">
-        <Flex justify="space-between" align="start" wrap="wrap" gap={16}>
-          <Flex vertical gap={8} className="max-w-3xl">
-            <Title level={1} className="!mb-0 !text-3xl sm:!text-4xl">
-              {editingPostId ? 'Редактирование поста' : 'Создание поста'}
-            </Title>
-            <Paragraph className="!mb-0 text-base text-[var(--color-text-secondary)]">
-              {editingPostId
-                ? 'Продолжайте работу над черновиком, обновляйте текст и снова сохраняйте его как черновик или отправляйте на модерацию.'
-                : 'Пишите статьи в JSON-редакторе, при желании добавляйте обложку, вставляйте изображения в тело поста и импортируйте черновик из .docx.'}
-            </Paragraph>
-          </Flex>
-          <Flex gap={12} wrap="wrap">
-            <Button
-              icon={<SaveOutlined />}
-              loading={mutation.isLoading || isLoadingEditablePost}
-              onClick={() => handleSubmit('draft')}
-            >
-              Сохранить как черновик
-            </Button>
-            <Button
-              type="primary"
-              size="large"
-              icon={<SaveOutlined />}
-              loading={mutation.isLoading || isLoadingEditablePost}
-              onClick={() => handleSubmit('under_review')}
-            >
-              Отправить на модерацию
-            </Button>
-          </Flex>
-        </Flex>
-      </section>
+      {MODERATION_ALERT}
+
+      <Flex gap={12} wrap="wrap">
+        <Button
+          icon={<SaveOutlined />}
+          loading={mutation.isLoading || isLoadingEditablePost}
+          onClick={() => handleSubmit('draft')}
+        >
+          Сохранить как черновик
+        </Button>
+        <Button
+          type="primary"
+          size="large"
+          icon={<SaveOutlined />}
+          loading={mutation.isLoading || isLoadingEditablePost}
+          onClick={() => handleSubmit('under_review')}
+        >
+          Отправить на модерацию
+        </Button>
+      </Flex>
 
       <Card className="border-0 shadow-sm">
         <Flex vertical gap={20}>

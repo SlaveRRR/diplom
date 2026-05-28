@@ -1,4 +1,4 @@
-﻿import { Badge, Button, Drawer, Space, theme } from 'antd';
+﻿import { Layout as AntdLayout, Badge, Button, Drawer, Space, theme } from 'antd';
 import { FC, PropsWithChildren, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -20,6 +20,7 @@ import { NotificationItem } from '@types';
 import { buildAuthPath, getCurrentRelativeUrl } from '@utils';
 import { useAccountQuery } from '@components/Account/hooks/useAccountQuery';
 import { useNotificationsQuery, useNotificationsSocket } from '@components/Notifications/hooks';
+import { SUPPORT_EMAIL } from '@constants/support';
 
 import {
   drawerStyles,
@@ -44,6 +45,8 @@ const notificationTitles: Record<NotificationItem['type'], string> = {
   warning: 'Требуется внимание',
   error: 'Важное уведомление',
 };
+
+const { Footer } = AntdLayout;
 
 export const Layout: FC<LayoutProps> = ({ children, notificationApi }) => {
   const location = useLocation();
@@ -228,6 +231,17 @@ export const Layout: FC<LayoutProps> = ({ children, notificationApi }) => {
           $isReaderMode={isReaderRoute}
         >
           {children}
+          <Footer className="mt-10 border-t border-black/8 pt-6 text-sm text-[var(--color-text-secondary)]">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <Space wrap size={[12, 8]}>
+                <Link to="/user-agreement">Пользовательское соглашение</Link>
+                <Link to="/privacy-policy">Политика конфиденциальности</Link>
+                <Link to="/personal-data">Политика обработки персональных данных</Link>
+                <Link to="/content-guidelines">Памятка по модерации</Link>
+                <a href={`mailto:${SUPPORT_EMAIL}`}>Почта техподдержки</a>
+              </Space>
+            </div>
+          </Footer>
         </MainContent>
       </MainLayout>
     </RootLayout>

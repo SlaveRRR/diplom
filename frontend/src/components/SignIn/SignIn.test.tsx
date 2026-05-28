@@ -4,18 +4,31 @@ import { SignIn } from './SignIn';
 
 const mockMutate = vi.fn();
 
-vi.mock('@hooks', () => ({
+vi.mock('@hooks/useForm', () => ({
   useForm: () => ({
-    handleSubmit: (callback: (data: { username: string; password: string; privacyPolicy: boolean }) => void) => () =>
-      callback({
-        username: 'reader',
-        password: 'password123',
-        privacyPolicy: true,
-      }),
+    handleSubmit:
+      (
+        callback: (data: {
+          username: string;
+          password: string;
+          privacyPolicy: boolean;
+          personalDataPolicy: boolean;
+        }) => void,
+      ) =>
+      () =>
+        callback({
+          username: 'reader',
+          password: 'password123',
+          privacyPolicy: true,
+          personalDataPolicy: true,
+        }),
     control: {},
     formState: {
       errors: {},
     },
+    getValues: (name?: 'privacyPolicy' | 'personalDataPolicy') =>
+      name ? true : { privacyPolicy: true, personalDataPolicy: true },
+    trigger: vi.fn(),
   }),
 }));
 

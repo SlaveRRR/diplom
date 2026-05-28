@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Button, Space } from 'antd';
+import React, { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 
 type OnboardingStorage = 'local' | 'session';
 
@@ -34,17 +35,52 @@ export const usePageOnboarding = ({ storageKey, enabled = true, storage = 'sessi
     }
   }, [enabled, storageApi, storageKey]);
 
-  const close = () => setIsOpen(false);
-  const open = () => setIsOpen(true);
-  const reset = () => {
+  const close = useCallback(() => setIsOpen(false), []);
+  const open = useCallback(() => setIsOpen(true), []);
+  const skip = useCallback(() => {
+    storageApi?.setItem(storageKey, 'true');
+    setIsOpen(false);
+  }, [storageApi, storageKey]);
+  const reset = useCallback(() => {
     storageApi?.removeItem(storageKey);
     setIsOpen(true);
-  };
+  }, [storageApi, storageKey]);
+
+  const actionsRender = useCallback(
+    (originNode: ReactNode) =>
+      React.createElement(
+        Space,
+        { size: 8, wrap: true },
+        React.createElement(
+          Button,
+          {
+            size: 'small',
+            type: 'text',
+            onClick: skip,
+          },
+          'Пропустить',
+        ),
+        originNode,
+      ),
+    [skip],
+  );
+
+  const tourProps = useMemo(
+    () => ({
+      actionsRender,
+      onClose: close,
+      open: isOpen,
+    }),
+    [actionsRender, close, isOpen],
+  );
 
   return {
+    actionsRender,
     isOpen,
     close,
     open,
     reset,
+    skip,
+    tourProps,
   };
 };

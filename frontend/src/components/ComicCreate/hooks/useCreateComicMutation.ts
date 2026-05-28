@@ -3,9 +3,9 @@ import { useOutletContext } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '@api';
-import { CURRENT_USER_QUERY_KEY } from '@hooks';
 import { OutletContext } from '@pages';
 import { ComicConfirmResponse, ComicUploadConfigPayload } from '@types';
+import { CURRENT_USER_QUERY_KEY } from '@hooks/useCurrentUser';
 
 import { ComicUploadState, CreateComicPayload } from '../types';
 

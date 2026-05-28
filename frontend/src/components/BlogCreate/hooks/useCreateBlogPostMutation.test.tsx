@@ -47,7 +47,7 @@ describe('useCreateBlogPostMutation', () => {
     consoleErrorSpy.mockRestore();
   });
 
-  test('uploads used files, rewrites inline image sources and confirms post', async () => {
+  test('загружает используемые файлы, переписывает ссылки встроенных изображений и подтверждает пост', async () => {
     const { queryClient, wrapper } = createWrapper();
     const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
@@ -186,7 +186,7 @@ describe('useCreateBlogPostMutation', () => {
     expect(invalidateQueriesSpy).toHaveBeenCalledWith(['account']);
   });
 
-  test('fails when upload config references missing inline file', async () => {
+  test('завершается ошибкой, если конфигурация загрузки ссылается на отсутствующий встроенный файл', async () => {
     const { wrapper } = createWrapper();
 
     mockApi.getBlogPostUploadConfig.mockResolvedValue({

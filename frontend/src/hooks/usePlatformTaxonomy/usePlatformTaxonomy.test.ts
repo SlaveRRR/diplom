@@ -14,7 +14,7 @@ vi.mock('@api', () => ({
 const mockApi = vi.mocked(api);
 
 describe('usePlatformTaxonomy', () => {
-  test('мапит taxonomy в select options', async () => {
+  test('преобразует таксономию в опции для Select', async () => {
     mockApi.getPlatformTaxonomy.mockResolvedValue({
       data: {
         data: {

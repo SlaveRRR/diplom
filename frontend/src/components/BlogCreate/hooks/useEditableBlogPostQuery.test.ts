@@ -19,7 +19,7 @@ describe('useEditableBlogPostQuery', () => {
     vi.clearAllMocks();
   });
 
-  test('does not stay in loading state when postId is missing', () => {
+  test('не остается в состоянии загрузки при отсутствии идентификатора поста', () => {
     const { result } = renderHook(() => useEditableBlogPostQuery(), {
       wrapper: QueryClientProvider,
     });
@@ -28,7 +28,7 @@ describe('useEditableBlogPostQuery', () => {
     expect(mockApi.getEditableBlogPost).not.toHaveBeenCalled();
   });
 
-  test('loads editable post when postId is provided', async () => {
+  test('загружает редактируемый пост, когда передан идентификатор поста', async () => {
     const apiResponse = {
       data: {
         data: {

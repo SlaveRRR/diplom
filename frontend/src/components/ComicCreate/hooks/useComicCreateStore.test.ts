@@ -13,7 +13,7 @@ describe('useComicCreateStore', () => {
     useComicCreateStore.getState().reset();
   });
 
-  test('adds chapters and keeps numbers consistent after removal', () => {
+  test('добавляет главы и сохраняет корректную нумерацию после удаления', () => {
     useComicCreateStore.getState().addChapter();
     useComicCreateStore.getState().addChapter();
 
@@ -25,7 +25,7 @@ describe('useComicCreateStore', () => {
     expect(useComicCreateStore.getState().chapters.map((chapter) => chapter.chapterNumber)).toEqual([1, 2]);
   });
 
-  test('keeps at least one chapter when last chapter is removed', () => {
+  test('сохраняет хотя бы одну главу при удалении последней', () => {
     const [firstChapter] = useComicCreateStore.getState().chapters;
 
     useComicCreateStore.getState().removeChapter(firstChapter.id);
@@ -34,7 +34,7 @@ describe('useComicCreateStore', () => {
     expect(useComicCreateStore.getState().chapters[0].chapterNumber).toBe(1);
   });
 
-  test('skips pages that duplicate existing fingerprints and allows reordering', () => {
+  test('пропускает страницы с дублирующимися отпечатками и позволяет менять порядок', () => {
     const [chapter] = useComicCreateStore.getState().chapters;
     const page1 = createAsset('page-1', 'fingerprint-1');
     const duplicatePage1 = createAsset('page-1-duplicate', 'fingerprint-1');
@@ -50,7 +50,7 @@ describe('useComicCreateStore', () => {
     expect(useComicCreateStore.getState().chapters[0].pages.map((page) => page.id)).toEqual(['page-2', 'page-1']);
   });
 
-  test('reset returns store to the initial create state', () => {
+  test('сброс возвращает стор в исходное состояние создания', () => {
     const [chapter] = useComicCreateStore.getState().chapters;
 
     useComicCreateStore.getState().setTitle('Moon Tower');

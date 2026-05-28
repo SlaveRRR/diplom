@@ -51,7 +51,7 @@ describe('useAdultContentGate', () => {
     expect(screen.queryByTestId('adult-modal')).not.toBeInTheDocument();
   });
 
-  test('показывает modal и подтверждает доступ для 18+ контента', () => {
+  test('показывает модальное окно и подтверждает доступ для 18+ контента', () => {
     render(<TestComponent />);
 
     fireEvent.click(screen.getByTestId('adult-link'));
@@ -64,7 +64,7 @@ describe('useAdultContentGate', () => {
     expect(screen.getByTestId('confirmed-state')).toHaveTextContent('true');
   });
 
-  test('закрывает modal по cancel', () => {
+  test('закрывает модальное окно по отмене', () => {
     render(<TestComponent />);
 
     fireEvent.click(screen.getByTestId('adult-link'));

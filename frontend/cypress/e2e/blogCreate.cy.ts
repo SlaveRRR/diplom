@@ -6,7 +6,7 @@ const selectOption = (index: number, optionText: string) => {
 };
 
 describe('Blog create page', () => {
-  it('creates a draft post with minimal required fields', () => {
+  it('создает черновик поста', () => {
     mockAuthenticatedShell();
     mockBlogCreateApi();
 
@@ -37,5 +37,20 @@ describe('Blog create page', () => {
       });
 
     cy.location('pathname').should('eq', '/account');
+  });
+
+  it('не отправляет пустую форму создания поста', () => {
+    mockAuthenticatedShell();
+    mockBlogCreateApi();
+
+    cy.visitApp('/blog/create', { authenticated: true });
+    cy.wait(['@getCurrentUser', '@getAccount', '@getNotifications', '@getBlogTags', '@getTaxonomy']);
+
+    cy.contains('Сохранить как черновик').click();
+
+    cy.contains('Введите заголовок статьи.').should('be.visible');
+    cy.get('@getBlogUploadConfig.all').should('have.length', 0);
+    cy.get('@confirmBlogPost.all').should('have.length', 0);
+    cy.location('pathname').should('eq', '/blog/create');
   });
 });

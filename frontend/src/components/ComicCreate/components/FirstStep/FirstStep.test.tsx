@@ -59,7 +59,7 @@ vi.mock('@components/shared', () => ({
 }));
 
 describe('FirstStep', () => {
-  test('renders basic comic fields and forwards changes to store actions', () => {
+  test('отображает базовые поля комикса и передает изменения в действия стора', () => {
     render(<FirstStep />);
 
     const [titleInput, descriptionInput] = screen.getAllByRole('textbox');

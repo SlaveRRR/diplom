@@ -1,4 +1,5 @@
-import { SignUp } from '@components';
-import { FC } from 'react';
+﻿import { FC } from 'react';
+
+import { SignUp } from '@components/SignUp';
 
 export const SignUpPage: FC = () => <SignUp />;

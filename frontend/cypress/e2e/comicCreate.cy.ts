@@ -17,7 +17,7 @@ const selectFirstVisibleOption = (index: number) => {
 };
 
 describe('Comic create page', () => {
-  it('creates comic draft through the full multi-step flow', () => {
+  it('создает пошагово черновик комикса', () => {
     mockAuthenticatedShell();
     mockComicCreateApi();
 
@@ -77,5 +77,21 @@ describe('Comic create page', () => {
     });
 
     cy.location('pathname').should('eq', '/catalog');
+  });
+
+  it('не переводит на следующий шаг без названия комикса', () => {
+    mockAuthenticatedShell();
+    mockComicCreateApi();
+
+    cy.visitApp('/comics/create', { authenticated: true });
+    cy.wait(['@getCurrentUser', '@getAccount', '@getNotifications', '@getTaxonomy']);
+
+    cy.contains('Далее').click();
+
+    cy.contains('Добавьте название комикса.').should('be.visible');
+    cy.contains('Базовая информация').should('be.visible');
+    cy.contains('Основная карточка комикса для каталога и списка релизов.').should('not.exist');
+    cy.get('@getComicUploadConfig.all').should('have.length', 0);
+    cy.get('@confirmComicCreation.all').should('have.length', 0);
   });
 });

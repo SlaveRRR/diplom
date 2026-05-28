@@ -32,7 +32,7 @@ vi.mock('@hooks', () => ({
 }));
 
 describe('Home', () => {
-  test('renders working home sections', () => {
+  test('отображает основные секции главной страницы', () => {
     render(<Home />);
 
     expect(screen.getByTestId('masonry')).toBeInTheDocument();

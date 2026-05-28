@@ -1,10 +1,9 @@
-﻿import { Alert, Button, Divider, Flex, Form, Image, Input, Typography } from 'antd';
+﻿import { Alert, Button, Checkbox, Divider, Flex, Form, Image, Input, Typography } from 'antd';
 import { FC, useCallback, useEffect, useRef, useState } from 'react';
-import { SubmitHandler } from 'react-hook-form';
+import { Controller, SubmitHandler } from 'react-hook-form';
 import { FormItem } from 'react-hook-form-antd';
 import { useLocation, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
 
-import { useForm } from '@hooks';
 import { OutletContext } from '@pages';
 import { SignInParams } from '@types';
 import {
@@ -12,11 +11,13 @@ import {
   getIntentFromSearch,
   getIntentLabel,
   getRedirectFromSearch,
+  SocialProvider,
   startHeadlessSocialAuth,
 } from '@utils';
 import GoogleIcon from '@assets/icons/google.svg';
 import VkIcon from '@assets/icons/vk.svg';
 import YandexIcon from '@assets/icons/yandex.svg';
+import { useForm } from '@hooks/useForm';
 
 import { SignInFormSchema, signInFormSchema } from './constants';
 import { useResendVerificationEmail, useSignInMutation, useSocialSessionExchange } from './hooks';
@@ -24,7 +25,13 @@ import { useResendVerificationEmail, useSignInMutation, useSocialSessionExchange
 const { Title, Link, Text } = Typography;
 
 export const SignIn: FC = () => {
-  const { handleSubmit, control } = useForm(signInFormSchema);
+  const {
+    handleSubmit,
+    control,
+    getValues,
+    trigger,
+    formState: { errors },
+  } = useForm(signInFormSchema);
   const { mutate, isLoading } = useSignInMutation();
   const { mutate: exchangeSocialSession, isLoading: isSocialExchangeLoading } = useSocialSessionExchange();
   const { mutateAsync: resendVerificationEmail, isLoading: isResendingVerificationEmail } =
@@ -53,6 +60,14 @@ export const SignIn: FC = () => {
   const verificationCooldownStorageKey = verificationEmail
     ? `verification-cooldown:${verificationEmail.toLowerCase()}`
     : null;
+
+  const auth = async (type: SocialProvider) => {
+    await trigger(['privacyPolicy', 'personalDataPolicy']);
+
+    if (getValues('privacyPolicy') && getValues('personalDataPolicy')) {
+      startHeadlessSocialAuth(type, redirectTo);
+    }
+  };
 
   const syncVerificationCooldown = useCallback(
     (initialRetryAfter = 0) => {
@@ -137,109 +152,139 @@ export const SignIn: FC = () => {
 
   return (
     <section className="py-4 sm:py-6 lg:py-8">
-      <div className="my-container">
-        <div className="mx-auto w-full max-w-[560px] rounded-[28px] bg-white p-5 shadow-sm sm:p-7 lg:p-8">
-          <Form data-testid="form" onFinish={handleSubmit(submitHanlder)} layout="vertical">
-            <Title className="text-center" level={3}>
-              Авторизация
-            </Title>
+      <div className="mx-auto w-full max-w-[560px] rounded-[28px] bg-white p-5 shadow-sm sm:p-7 lg:p-8">
+        <Form data-testid="form" onFinish={handleSubmit(submitHanlder)} layout="vertical">
+          <Title className="text-center" level={3}>
+            Авторизация
+          </Title>
 
-            {intentLabel ? (
-              <Alert
-                className="mb-4"
-                type="warning"
-                showIcon
-                message="Нужен аккаунт"
-                description={`Войдите или зарегистрируйтесь, чтобы ${intentLabel}. После входа вы автоматически вернётесь к нужному экрану.`}
-              />
-            ) : null}
+          {intentLabel ? (
+            <Alert
+              className="mb-4"
+              type="warning"
+              showIcon
+              message="Нужен аккаунт"
+              description={`Войдите или зарегистрируйтесь, чтобы ${intentLabel}. После входа вы автоматически вернётесь к нужному экрану.`}
+            />
+          ) : null}
 
-            {verificationState === 'pending' && verificationEmail ? (
-              <Alert
-                className="mb-4"
-                type="info"
-                message="Подтвердите электронную почту"
-                description={
-                  <Flex vertical gap={12}>
-                    <span>
-                      Мы отправили письмо на <strong>{verificationEmail}</strong>. После подтверждения почты можно будет
-                      войти в аккаунт.
+          {verificationState === 'pending' && verificationEmail ? (
+            <Alert
+              className="mb-4"
+              type="info"
+              message="Подтвердите электронную почту"
+              description={
+                <Flex vertical gap={12}>
+                  <span>
+                    Мы отправили письмо на <strong>{verificationEmail}</strong>. После подтверждения почты можно будет
+                    войти в аккаунт.
+                  </span>
+                  <Flex gap={12} align="center" wrap="wrap">
+                    <Button
+                      type="default"
+                      onClick={handleResendVerificationEmail}
+                      disabled={verificationCooldown > 0}
+                      loading={isResendingVerificationEmail}
+                    >
+                      Отправить письмо повторно
+                    </Button>
+                    <span className="text-sm text-[var(--color-text-secondary)]">
+                      {verificationCooldown > 0
+                        ? `Повторная отправка будет доступна через ${verificationCooldown} сек.`
+                        : 'Можно запросить новое письмо.'}
                     </span>
-                    <Flex gap={12} align="center" wrap="wrap">
-                      <Button
-                        type="default"
-                        onClick={handleResendVerificationEmail}
-                        disabled={verificationCooldown > 0}
-                        loading={isResendingVerificationEmail}
-                      >
-                        Отправить письмо повторно
-                      </Button>
-                      <span className="text-sm text-[var(--color-text-secondary)]">
-                        {verificationCooldown > 0
-                          ? `Повторная отправка будет доступна через ${verificationCooldown} сек.`
-                          : 'Можно запросить новое письмо.'}
-                      </span>
-                    </Flex>
                   </Flex>
-                }
-              />
-            ) : null}
+                </Flex>
+              }
+            />
+          ) : null}
 
-            <FormItem control={control} name="username" label="Имя пользователя">
-              <Input size="large" placeholder="Заполните это поле" />
-            </FormItem>
+          <FormItem control={control} name="username" label="Имя пользователя">
+            <Input size="large" placeholder="Заполните это поле" />
+          </FormItem>
 
-            <FormItem control={control} name="password" label="Пароль">
-              <Input.Password size="large" placeholder="Заполните это поле" />
-            </FormItem>
+          <FormItem control={control} name="password" label="Пароль">
+            <Input.Password size="large" placeholder="Заполните это поле" />
+          </FormItem>
 
-            <Divider plain>или войти через</Divider>
+          <Divider plain>или войти через</Divider>
 
-            <div className="mb-3 grid grid-cols-3 gap-3">
-              <Button
-                className="!flex !h-12 !items-center !justify-center [&_img]:inline"
-                size="large"
-                icon={<Image src={GoogleIcon} preview={false} />}
-                block
-                disabled={isSocialExchangeLoading}
-                onClick={() => startHeadlessSocialAuth('google', redirectTo)}
-              />
-              <Button
-                className="!flex !h-12 !items-center !justify-center [&_img]:inline"
-                size="large"
-                icon={<Image src={YandexIcon} preview={false} />}
-                block
-                disabled={isSocialExchangeLoading}
-                onClick={() => startHeadlessSocialAuth('yandex', redirectTo)}
-              />
-              <Button
-                className="!flex !h-12 !items-center !justify-center [&_img]:inline"
-                size="large"
-                icon={<Image src={VkIcon} preview={false} />}
-                block
-                disabled={isSocialExchangeLoading}
-                onClick={() => startHeadlessSocialAuth('vk', redirectTo)}
-              />
-            </div>
+          <div className="mb-3 grid grid-cols-3 gap-3">
+            <Button
+              className="!flex !h-12 !items-center !justify-center [&_img]:inline"
+              size="large"
+              icon={<Image src={GoogleIcon} preview={false} />}
+              block
+              disabled={isSocialExchangeLoading}
+              onClick={() => auth('google')}
+            />
+            <Button
+              className="!flex !h-12 !items-center !justify-center [&_img]:inline"
+              size="large"
+              icon={<Image src={YandexIcon} preview={false} />}
+              block
+              disabled={isSocialExchangeLoading}
+              onClick={() => auth('yandex')}
+            />
+            <Button
+              className="!flex !h-12 !items-center !justify-center [&_img]:inline"
+              size="large"
+              icon={<Image src={VkIcon} preview={false} />}
+              block
+              disabled={isSocialExchangeLoading}
+              onClick={() => auth('vk')}
+            />
+          </div>
 
-            <Flex justify="center" gap={9} align="center" vertical className="pt-2">
-              <Text className="text-center text-sm text-[var(--color-text-secondary)]">
-                Продолжая вход, вы подтверждаете ознакомление с{' '}
-                <Link href="/privacy-policy">политикой обработки персональных данных</Link>.
-              </Text>
-              <Button
-                className="w-full sm:w-auto"
-                loading={isLoading || isSocialExchangeLoading}
-                size="large"
-                type="primary"
-                htmlType="submit"
-              >
-                Войти
-              </Button>
-              <Link href={buildAuthPath('/signup', { intent, redirectTo })}>Ещё нет аккаунта?</Link>
-            </Flex>
-          </Form>
-        </div>
+          <Flex justify="center" gap={9} align="center" vertical className="pt-2">
+            <Controller
+              name="privacyPolicy"
+              control={control}
+              render={({ field: { value, onChange, ...field } }) => (
+                <Flex gap={12} vertical={false} align="start" className="w-full max-w-[420px]" wrap="nowrap">
+                  <Text className="flex-1 leading-6">
+                    Я ознакомлен с <Link href="/privacy-policy">политикой конфиденциальности</Link>
+                  </Text>
+                  <Checkbox
+                    {...field}
+                    checked={value}
+                    onChange={(event) => onChange(event.target.checked)}
+                    className="mt-1 shrink-0"
+                  />
+                </Flex>
+              )}
+            />
+            {!!errors?.privacyPolicy?.message && <Text type="danger">{errors.privacyPolicy.message}</Text>}
+            <Controller
+              name="personalDataPolicy"
+              control={control}
+              render={({ field: { value, onChange, ...field } }) => (
+                <Flex gap={12} vertical={false} align="start" className="w-full max-w-[420px]" wrap="nowrap">
+                  <Text className="flex-1 leading-6">
+                    Я ознакомлен с <Link href="/personal-data">политикой обработки персональных данных</Link>
+                  </Text>
+                  <Checkbox
+                    {...field}
+                    checked={value}
+                    onChange={(event) => onChange(event.target.checked)}
+                    className="mt-1 shrink-0"
+                  />
+                </Flex>
+              )}
+            />
+            {!!errors?.personalDataPolicy?.message && <Text type="danger">{errors.personalDataPolicy.message}</Text>}
+            <Button
+              className="w-full sm:w-auto"
+              loading={isLoading || isSocialExchangeLoading}
+              size="large"
+              type="primary"
+              htmlType="submit"
+            >
+              Войти
+            </Button>
+            <Link href={buildAuthPath('/signup', { intent, redirectTo })}>Ещё нет аккаунта?</Link>
+          </Flex>
+        </Form>
       </div>
     </section>
   );

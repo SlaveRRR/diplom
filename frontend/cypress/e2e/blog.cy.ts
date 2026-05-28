@@ -2,7 +2,7 @@ import { fixtureData } from '../support/fixtureData';
 import { mockPublicApi } from '../support/mockApi';
 
 describe('Blog page', () => {
-  it('renders blog feed from mocked responses', () => {
+  it('отображает страницу блога', () => {
     mockPublicApi();
 
     cy.visitApp('/blog');

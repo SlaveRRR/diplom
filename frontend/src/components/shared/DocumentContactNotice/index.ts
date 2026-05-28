@@ -1,0 +1,1 @@
+export { DocumentContactNotice } from './DocumentContactNotice';

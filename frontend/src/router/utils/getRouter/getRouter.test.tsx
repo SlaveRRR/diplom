@@ -1,15 +1,18 @@
-import { PropsWithChildren } from 'react';
+import { Spin } from 'antd';
+import { PropsWithChildren, Suspense } from 'react';
 
-import { RequiredAuth } from '@components';
+import { RequiredAuth } from '@components/shared/RequiredAuth';
 
 import { getRouter } from './getRouter';
 
-vi.mock('@components', () => ({
+vi.mock('@components/shared/RequiredAuth', () => ({
   RequiredAuth: ({ children }: PropsWithChildren) => <div>{children}</div>,
 }));
 
 describe('getRouter', () => {
   test('проверка получения роутера', () => {
+    const fallback = <Spin className="w-full" />;
+
     expect(
       getRouter([
         {
@@ -21,12 +24,16 @@ describe('getRouter', () => {
       ]),
     ).toMatchObject([
       {
-        element: <RequiredAuth>page</RequiredAuth>,
+        element: (
+          <RequiredAuth>
+            <Suspense fallback={fallback}>page</Suspense>
+          </RequiredAuth>
+        ),
         path: '/',
         children: [
           {
             path: '/children',
-            element: 'children',
+            element: <Suspense fallback={fallback}>children</Suspense>,
           },
         ],
       },

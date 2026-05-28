@@ -12,7 +12,7 @@ describe('useBlogCreateStore', () => {
     revokeObjectUrlSpy.mockRestore();
   });
 
-  test('replaces cover preview and revokes previous blob url', () => {
+  test('заменяет превью обложки и освобождает предыдущую blob-ссылку', () => {
     const firstFile = new File(['cover-1'], 'cover-1.png', { type: 'image/png' });
     const secondFile = new File(['cover-2'], 'cover-2.png', { type: 'image/png' });
 
@@ -24,7 +24,7 @@ describe('useBlogCreateStore', () => {
     expect(useBlogCreateStore.getState().coverPreviewUrl).toBe('blob:second-cover');
   });
 
-  test('hydrate clears inline images and switches store into edit mode', () => {
+  test('гидратация очищает встроенные изображения и переводит стор в режим редактирования', () => {
     const inlineFile = new File(['inline'], 'inline.png', { type: 'image/png' });
 
     useBlogCreateStore.getState().setCoverFile(new File(['cover'], 'cover.png', { type: 'image/png' }), 'blob:cover');
@@ -51,7 +51,7 @@ describe('useBlogCreateStore', () => {
     });
   });
 
-  test('reset clears state and revokes tracked object urls', () => {
+  test('сброс очищает состояние и освобождает сохраненные object-ссылки', () => {
     useBlogCreateStore
       .getState()
       .setCoverFile(new File(['cover'], 'cover.png', { type: 'image/png' }), 'blob:cover-preview');
