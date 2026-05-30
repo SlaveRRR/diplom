@@ -19,6 +19,7 @@ import StarterKit from '@tiptap/starter-kit';
 
 import { colors } from '@constants';
 import { usePlatformTaxonomy } from '@hooks';
+import { getAllowedImageAccept, MAX_IMAGE_DIMENSION_PX, MAX_IMAGE_UPLOAD_SIZE_MB, normalizeUploadImage } from '@utils';
 import { useBlogTagsQuery } from '@components/Blog/hooks';
 import { Select } from '@components/shared';
 import { OutletContext } from '@pages/LayoutPage/types';
@@ -60,6 +61,8 @@ const MODERATION_ALERT = (
     }
   />
 );
+
+const IMAGE_REQUIREMENTS_TEXT = `Поддерживаются PNG, JPG и WEBP до ${MAX_IMAGE_UPLOAD_SIZE_MB} МБ и до ${MAX_IMAGE_DIMENSION_PX}px по большей стороне. PNG и JPG автоматически конвертируются в WEBP.`;
 
 const dataUrlToFile = async (src: string, filename: string) => {
   const response = await fetch(src);
@@ -211,11 +214,17 @@ export const BlogCreate: FC = () => {
     [editor, editorState],
   );
 
-  const handleSelectCover = (file: File) => {
-    const previewUrl = URL.createObjectURL(file);
-    setCoverFile(file, previewUrl);
+  const handleSelectCover = async (file: File) => {
+    try {
+      const normalizedFile = await normalizeUploadImage(file);
+      const previewUrl = URL.createObjectURL(normalizedFile);
 
-    return false;
+      setCoverFile(normalizedFile, previewUrl);
+    } catch (error) {
+      messageApi.error(error instanceof Error ? error.message : 'Не удалось обработать изображение обложки.');
+    }
+
+    return Upload.LIST_IGNORE;
   };
 
   const handleBlockTypeChange = (value: string | number) => {
@@ -247,27 +256,33 @@ export const BlogCreate: FC = () => {
     }
   };
 
-  const insertInlineImage = (file: File) => {
+  const insertInlineImage = async (file: File) => {
     if (!editor) {
       return;
     }
 
-    const uploadId = createUploadId();
-    const previewUrl = URL.createObjectURL(file);
-    registerInlineImage(uploadId, file, previewUrl);
+    try {
+      const normalizedFile = await normalizeUploadImage(file);
+      const uploadId = createUploadId();
+      const previewUrl = URL.createObjectURL(normalizedFile);
 
-    editor
-      .chain()
-      .focus()
-      .insertContent({
-        type: 'image',
-        attrs: {
-          src: previewUrl,
-          alt: file.name,
-          uploadId,
-        },
-      })
-      .run();
+      registerInlineImage(uploadId, normalizedFile, previewUrl);
+
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: 'image',
+          attrs: {
+            src: previewUrl,
+            alt: normalizedFile.name,
+            uploadId,
+          },
+        })
+        .run();
+    } catch (error) {
+      messageApi.error(error instanceof Error ? error.message : 'Не удалось обработать встроенное изображение.');
+    }
   };
 
   const handleDocxImport = async (file: File) => {
@@ -297,7 +312,7 @@ export const BlogCreate: FC = () => {
           continue;
         }
 
-        const fileFromDocx = await dataUrlToFile(src, `docx-image-${index + 1}.png`);
+        const fileFromDocx = await normalizeUploadImage(await dataUrlToFile(src, `docx-image-${index + 1}.png`));
         const uploadId = createUploadId();
         const previewUrl = URL.createObjectURL(fileFromDocx);
 
@@ -438,12 +453,13 @@ export const BlogCreate: FC = () => {
             <Flex vertical gap={16}>
               <Flex justify="space-between" align="center">
                 <Text strong>Обложка</Text>
-                <Upload beforeUpload={handleSelectCover} showUploadList={false} accept="image/*">
+                <Upload beforeUpload={handleSelectCover} showUploadList={false} accept={getAllowedImageAccept()}>
                   <Button icon={<PictureOutlined />} disabled={isLoadingEditablePost}>
                     Выбрать
                   </Button>
                 </Upload>
               </Flex>
+              <Text type="secondary">{IMAGE_REQUIREMENTS_TEXT}</Text>
 
               {coverPreviewUrl ? (
                 <img
@@ -522,7 +538,7 @@ export const BlogCreate: FC = () => {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept={getAllowedImageAccept()}
                 hidden
                 onChange={(event) => {
                   const file = event.target.files?.[0];

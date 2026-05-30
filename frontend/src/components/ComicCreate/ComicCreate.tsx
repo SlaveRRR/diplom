@@ -1,4 +1,4 @@
-import {
+﻿import {
   Alert,
   Button,
   Card,
@@ -29,6 +29,14 @@ import type { UploadChangeParam, UploadFile } from 'antd/es/upload';
 
 import { useCurrentUser, usePlatformTaxonomy } from '@hooks';
 import { OutletContext } from '@pages';
+import {
+  getAllowedImageAccept,
+  MAX_COMIC_CHAPTERS,
+  MAX_COMIC_PAGES_PER_CHAPTER,
+  MAX_IMAGE_DIMENSION_PX,
+  MAX_IMAGE_UPLOAD_SIZE_MB,
+  normalizeUploadImage,
+} from '@utils';
 
 import { FirstStep } from './components';
 import { useComicCreateStore, useCreateComicMutation } from './hooks';
@@ -102,6 +110,8 @@ const getUploadFile = (file: UploadFile) => {
 
   return undefined;
 };
+
+const UPLOAD_REQUIREMENTS_TEXT = `Поддерживаются PNG, JPG и WEBP до ${MAX_IMAGE_UPLOAD_SIZE_MB} МБ и до ${MAX_IMAGE_DIMENSION_PX}px по большей стороне. PNG и JPG автоматически конвертируются в WEBP.`;
 
 export const ComicCreate: FC = () => {
   const navigate = useNavigate();
@@ -182,7 +192,7 @@ export const ComicCreate: FC = () => {
 
   const selectedTags = tagSelectOptions.filter((tag) => tagIds.includes(tag.value));
 
-  const syncSingleAsset = (
+  const syncSingleAsset = async (
     change: UploadChangeParam,
     currentAsset: LocalUploadAsset | null,
     setter: (asset: LocalUploadAsset | null) => void,
@@ -194,22 +204,64 @@ export const ComicCreate: FC = () => {
       return;
     }
 
-    revokeAsset(currentAsset);
-    setter(createAssetFromFile(rawFile));
+    try {
+      const normalizedFile = await normalizeUploadImage(rawFile);
+
+      revokeAsset(currentAsset);
+      setter(createAssetFromFile(normalizedFile));
+    } catch (error) {
+      messageApi.warning(error instanceof Error ? error.message : 'Не удалось обработать изображение.');
+      setter(currentAsset);
+    }
   };
 
-  const syncChapterAssets = (chapter: ChapterDraft, change: UploadChangeParam) => {
-    const nextAssets = change.fileList.reduce<LocalUploadAsset[]>((assets, uploadFile) => {
+  const syncChapterAssets = async (chapter: ChapterDraft, change: UploadChangeParam) => {
+    const nextFiles = change.fileList.reduce<File[]>((files, uploadFile) => {
       const file = getUploadFile(uploadFile);
 
       if (!file) {
-        return assets;
+        return files;
       }
 
-      assets.push(createAssetFromFile(file));
+      files.push(file);
 
-      return assets;
+      return files;
     }, []);
+
+    if (!nextFiles.length) {
+      return;
+    }
+
+    const remainingSlots = Math.max(MAX_COMIC_PAGES_PER_CHAPTER - chapter.pages.length, 0);
+
+    if (!remainingSlots) {
+      messageApi.warning(`В одной главе можно хранить не более ${MAX_COMIC_PAGES_PER_CHAPTER} страниц.`);
+      return;
+    }
+
+    const limitedFiles = nextFiles.slice(0, remainingSlots);
+
+    if (nextFiles.length > limitedFiles.length) {
+      messageApi.warning(
+        `Лишние страницы пропущены: в одной главе доступно только ${MAX_COMIC_PAGES_PER_CHAPTER} страниц.`,
+      );
+    }
+
+    const nextAssets = (
+      await Promise.all(
+        limitedFiles.map(async (file) => {
+          try {
+            const normalizedFile = await normalizeUploadImage(file);
+
+            return createAssetFromFile(normalizedFile);
+          } catch (error) {
+            messageApi.warning(error instanceof Error ? error.message : 'Не удалось обработать изображение страницы.');
+
+            return null;
+          }
+        }),
+      )
+    ).filter((asset): asset is LocalUploadAsset => Boolean(asset));
 
     if (!nextAssets.length) {
       return;
@@ -246,6 +298,15 @@ export const ComicCreate: FC = () => {
     }
 
     setCurrentStep(Math.min(currentStep + 1, STEP_ITEMS.length - 1));
+  };
+
+  const handleAddChapter = () => {
+    if (chapters.length >= MAX_COMIC_CHAPTERS) {
+      messageApi.warning(`Можно добавить не более ${MAX_COMIC_CHAPTERS} глав.`);
+      return;
+    }
+
+    addChapter();
   };
 
   const handleSubmit = async () => {
@@ -304,9 +365,16 @@ export const ComicCreate: FC = () => {
           <Text type="secondary">{descriptionText}</Text>
         </Flex>
 
-        <Upload accept="image/*" beforeUpload={() => false} maxCount={1} showUploadList={false} onChange={onChange}>
+        <Upload
+          accept={getAllowedImageAccept()}
+          beforeUpload={() => false}
+          maxCount={1}
+          showUploadList={false}
+          onChange={(change) => void onChange(change)}
+        >
           <Button icon={<UploadOutlined />}>Выбрать файл</Button>
         </Upload>
+        <Text type="secondary">{UPLOAD_REQUIREMENTS_TEXT}</Text>
 
         <div
           className={`overflow-hidden rounded-2xl border border-dashed border-slate-300 bg-slate-50 ${aspectClassName}`}
@@ -549,7 +617,7 @@ export const ComicCreate: FC = () => {
               </Text>
             </Flex>
 
-            <Button type="primary" icon={<PlusOutlined />} onClick={addChapter}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleAddChapter}>
               Добавить главу
             </Button>
           </Flex>
@@ -618,23 +686,22 @@ export const ComicCreate: FC = () => {
                             <Flex vertical gap={4}>
                               <Text strong>Страницы главы</Text>
                               <Text className="text-sm text-slate-500">
-                                PNG, JPG или WEBP. Порядок в карточках равен порядку загрузки.
+                                {`До ${MAX_COMIC_PAGES_PER_CHAPTER} страниц в главе. ${UPLOAD_REQUIREMENTS_TEXT}`}
                               </Text>
                             </Flex>
                             <Dragger
-                              accept="image/*"
+                              accept={getAllowedImageAccept()}
                               multiple
                               beforeUpload={() => false}
                               showUploadList={false}
                               className="!border-0 !bg-transparent"
-                              onChange={(change) => syncChapterAssets(chapter, change)}
+                              onChange={(change) => void syncChapterAssets(chapter, change)}
                             >
                               <Flex vertical align="center" gap={10} className="py-4 text-center">
                                 <UploadOutlined className="text-2xl text-slate-500" />
                                 <Text strong>Перетащи страницы сюда или нажми для выбора</Text>
                                 <Text className="max-w-xl text-sm text-slate-500">
-                                  PNG, JPG или WEBP. Новые изображения добавляются в конец, а порядок можно менять прямо
-                                  на карточках ниже.
+                                  {`${UPLOAD_REQUIREMENTS_TEXT} Новые изображения добавляются в конец, а порядок можно менять прямо на карточках ниже.`}
                                 </Text>
                               </Flex>
                             </Dragger>

@@ -1,0 +1,100 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: app-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 1m
+      timeout: 5s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    container_name: app-redis
+    command: redis-server --save 60 1 --loglevel warning
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 1m
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    container_name: app-backend
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SECRET_KEY: ${SECRET_KEY}
+      MODE: ${MODE}
+      FRONTEND_URL: ${FRONTEND_URL}
+      FRONTEND_HOST: ${FRONTEND_HOST}
+      DB_HOST: db
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL}
+      S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      S3_REGION_NAME: ${S3_REGION_NAME}
+      S3_PRESIGNED_EXPIRATION: ${S3_PRESIGNED_EXPIRATION}
+      YANDEX_CLIENT_SECRET: ${YANDEX_CLIENT_SECRET}
+      YANDEX_CLIENT_ID: ${YANDEX_CLIENT_ID}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      EMAIL_BACKEND: ${EMAIL_BACKEND}
+      EMAIL_HOST: ${EMAIL_HOST}
+      EMAIL_PORT: ${EMAIL_PORT}
+      EMAIL_USE_SSL: ${EMAIL_USE_SSL}
+      EMAIL_USE_TLS: ${EMAIL_USE_TLS}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL}
+      VERIFY_EMAIL_COOLDOWN: ${VERIFY_EMAIL_COOLDOWN}
+      VERIFY_EMAIL_EXPIRE_AFTER: ${VERIFY_EMAIL_EXPIRE_AFTER}
+      VERIFY_EMAIL_MAX_RETRIES: ${VERIFY_EMAIL_MAX_RETRIES}
+      REDIS_HOST: redis
+      REDIS_PORT: ${REDIS_PORT}
+    command: >
+      /bin/sh -c "
+      python manage.py migrate &&
+      python manage.py loaddata genre_tag &&
+      daphne -b 0.0.0.0 -p 8000 core.asgi:application
+      "
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API: ${VITE_API}
+        VITE_BACKEND_URL: ${VITE_BACKEND_URL}
+        VITE_SUPPORT_EMAIL: ${VITE_SUPPORT_EMAIL}
+    container_name: app-frontend
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "5173:80"
+
+volumes:
+  postgres_data:

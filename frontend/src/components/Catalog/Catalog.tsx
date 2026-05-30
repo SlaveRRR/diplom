@@ -1,10 +1,9 @@
-﻿import { Button, Card, Carousel, Col, Input, Row, Segmented, Space, theme, Tour, Typography } from 'antd';
+﻿import { Button, Card, Carousel, Col, Empty, Input, Row, Segmented, Space, theme, Tour, Typography } from 'antd';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { colors } from '@constants';
 import { useAdultContentGate, usePageOnboarding, usePlatformTaxonomy } from '@hooks';
-import { CatalogItem } from '@components/Catalog/hooks/useCatalogStore/types';
 import { ComicCard, ComicCardSkeleton, Select } from '@components/shared';
 
 import { useCatalogQuery } from './hooks';
@@ -95,6 +94,13 @@ export const Catalog = () => {
   }, [genreId, items, searchValue, sort, tagIds]);
 
   const highlighted = useMemo(() => items.filter((item) => item.isTrending || item.isNew).slice(0, 6), [items]);
+
+  const resetFilters = () => {
+    setSearchValue('');
+    setGenreId(undefined);
+    setTagIds([]);
+    setSort('popular');
+  };
 
   const tourSteps = [
     {
@@ -204,7 +210,7 @@ export const Catalog = () => {
           </Col>
 
           <Col xs={24} md={12} xl={14} ref={carouselRef}>
-            {isLoading || highlighted.length === 0 ? (
+            {isLoading ? (
               <Card className="p-4">
                 <Space direction="vertical" size={16} style={{ width: '100%' }}>
                   <Button loading style={{ width: 120 }} />
@@ -213,6 +219,13 @@ export const Catalog = () => {
                   </Title>
                   <Text className="opacity-0">loading</Text>
                 </Space>
+              </Card>
+            ) : highlighted.length === 0 ? (
+              <Card className="p-4">
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description="Пока нет опубликованных комиксов для витрины"
+                />
               </Card>
             ) : (
               <Carousel autoplay dots draggable style={{ borderRadius: borderRadiusLG, overflow: 'hidden' }}>
@@ -310,27 +323,40 @@ export const Catalog = () => {
             </Text>
           </Space>
 
-          <Row gutter={[24, 24]}>
-            {(isLoading ? Array.from({ length: 8 }) : filteredItems).map((item, index) => (
-              <Col key={isLoading ? index : (item as CatalogItem).id} xs={24} sm={12} lg={8} xl={6}>
-                {isLoading ? (
+          {isLoading ? (
+            <Row gutter={[24, 24]}>
+              {Array.from({ length: 8 }).map((_, index) => (
+                <Col key={index} xs={24} sm={12} lg={8} xl={6}>
                   <ComicCardSkeleton />
-                ) : (
+                </Col>
+              ))}
+            </Row>
+          ) : filteredItems.length ? (
+            <Row gutter={[24, 24]}>
+              {filteredItems.map((item) => (
+                <Col key={item.id} xs={24} sm={12} lg={8} xl={6}>
                   <ComicCard
-                    item={item as CatalogItem}
-                    badgeText={
-                      (item as CatalogItem).isNew
-                        ? 'Новинка'
-                        : (item as CatalogItem).isTrending
-                          ? 'В тренде'
-                          : undefined
-                    }
-                    badgeColor={(item as CatalogItem).isNew ? colors.brand.secondary : colors.brand.accent}
+                    item={item}
+                    badgeText={item.isNew ? 'Новинка' : item.isTrending ? 'В тренде' : undefined}
+                    badgeColor={item.isNew ? colors.brand.secondary : colors.brand.accent}
                   />
-                )}
-              </Col>
-            ))}
-          </Row>
+                </Col>
+              ))}
+            </Row>
+          ) : (
+            <Card>
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  items.length
+                    ? 'По выбранным фильтрам ничего не найдено. Попробуйте изменить поиск, жанр или теги.'
+                    : 'Каталог пока пуст. Когда появятся опубликованные комиксы, они отобразятся здесь.'
+                }
+              >
+                {items.length ? <Button onClick={resetFilters}>Сбросить фильтры</Button> : null}
+              </Empty>
+            </Card>
+          )}
         </Space>
       </section>
 

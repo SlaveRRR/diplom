@@ -1,4 +1,6 @@
 import os
+from copy import copy
+from urllib.parse import urlparse
 
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model, logout as django_logout
@@ -23,7 +25,33 @@ from authentication.serializers import (
 )
 
 User = get_user_model()
-VERIFICATION_EMAIL_COOLDOWN = 60
+VERIFICATION_EMAIL_COOLDOWN = int(os.getenv('VERIFY_EMAIL_COOLDOWN', '60'))
+
+
+def build_public_request(request):
+    parsed_base_url = urlparse(settings.BACKEND_PUBLIC_URL)
+    base_url = settings.BACKEND_PUBLIC_URL
+    public_request = copy(request)
+    public_request.META = request.META.copy()
+
+    host = parsed_base_url.netloc
+    public_request.META['HTTP_HOST'] = host
+    public_request.META['SERVER_NAME'] = parsed_base_url.hostname or host
+    public_request.META['SERVER_PORT'] = str(
+        parsed_base_url.port or (443 if parsed_base_url.scheme == 'https' else 80)
+    )
+    public_request.META['wsgi.url_scheme'] = parsed_base_url.scheme
+    public_request.get_host = lambda: parsed_base_url.netloc
+    public_request.is_secure = lambda: parsed_base_url.scheme == 'https'
+    public_request.build_absolute_uri = lambda location=None: (
+        location
+        if isinstance(location, str) and location.startswith(('http://', 'https://'))
+        else f'{base_url}{location or request.get_full_path()}'
+        if str(location or '').startswith('/')
+        else f'{base_url}/{location or request.get_full_path()}'
+    )
+
+    return public_request
 
 
 def set_refresh_cookie(response, refresh_token):
@@ -61,8 +89,9 @@ class SignUpView(APIView):
         serializer = SignUpSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+        verification_request = build_public_request(request._request)
         try:
-            ActivationMailManager.send_verification_link(inactive_user=user, request=request._request)
+            ActivationMailManager.send_verification_link(inactive_user=user, request=verification_request)
         except Exception:
             return Response(
                 {'detail': 'Failed to send verification email. Please try again later.'},
@@ -108,10 +137,10 @@ class SignInView(APIView):
 
             if pending_user and pending_user.check_password(password):
                 return Response(
-                    {'detail': 'Email is not verified yet. Please confirm your email first.'},
+                    {'detail': 'Почта не подтверждена. Пожалуйста, подтвердите свою почту.'},
                     status=status.HTTP_403_FORBIDDEN,
                 )
-            return Response({'detail': 'Invalid username or password'}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({'detail': 'неправильный логин или пароль'}, status=status.HTTP_401_UNAUTHORIZED)
 
         refresh = RefreshToken.for_user(user)
         response = Response({'access_token': str(refresh.access_token)}, status=status.HTTP_200_OK)
@@ -189,23 +218,29 @@ class ResendVerificationEmailView(APIView):
         user = User.objects.filter(email=email).first()
 
         if not user:
-            return Response({'detail': 'User with this email was not found.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'Пользователь с такой почтой не найден.'}, status=status.HTTP_404_NOT_FOUND)
 
         if user.is_active:
-            return Response({'detail': 'Email is already verified.'}, status=status.HTTP_409_CONFLICT)
+            return Response({'detail': 'Почта уже подтверждена!.'}, status=status.HTTP_409_CONFLICT)
 
         if cache.get(get_verification_cooldown_cache_key(email)):
             return Response(
                 {
-                    'detail': 'Verification email was sent recently. Please wait a minute before retrying.',
+                    'detail': 'Письмо с подтверждением уже было отправлено. Пожалуйста, попробуйте позже.',
                     'email': email,
                     'retry_after': VERIFICATION_EMAIL_COOLDOWN,
                 },
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
 
+        verification_request = build_public_request(request._request)
         try:
-            ActivationMailManager.resend_verification_link(request._request, email, user=user, encoded=False)
+            ActivationMailManager.resend_verification_link(
+                verification_request,
+                email,
+                user=user,
+                encoded=False,
+            )
         except Exception:
             return Response(
                 {'detail': 'Failed to resend verification email. Please try again later.'},

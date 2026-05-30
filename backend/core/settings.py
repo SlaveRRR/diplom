@@ -32,6 +32,10 @@ HEADLESS_FRONTEND_URLS = {
     'account_signup': f"{os.getenv('FRONTEND_URL', 'http://localhost:5173')}/signup",
     'socialaccount_login_error': f"{os.getenv('FRONTEND_URL', 'http://localhost:5173')}/signin",
 }
+BACKEND_PUBLIC_URL = os.getenv(
+    'BACKEND_PUBLIC_URL',
+    'http://localhost:8000',
+).rstrip('/')
 
 S3_ENDPOINT_URL = os.getenv('S3_ENDPOINT_URL')
 S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
@@ -106,7 +110,15 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [
+                (
+                    os.getenv('REDIS_HOST', 'redis'),
+                    int(os.getenv('REDIS_PORT', '6379')),
+                )
+            ],
+        },
     }
 }
 
@@ -152,7 +164,10 @@ AUTHENTICATION_BACKENDS = (
 )
 SOCIALACCOUNT_ADAPTER = 'authentication.adapters.SocialAccountAdapter'
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = os.getenv(
+    'EMAIL_BACKEND',
+    'django.core.mail.backends.smtp.EmailBackend',
+)
 EMAIL_HOST = os.getenv('EMAIL_HOST', '')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', '465'))
 EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'true').lower() == 'true'

@@ -1,5 +1,5 @@
-import { Button, Space } from 'antd';
-import React, { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { Button, Flex } from 'antd';
+import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 
 type OnboardingStorage = 'local' | 'session';
 
@@ -47,24 +47,16 @@ export const usePageOnboarding = ({ storageKey, enabled = true, storage = 'sessi
   }, [storageApi, storageKey]);
 
   const actionsRender = useCallback(
-    (originNode: ReactNode) =>
-      React.createElement(
-        Space,
-        { size: 8, wrap: true },
-        React.createElement(
-          Button,
-          {
-            size: 'small',
-            type: 'text',
-            onClick: skip,
-          },
-          'Пропустить',
-        ),
-        originNode,
-      ),
+    (originNode: ReactNode) => (
+      <Flex className="max-w-62.5 sm:max-w-none" gap={8} justify="center" align="center" wrap>
+        <Button type="text" size="small" onClick={skip}>
+          Пропустить
+        </Button>
+        {originNode}
+      </Flex>
+    ),
     [skip],
   );
-
   const tourProps = useMemo(
     () => ({
       actionsRender,

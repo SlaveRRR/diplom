@@ -1,3 +1,4 @@
+import { MAX_COMIC_CHAPTERS, MAX_COMIC_PAGES_PER_CHAPTER } from '../../utils';
 import { CreateComicPayload } from './types';
 import { validateStep } from './utils';
 
@@ -69,6 +70,35 @@ describe('validateStep', () => {
       }),
     ).toMatchObject({
       valid: false,
+    });
+  });
+
+  test('возвращает невалидный результат, если глав больше лимита', () => {
+    const payload = createValidPayload();
+    payload.chapters = Array.from({ length: MAX_COMIC_CHAPTERS + 1 }, (_, index) => ({
+      ...payload.chapters[0],
+      id: `chapter-${index + 1}`,
+      chapterNumber: index + 1,
+    }));
+
+    expect(validateStep(2, payload)).toMatchObject({
+      valid: false,
+      message: `Количество глав не должно превышать ${MAX_COMIC_CHAPTERS}.`,
+    });
+  });
+
+  test('возвращает невалидный результат, если в главе больше 50 страниц', () => {
+    const payload = createValidPayload();
+    payload.chapters[0].pages = Array.from({ length: MAX_COMIC_PAGES_PER_CHAPTER + 1 }, (_, index) => ({
+      id: `page-${index + 1}`,
+      fingerprint: `page-${index + 1}`,
+      preview: `blob:page-${index + 1}`,
+      file: new File(['page'], `page-${index + 1}.png`, { type: 'image/png' }),
+    }));
+
+    expect(validateStep(2, payload)).toMatchObject({
+      valid: false,
+      message: `В одной главе можно разместить не более ${MAX_COMIC_PAGES_PER_CHAPTER} страниц.`,
     });
   });
 

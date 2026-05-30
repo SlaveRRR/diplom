@@ -4,7 +4,7 @@ import { passwordSchema, REQUIRED_FIELD_PLACEHOLDER } from '@constants';
 
 export const signUpFormSchema = z.object({
   username: z.string({ message: REQUIRED_FIELD_PLACEHOLDER }),
-  email: z.string({ message: REQUIRED_FIELD_PLACEHOLDER }).email().toLowerCase(),
+  email: z.string({ message: REQUIRED_FIELD_PLACEHOLDER }).email({ message: 'Некорректный email' }).toLowerCase(),
   password: passwordSchema,
   userAgreement: z.boolean({ message: 'Необходимо подтвердить согласие с пользовательским соглашением.' }),
   privacyPolicy: z.boolean({ message: 'Необходимо подтвердить ознакомление с политикой конфиденциальности.' }),

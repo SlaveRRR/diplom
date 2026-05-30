@@ -1,3 +1,4 @@
+import { MAX_COMIC_CHAPTERS, MAX_COMIC_PAGES_PER_CHAPTER } from '../../../utils';
 import { LocalUploadAsset } from '../types';
 import { useComicCreateStore } from './useComicCreateStore';
 
@@ -75,5 +76,25 @@ describe('useComicCreateStore', () => {
     });
     expect(useComicCreateStore.getState().chapters).toHaveLength(1);
     expect(useComicCreateStore.getState().chapters[0].pages).toEqual([]);
+  });
+
+  test('не позволяет добавить больше 50 глав', () => {
+    Array.from({ length: MAX_COMIC_CHAPTERS + 10 }).forEach(() => {
+      useComicCreateStore.getState().addChapter();
+    });
+
+    expect(useComicCreateStore.getState().chapters).toHaveLength(MAX_COMIC_CHAPTERS);
+    expect(useComicCreateStore.getState().chapters.at(-1)?.chapterNumber).toBe(MAX_COMIC_CHAPTERS);
+  });
+
+  test('не позволяет хранить больше 50 страниц в одной главе', () => {
+    const [chapter] = useComicCreateStore.getState().chapters;
+    const pages = Array.from({ length: MAX_COMIC_PAGES_PER_CHAPTER + 10 }, (_, index) =>
+      createAsset(`page-${index + 1}`, `fingerprint-${index + 1}`),
+    );
+
+    useComicCreateStore.getState().appendChapterPages(chapter.id, pages);
+
+    expect(useComicCreateStore.getState().chapters[0].pages).toHaveLength(MAX_COMIC_PAGES_PER_CHAPTER);
   });
 });

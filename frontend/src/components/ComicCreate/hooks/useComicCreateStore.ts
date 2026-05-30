@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { MAX_COMIC_CHAPTERS, MAX_COMIC_PAGES_PER_CHAPTER } from '../../../utils';
 import { ChapterDraft, ComicCreateStore } from '../types';
 
 const createChapterDraft = (chapterNumber: number): ChapterDraft => ({
@@ -32,9 +33,15 @@ export const useComicCreateStore = create<ComicCreateStore>()((set) => ({
   setCover: (cover) => set({ cover }),
   setBanner: (banner) => set({ banner }),
   addChapter: () =>
-    set((state) => ({
-      chapters: [...state.chapters, createChapterDraft(state.chapters.length + 1)],
-    })),
+    set((state) => {
+      if (state.chapters.length >= MAX_COMIC_CHAPTERS) {
+        return state;
+      }
+
+      return {
+        chapters: [...state.chapters, createChapterDraft(state.chapters.length + 1)],
+      };
+    }),
   removeChapter: (chapterId) =>
     set((state) => {
       const chapters = state.chapters.filter((chapter) => chapter.id !== chapterId);
@@ -67,7 +74,7 @@ export const useComicCreateStore = create<ComicCreateStore>()((set) => ({
                 ...pages.filter(
                   (nextPage) => !chapter.pages.some((currentPage) => currentPage.fingerprint === nextPage.fingerprint),
                 ),
-              ],
+              ].slice(0, MAX_COMIC_PAGES_PER_CHAPTER),
             }
           : chapter,
       ),

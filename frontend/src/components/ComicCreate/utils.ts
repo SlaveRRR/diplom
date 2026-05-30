@@ -1,3 +1,4 @@
+import { MAX_COMIC_CHAPTERS, MAX_COMIC_PAGES_PER_CHAPTER } from '../../utils';
 import { CreateComicPayload, StepValidationResult } from './types';
 
 export const validateStep = (step: number, payload: Partial<CreateComicPayload>): StepValidationResult => {
@@ -62,6 +63,13 @@ export const validateStep = (step: number, payload: Partial<CreateComicPayload>)
       };
     }
 
+    if (payload.chapters.length > MAX_COMIC_CHAPTERS) {
+      return {
+        valid: false,
+        message: `Количество глав не должно превышать ${MAX_COMIC_CHAPTERS}.`,
+      };
+    }
+
     const invalidChapter = payload.chapters.find(
       (chapter) => !chapter.title.trim() || !chapter.description.trim() || !chapter.pages.length,
     );
@@ -70,6 +78,15 @@ export const validateStep = (step: number, payload: Partial<CreateComicPayload>)
       return {
         valid: false,
         message: 'У каждой главы должны быть название, описание и хотя бы одна страница.',
+      };
+    }
+
+    const oversizedChapter = payload.chapters.find((chapter) => chapter.pages.length > MAX_COMIC_PAGES_PER_CHAPTER);
+
+    if (oversizedChapter) {
+      return {
+        valid: false,
+        message: `В одной главе можно разместить не более ${MAX_COMIC_PAGES_PER_CHAPTER} страниц.`,
       };
     }
   }
