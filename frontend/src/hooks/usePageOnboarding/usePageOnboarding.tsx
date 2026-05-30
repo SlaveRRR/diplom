@@ -11,7 +11,7 @@ type UsePageOnboardingOptions = {
 
 const getStorage = (storage: OnboardingStorage) => (storage === 'local' ? window.localStorage : window.sessionStorage);
 
-export const usePageOnboarding = ({ storageKey, enabled = true, storage = 'session' }: UsePageOnboardingOptions) => {
+export const usePageOnboarding = ({ storageKey, enabled = true, storage = 'local' }: UsePageOnboardingOptions) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const storageApi = useMemo(() => {
@@ -57,6 +57,7 @@ export const usePageOnboarding = ({ storageKey, enabled = true, storage = 'sessi
     ),
     [skip],
   );
+
   const tourProps = useMemo(
     () => ({
       actionsRender,

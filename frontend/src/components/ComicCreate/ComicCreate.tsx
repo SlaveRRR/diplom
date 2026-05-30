@@ -15,6 +15,7 @@
   Typography,
   Upload,
 } from 'antd';
+import clsx from 'clsx';
 import { FC, useEffect, useMemo, useRef } from 'react';
 import { Link as RouterLink, useNavigate, useOutletContext } from 'react-router-dom';
 import {
@@ -355,6 +356,7 @@ export const ComicCreate: FC = () => {
     onChange: (change: UploadChangeParam) => void,
     onClear: () => void,
     aspectClassName: string,
+    imageFit: 'contain' | 'cover' = 'cover',
   ) => (
     <Card className="h-full rounded-2xl border-slate-200 shadow-sm">
       <Space direction="vertical" size={16} className="w-full">
@@ -380,7 +382,11 @@ export const ComicCreate: FC = () => {
           className={`overflow-hidden rounded-2xl border border-dashed border-slate-300 bg-slate-50 ${aspectClassName}`}
         >
           {asset ? (
-            <Image src={asset.preview} alt={titleText} className="h-full w-full object-cover" />
+            <Image
+              src={asset.preview}
+              alt={titleText}
+              className={clsx('h-full w-full object-cover', imageFit === 'contain' ? 'object-contain' : 'object-cover')}
+            />
           ) : (
             <Flex vertical align="center" justify="center" className="h-full px-6 text-center">
               <FileImageOutlined className="mb-3 text-3xl text-slate-400" />
@@ -465,7 +471,7 @@ export const ComicCreate: FC = () => {
             {cover ? (
               <Card
                 size="small"
-                cover={<Image src={cover.preview} alt="Обложка" preview={false} className="h-56 object-cover" />}
+                cover={<img src={cover.preview} alt="Обложка" className="h-56 w-full object-cover" />}
                 className="overflow-hidden rounded-2xl"
               >
                 <Text strong>Обложка</Text>
@@ -474,7 +480,11 @@ export const ComicCreate: FC = () => {
             {banner ? (
               <Card
                 size="small"
-                cover={<Image src={banner.preview} alt="Баннер" preview={false} className="h-56 object-cover" />}
+                cover={
+                  <div className="flex h-44 w-full items-center justify-center bg-slate-50 p-3">
+                    <img src={banner.preview} alt="Баннер" className="h-full w-full object-contain" />
+                  </div>
+                }
                 className="overflow-hidden rounded-2xl"
               >
                 <Text strong>Баннер</Text>
@@ -590,6 +600,7 @@ export const ComicCreate: FC = () => {
               setCover(null);
             },
             'aspect-[4/5]',
+            'cover',
           )}
           {renderImageUploadCard(
             'Баннер',
@@ -600,7 +611,8 @@ export const ComicCreate: FC = () => {
               revokeAsset(banner);
               setBanner(null);
             },
-            'aspect-[16/9]',
+            'aspect-[16/6]',
+            'contain',
           )}
         </div>
       ) : null}

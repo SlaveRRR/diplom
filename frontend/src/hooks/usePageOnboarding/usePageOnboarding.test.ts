@@ -8,11 +8,11 @@ describe('usePageOnboarding', () => {
     window.sessionStorage.clear();
   });
 
-  test('открывает онбординг один раз и пишет флаг в sessionStorage', () => {
+  test('открывает онбординг один раз и пишет флаг в localStorage', () => {
     const first = renderHook(() => usePageOnboarding({ storageKey: 'catalog_onboarding_shown' }));
 
     expect(first.result.current.isOpen).toBe(true);
-    expect(window.sessionStorage.getItem('catalog_onboarding_shown')).toBe('true');
+    expect(window.localStorage.getItem('catalog_onboarding_shown')).toBe('true');
 
     const second = renderHook(() => usePageOnboarding({ storageKey: 'catalog_onboarding_shown' }));
     expect(second.result.current.isOpen).toBe(false);
@@ -44,6 +44,6 @@ describe('usePageOnboarding', () => {
     const { result } = renderHook(() => usePageOnboarding({ storageKey: 'disabled', enabled: false }));
 
     expect(result.current.isOpen).toBe(false);
-    expect(window.sessionStorage.getItem('disabled')).toBeNull();
+    expect(window.localStorage.getItem('disabled')).toBeNull();
   });
 });

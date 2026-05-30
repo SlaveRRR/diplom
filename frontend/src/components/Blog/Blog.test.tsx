@@ -61,7 +61,7 @@ describe('Blog', () => {
   test('отображает посты блога и кнопку создания поста для авторизованного пользователя', () => {
     render(<Blog />);
 
-    expect(screen.getByText('Блог платформы')).toBeInTheDocument();
+    expect(screen.getByText('Блог')).toBeInTheDocument();
     expect(screen.getByText('Написать пост')).toBeInTheDocument();
     expect(screen.getByText('Разбор структуры сюжета')).toBeInTheDocument();
     expect(screen.getByTestId('adult-modal')).toBeInTheDocument();

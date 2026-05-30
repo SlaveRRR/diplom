@@ -12,8 +12,8 @@ export const UserAgreementPage = () => {
 
       <Paragraph>
         Настоящее соглашение (далее – «Соглашение») регулирует отношения между Администрацией сайта{' '}
-        <Link className="mr-1" href="https://site.ru">
-          https://site.ru
+        <Link className="mr-1" href="https://comicsera.ru">
+          https://comicsera.ru
         </Link>
         (далее – «Администрация») и пользователем (далее – «Пользователь»), использующим данный сайт для размещения,
         просмотра и распространения комиксов и иных материалов.

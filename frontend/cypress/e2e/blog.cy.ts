@@ -9,7 +9,7 @@ describe('Blog page', () => {
     cy.wait(['@getBlogPosts', '@getBlogTags']);
 
     fixtureData('blogPosts.json').then((blogPosts) => {
-      cy.contains('Блог платформы').should('be.visible');
+      cy.contains('Блог').should('be.visible');
       cy.contains(blogPosts[0].title).should('be.visible');
       cy.contains(blogPosts[1].title).should('be.visible');
     });

@@ -71,6 +71,10 @@ services:
       VERIFY_EMAIL_MAX_RETRIES: ${VERIFY_EMAIL_MAX_RETRIES}
       REDIS_HOST: redis
       REDIS_PORT: ${REDIS_PORT}
+      VK_CLIENT_ID: ${VK_CLIENT_ID}
+      VK_CLIENT_SECRET: ${VK_CLIENT_SECRET}
+      VK_CLIENT_KEY: ${VK_CLIENT_KEY}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS}
     command: >
       /bin/sh -c "
       python manage.py migrate &&

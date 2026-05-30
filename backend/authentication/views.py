@@ -294,7 +294,7 @@ class SocialLoginStartView(APIView):
                 name='provider',
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
-                enum=['google', 'yandex'],
+                enum=['google', 'vk', 'yandex'],
             ),
         ],
         responses={

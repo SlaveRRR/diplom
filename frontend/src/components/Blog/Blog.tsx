@@ -70,11 +70,10 @@ export const Blog = () => {
         <Flex justify="space-between" align="start" wrap="wrap" gap={16}>
           <Flex vertical gap={8} className="max-w-3xl">
             <Title level={1} className="!mb-0 !text-3xl sm:!text-4xl">
-              Блог платформы
+              Блог
             </Title>
             <Paragraph className="!mb-0 text-base text-[var(--color-text-secondary)]">
-              Здесь собираются редакционные статьи, разборы, дневники разработки и заметки авторов. Ищите по темам,
-              фильтруйте по тегам и открывайте посты как отдельный медиараздел платформы.
+              Здесь собираются редакционные статьи, разборы, дневники разработки и заметки авторов.
             </Paragraph>
           </Flex>
           {isAuth ? (
@@ -113,6 +112,9 @@ export const Blog = () => {
             <Segmented<SortKey>
               value={sort}
               onChange={(value) => setSort(value)}
+              classNames={{
+                root: 'flex-wrap',
+              }}
               options={[
                 { label: 'Сначала новые', value: 'recent' },
                 { label: 'По комментариям', value: 'comments' },

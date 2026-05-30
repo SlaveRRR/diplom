@@ -36,6 +36,7 @@ BACKEND_PUBLIC_URL = os.getenv(
     'BACKEND_PUBLIC_URL',
     'http://localhost:8000',
 ).rstrip('/')
+CSRF_TRUSTED_ORIGINS = ['http://localhost:8000'] if MODE == 'DEV' else [os.getenv('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000')]
 
 S3_ENDPOINT_URL = os.getenv('S3_ENDPOINT_URL')
 S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
@@ -58,6 +59,7 @@ INSTALLED_APPS = [
     'allauth.headless',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
+    'allauth.socialaccount.providers.vk',
     'allauth.socialaccount.providers.yandex',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -78,6 +80,7 @@ SITE_ID = 1
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+     "whitenoise.middleware.WhiteNoiseMiddleware",
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -88,6 +91,12 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 ROOT_URLCONF = 'core.urls'
 ASGI_APPLICATION = 'core.asgi.application'
@@ -322,6 +331,16 @@ SOCIALACCOUNT_PROVIDERS = {
                 },
             }
         ]
+    },
+    'vk': {
+        'APPS': [
+            {
+                'client_id': os.getenv('VK_CLIENT_ID'),
+                'secret': os.getenv('VK_CLIENT_SECRET'),
+                'key': os.getenv('VK_CLIENT_KEY', ''),
+            }
+        ],
+        'SCOPE': ['email'],
     },
     'yandex': {
         'APPS': [

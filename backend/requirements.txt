@@ -16,3 +16,4 @@ django-allauth[headless,socialaccount]==65.15.1
 Django-Verify-Email==3.0.3
 daphne==4.2.1
 openpyxl==3.1.5
+whitenoise==6.9.0
