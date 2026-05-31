@@ -53,6 +53,10 @@ class Post(TimeStampedModel):
 
     class Meta:
         ordering = ('-updated_at', '-created_at')
+        indexes = [
+            models.Index(fields=('status', 'published_at', 'updated_at', 'created_at'), name='post_status_pub_idx'),
+            models.Index(fields=('author', 'updated_at', 'created_at'), name='post_author_upd_idx'),
+        ]
 
     def save(self, *args, **kwargs):
         if self.status == self.Status.PUBLISHED and self.published_at is None:

@@ -38,7 +38,7 @@ class Comment(TimeStampedModel):
     class Meta:
         ordering = ('-created_at',)
         indexes = [
-          models.Index(fields=('content_type', 'object_id')),
+            models.Index(fields=('content_type', 'object_id', 'created_at'), name='comment_target_created_idx'),
         ]
 
     def clean(self):
@@ -64,6 +64,9 @@ class ComicFavorite(TimeStampedModel):
     )
 
     class Meta:
+        indexes = [
+            models.Index(fields=('user', 'created_at'), name='fav_user_created_idx'),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=('user', 'comic'),
@@ -118,6 +121,9 @@ class Notification(TimeStampedModel):
 
     class Meta:
         ordering = ('read_at', '-created_at')
+        indexes = [
+            models.Index(fields=('user', 'read_at', 'created_at'), name='notif_user_read_idx'),
+        ]
 
     def __str__(self):
         return f'Notification #{self.pk} for {self.user}'
@@ -137,6 +143,9 @@ class PostReadingHistory(TimeStampedModel):
 
     class Meta:
         ordering = ('-updated_at', '-created_at')
+        indexes = [
+            models.Index(fields=('user', 'updated_at', 'created_at'), name='post_hist_user_idx'),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=('user', 'post'),

@@ -20,6 +20,7 @@ import {
   getBlogPostEndpoint,
   getComicCommentsEndpoint,
   getComicDetailsEndpoint,
+  getComicEditorEndpoint,
   getComicFavoriteEndpoint,
   getComicLikeEndpoint,
   getComicRatingEndpoint,
@@ -27,6 +28,7 @@ import {
   getComicReadingProgressEndpoint,
   getUserFollowEndpoint,
   getUserProfileEndpoint,
+  HOME_SELECTIONS_ENDPOINT,
   LOGOUT_ENDPOINT,
   NOTIFICATIONS_DELETE_ENDPOINT,
   NOTIFICATIONS_ENDPOINT,
@@ -54,26 +56,31 @@ import {
   BlogPostCreateResponse,
   BlogPostDetail,
   BlogPostListItem,
+  BlogPostsQueryParams,
   BlogPostUploadConfigPayload,
   BlogPostUploadConfigResponse,
   BlogTag,
   CatalogComicResponse,
+  CatalogComicsQueryParams,
   ComicComment,
   ComicCommentCreatePayload,
   ComicConfirmPayload,
   ComicConfirmResponse,
   ComicDetailsResponse,
+  ComicEditorResponse,
   ComicInteractionResponse,
   ComicRatingResponse,
   ComicReaderResponse,
   ComicReadingProgress,
   ComicUploadConfigPayload,
   ComicUploadConfigResponse,
+  HomeSelectionsResponse,
   NotificationDeletePayload,
   NotificationDeleteResponse,
   NotificationListResponse,
   NotificationMarkReadPayload,
   NotificationMarkReadResponse,
+  PaginatedResponse,
   ReadingHistoryResponse,
   Response,
   SignInParams,
@@ -178,15 +185,31 @@ class Api {
   }
 
   async uploadFile(uploadUrl: string, file: File) {
-    return axios.put(uploadUrl, file);
+    return axios.put(uploadUrl, file, {
+      headers: {
+        'Content-Type': file.type || 'application/octet-stream',
+      },
+    });
   }
 
   async getPlatformTaxonomy() {
     return axiosInstance.get<Response<TaxonomyPlatformData>>(TAXONOMY_PLATFORM_ENDPOINT);
   }
 
-  async getBlogPosts() {
-    return axiosInstance.get<Response<BlogPostListItem[]>>(BLOG_POSTS_ENDPOINT);
+  async getHomeSelections() {
+    return axiosInstance.get<Response<HomeSelectionsResponse>>(HOME_SELECTIONS_ENDPOINT);
+  }
+
+  async getBlogPosts(params?: BlogPostsQueryParams) {
+    return axiosInstance.get<Response<PaginatedResponse<BlogPostListItem>>>(BLOG_POSTS_ENDPOINT, {
+      params: {
+        page: params?.page,
+        page_size: params?.pageSize,
+        search: params?.search,
+        tag_ids: params?.tagIds?.length ? params.tagIds.join(',') : undefined,
+        sort: params?.sort,
+      },
+    });
   }
 
   async getBlogTags() {
@@ -219,8 +242,21 @@ class Api {
     return axiosInstance.get<Response<ComicDetailsResponse>>(getComicDetailsEndpoint(comicId));
   }
 
-  async getCatalogComics() {
-    return axiosInstance.get<Response<CatalogComicResponse[]>>(COMICS_CATALOG_ENDPOINT);
+  async getEditableComic(comicId: string | number) {
+    return axiosInstance.get<Response<ComicEditorResponse>>(getComicEditorEndpoint(comicId));
+  }
+
+  async getCatalogComics(params?: CatalogComicsQueryParams) {
+    return axiosInstance.get<Response<PaginatedResponse<CatalogComicResponse>>>(COMICS_CATALOG_ENDPOINT, {
+      params: {
+        page: params?.page,
+        page_size: params?.pageSize,
+        search: params?.search,
+        genre_id: params?.genreId ?? undefined,
+        tag_ids: params?.tagIds?.length ? params.tagIds.join(',') : undefined,
+        sort: params?.sort,
+      },
+    });
   }
 
   async getFavoriteComics() {

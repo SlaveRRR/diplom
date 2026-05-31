@@ -26,7 +26,6 @@ import {
   LineChartOutlined,
   RiseOutlined,
 } from '@ant-design/icons';
-import { Column, Line } from '@ant-design/plots';
 
 import { api } from '@api';
 import { colors } from '@constants';
@@ -35,6 +34,7 @@ import { useAccountQuery } from '@components/Account/hooks/useAccountQuery';
 import { usePageOnboarding } from '@hooks/usePageOnboarding';
 import { OutletContext } from '@pages/LayoutPage/types';
 
+import { AnalyticsColumnChart, AnalyticsLineChart } from './components/LazyCharts';
 import { DEFAULT_PRESET, DEFAULT_RANGE, PRESET_LABELS, STATUS_LABELS } from './constants';
 import { useAnalyticsQuery } from './hooks';
 import { AnalyticsDatePreset } from './types';
@@ -125,6 +125,7 @@ export const Analytics = () => {
       title: 'Материал',
       dataIndex: 'title',
       key: 'title',
+      width: 280,
       render: (_: string, item: AnalyticsTopItem) => (
         <Flex vertical gap={4}>
           <Text strong>{item.title}</Text>
@@ -136,16 +137,19 @@ export const Analytics = () => {
       title: 'Просмотры',
       dataIndex: 'views',
       key: 'views',
+      width: 140,
     },
     {
       title: 'Охват',
       dataIndex: 'reach',
       key: 'reach',
+      width: 140,
     },
     {
       title: 'Вовлеченность',
       dataIndex: 'engagement',
       key: 'engagement',
+      width: 160,
     },
   ];
 
@@ -231,7 +235,7 @@ export const Analytics = () => {
   if (isLoading) {
     return (
       <Flex align="center" justify="center" className="min-h-[320px]">
-        <Spin size="large" />
+        <Spin size="middle" />
       </Flex>
     );
   }
@@ -389,7 +393,7 @@ export const Analytics = () => {
               hasData={hasTimelineData}
               emptyDescription="По выбранным фильтрам пока нет событий просмотров и охвата."
             >
-              <Line
+              <AnalyticsLineChart
                 data={data.timeline.flatMap((item) => [
                   { period: item.period, metric: 'Просмотры', value: item.views },
                   { period: item.period, metric: 'Охват', value: item.reach },
@@ -413,7 +417,7 @@ export const Analytics = () => {
             hasData={hasTimelineData}
             emptyDescription="Пока нет активности, из которой можно собрать динамику вовлечения."
           >
-            <Column
+            <AnalyticsColumnChart
               data={data.timeline}
               xField="period"
               yField="engagement"
@@ -464,13 +468,16 @@ export const Analytics = () => {
             <Title level={4} className="!mb-0">
               Топ материалов
             </Title>
-            <Table
-              rowKey={(item) => `${item.contentType}-${item.objectId}`}
-              columns={topContentColumns}
-              dataSource={data.topItems}
-              pagination={false}
-              locale={{ emptyText: 'Для выбранных фильтров пока нет событий аналитики.' }}
-            />
+            <div className="overflow-x-auto">
+              <Table
+                rowKey={(item) => `${item.contentType}-${item.objectId}`}
+                columns={topContentColumns}
+                dataSource={data.topItems}
+                pagination={false}
+                scroll={{ x: 720 }}
+                locale={{ emptyText: 'Для выбранных фильтров пока нет событий аналитики.' }}
+              />
+            </div>
           </Flex>
         </Card>
       </div>

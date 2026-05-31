@@ -2,7 +2,8 @@
 
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
-from django.db.models import Count
+from django.core.paginator import Paginator
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiResponse, extend_schema
@@ -18,6 +19,7 @@ from blog.serializers import (
     BlogPostDetailSerializer,
     BlogPostEditorSerializer,
     BlogPostListItemSerializer,
+    BlogPostListPageSerializer,
     BlogTagSerializer,
     PostConfirmRequestSerializer,
     PostUploadConfigRequestSerializer,
@@ -36,7 +38,7 @@ from blog.services import (
     resolve_post_content_media,
 )
 from analytics.models import AnalyticsEvent
-from analytics.services import record_content_event
+from analytics.services import record_content_event, register_unique_content_view
 from comics.services import build_public_media_url
 from core.api import error_response, success_response
 from interactions.models import Comment, Notification, PostReadingHistory
@@ -48,6 +50,14 @@ class BlogAccessMixin:
         if not getattr(user, 'is_authenticated', False):
             return error_response('Authentication credentials were not provided.', status.HTTP_401_UNAUTHORIZED)
         return None
+
+
+def get_positive_int(value, default, minimum=1, maximum=100):
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return min(max(parsed, minimum), maximum)
 
 
 class BlogTagListView(APIView):
@@ -62,17 +72,48 @@ class BlogTagListView(APIView):
 class BlogPostListView(APIView):
     permission_classes = [AllowAny]
 
-    @extend_schema(tags=['Blog'], responses={200: BlogPostListItemSerializer(many=True)}, summary='Get public blog posts list')
+    @extend_schema(tags=['Blog'], responses={200: BlogPostListPageSerializer}, summary='Get public blog posts list')
     def get(self, request):
+        search = request.query_params.get('search', '').strip()
+        tag_ids = [int(value) for value in request.query_params.get('tag_ids', '').split(',') if value.isdigit()]
+        sort = request.query_params.get('sort', 'recent')
+        page = get_positive_int(request.query_params.get('page'), 1)
+        page_size = get_positive_int(request.query_params.get('page_size'), 9)
+
         posts = (
             Post.objects.filter(status=Post.Status.PUBLISHED)
             .select_related('author')
             .prefetch_related('tags')
             .annotate(comments_total=Count('comments', distinct=True))
-            .order_by('-published_at', '-updated_at', '-created_at')
         )
-        payload = [build_post_list_payload(post, build_plain_text_excerpt(post.content)) for post in posts]
-        return success_response(BlogPostListItemSerializer(payload, many=True).data, status.HTTP_200_OK)
+
+        if search:
+            posts = posts.filter(
+                Q(title__icontains=search) | Q(content__icontains=search) | Q(author__username__icontains=search)
+            )
+
+        if tag_ids:
+            posts = posts.filter(tags__id__in=tag_ids).distinct()
+
+        if sort == 'comments':
+            posts = posts.order_by('-comments_total', '-published_at', '-updated_at', '-created_at')
+        elif sort == 'title':
+            posts = posts.order_by('title', '-published_at', '-updated_at', '-created_at')
+        else:
+            posts = posts.order_by('-published_at', '-updated_at', '-created_at')
+
+        paginator = Paginator(posts, page_size)
+        page_obj = paginator.get_page(page)
+        payload = {
+            'items': [build_post_list_payload(post, build_plain_text_excerpt(post.content)) for post in page_obj.object_list],
+            'pagination': {
+                'page': page_obj.number,
+                'pageSize': page_size,
+                'total': paginator.count,
+                'totalPages': paginator.num_pages,
+            },
+        }
+        return success_response(BlogPostListPageSerializer(payload).data, status.HTTP_200_OK)
 
 
 class BlogPostDetailView(APIView):
@@ -96,13 +137,12 @@ class BlogPostDetailView(APIView):
             )
 
         if not is_preview:
-            record_content_event(
+            register_unique_content_view(
+                request=request,
                 owner=post.author,
-                actor=request.user if request.user.is_authenticated else None,
                 content_kind=AnalyticsEvent.ContentKind.POST,
                 object_id=post.id,
                 title_snapshot=post.title,
-                event_type=AnalyticsEvent.EventType.VIEW,
             )
 
         payload = build_post_detail_payload(post, resolve_post_content_media(post.content))

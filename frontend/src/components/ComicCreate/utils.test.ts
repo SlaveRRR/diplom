@@ -8,17 +8,20 @@ const createValidPayload = (): CreateComicPayload => ({
   ageRating: '16+',
   tagIds: [1],
   genreId: 2,
+  submissionMode: 'under_review',
   cover: {
     id: 'cover',
     fingerprint: 'cover',
     preview: 'blob:cover',
     file: new File(['cover'], 'cover.png', { type: 'image/png' }),
+    source: 'new',
   },
   banner: {
     id: 'banner',
     fingerprint: 'banner',
     preview: 'blob:banner',
     file: new File(['banner'], 'banner.png', { type: 'image/png' }),
+    source: 'new',
   },
   chapters: [
     {
@@ -32,6 +35,7 @@ const createValidPayload = (): CreateComicPayload => ({
           fingerprint: 'page-1',
           preview: 'blob:page-1',
           file: new File(['page'], 'page.png', { type: 'image/png' }),
+          source: 'new',
         },
       ],
     },
@@ -94,6 +98,7 @@ describe('validateStep', () => {
       fingerprint: `page-${index + 1}`,
       preview: `blob:page-${index + 1}`,
       file: new File(['page'], `page-${index + 1}.png`, { type: 'image/png' }),
+      source: 'new',
     }));
 
     expect(validateStep(2, payload)).toMatchObject({

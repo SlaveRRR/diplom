@@ -107,8 +107,19 @@ vi.mock('./hooks', () => ({
     title: '',
   }),
   useCreateBlogPostMutation: () => ({
-    isLoading: false,
-    mutateAsync: vi.fn(),
+    mutation: {
+      isLoading: false,
+      mutateAsync: vi.fn(),
+    },
+    uploadState: {
+      stage: 'idle',
+      uploadedFiles: 0,
+      totalFiles: 0,
+      isDraftLocked: false,
+      lockedDraftId: null,
+      errorMessage: null,
+    },
+    clearUploadLock: vi.fn(),
   }),
   useEditableBlogPostQuery: () => ({
     data: undefined,

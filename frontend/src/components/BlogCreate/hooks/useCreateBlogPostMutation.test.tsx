@@ -25,7 +25,9 @@ const createWrapper = () => {
     },
   });
 
-  const wrapper = ({ children }) => <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
 
   return {
     queryClient,
@@ -117,7 +119,7 @@ describe('useCreateBlogPostMutation', () => {
     };
 
     await act(async () => {
-      await result.current.mutateAsync({
+      await result.current.mutation.mutateAsync({
         title: 'New post',
         ageRating: '16+',
         tagIds: [2, 5],
@@ -131,7 +133,7 @@ describe('useCreateBlogPostMutation', () => {
       });
     });
 
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    await waitFor(() => expect(result.current.mutation.isSuccess).toBe(true));
 
     expect(mockApi.getBlogPostUploadConfig).toHaveBeenCalledWith({
       cover: {
@@ -213,7 +215,7 @@ describe('useCreateBlogPostMutation', () => {
 
     await act(async () => {
       try {
-        await result.current.mutateAsync({
+        await result.current.mutation.mutateAsync({
           title: 'Draft',
           ageRating: '16+',
           tagIds: [1],
@@ -233,11 +235,79 @@ describe('useCreateBlogPostMutation', () => {
           },
         });
       } catch {
-        /* empty */
+        /* noop */
       }
     });
 
-    await waitFor(() => expect(result.current.isError).toBe(true));
+    await waitFor(() => expect(result.current.mutation.isError).toBe(true));
     expect(mockApi.confirmBlogPost).not.toHaveBeenCalled();
+  });
+
+  test('блокирует повторный запуск после ошибки загрузки в S3 до ручного сброса', async () => {
+    const { wrapper } = createWrapper();
+    const coverFile = new File(['cover'], 'cover.webp', { type: 'image/webp' });
+
+    mockApi.getBlogPostUploadConfig.mockResolvedValue({
+      data: {
+        data: {
+          postDraftId: 77,
+          expiresAt: '2026-05-07T10:00:00Z',
+          cover: {
+            method: 'PUT',
+            key: 'posts/covers/cover.webp',
+            upload_url: 'https://upload.example.com/cover',
+          },
+          inlineImages: [],
+        },
+      },
+    } as never);
+    mockApi.uploadFile.mockRejectedValue(new Error('Ошибка загрузки в S3'));
+
+    const { result } = renderHook(() => useCreateBlogPostMutation(), {
+      wrapper,
+    });
+
+    await act(async () => {
+      try {
+        await result.current.mutation.mutateAsync({
+          title: 'Draft',
+          ageRating: '16+',
+          tagIds: [],
+          status: 'draft',
+          coverFile,
+          inlineImages: {},
+          content: { type: 'doc', content: [] },
+        });
+      } catch {
+        /* noop */
+      }
+    });
+
+    await waitFor(() => expect(result.current.uploadState.isDraftLocked).toBe(true));
+    expect(result.current.uploadState.lockedDraftId).toBe(77);
+
+    await act(async () => {
+      try {
+        await result.current.mutation.mutateAsync({
+          title: 'Draft',
+          ageRating: '16+',
+          tagIds: [],
+          status: 'draft',
+          coverFile,
+          inlineImages: {},
+          content: { type: 'doc', content: [] },
+        });
+      } catch {
+        /* noop */
+      }
+    });
+
+    expect(mockApi.getBlogPostUploadConfig).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      result.current.clearUploadLock();
+    });
+
+    expect(result.current.uploadState.isDraftLocked).toBe(false);
   });
 });

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://comicsera.ru/sitemap.xml

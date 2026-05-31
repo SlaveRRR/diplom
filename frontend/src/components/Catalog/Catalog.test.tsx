@@ -11,14 +11,17 @@ const catalogItems = [
     genreId: 1,
     genre: 'Мистика',
     tagIds: [3],
+    tags: ['Тайна'],
     rating: 4.8,
     reviews: 120,
+    likesCount: 90,
     readersCount: 400,
     isNew: true,
     isTrending: true,
     cover: '/cover.jpg',
     coverUrl: '',
     ageRating: '16+',
+    status: 'published',
   },
 ];
 
@@ -45,8 +48,7 @@ vi.mock('@hooks', () => ({
     adultContentModal: <div data-testid="adult-modal" />,
   }),
   usePageOnboarding: () => ({
-    isOpen: false,
-    close: vi.fn(),
+    tourProps: {},
   }),
   usePlatformTaxonomy: () => ({
     data: {
@@ -64,8 +66,16 @@ vi.mock('@components/shared', () => ({
 }));
 
 vi.mock('./hooks', () => ({
-  useCatalogQuery: () => ({
-    data: catalogItems,
+  useCatalogQuery: ({ pageSize }: { pageSize?: number } = {}) => ({
+    data: {
+      items: catalogItems.slice(0, pageSize ?? catalogItems.length),
+      pagination: {
+        page: 1,
+        pageSize: pageSize ?? 12,
+        total: 1,
+        totalPages: 1,
+      },
+    },
     isLoading: false,
   }),
 }));
@@ -76,7 +86,7 @@ describe('Catalog', () => {
 
     expect(screen.getByText('Откройте для себя мир комиксов')).toBeInTheDocument();
     expect(screen.getByText('Каталог')).toBeInTheDocument();
-    expect(screen.getByText('Найдено: 1 из 1')).toBeInTheDocument();
+    expect(screen.getByText('Найдено: 1')).toBeInTheDocument();
     expect(screen.getAllByText('Город туманов').length).toBeGreaterThan(0);
     expect(screen.getByTestId('adult-modal')).toBeInTheDocument();
   });

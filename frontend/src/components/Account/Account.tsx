@@ -245,7 +245,7 @@ export const Account: FC = () => {
                   </Upload>
                 </Flex>
 
-                <Flex vertical gap={14} className="min-w-0 flex-1 sm:min-w-[220px]">
+                <Flex vertical gap={14} className="flex-1 min-w-[200px]">
                   <Flex vertical gap={8}>
                     <Space wrap>
                       <Tag
@@ -286,10 +286,6 @@ export const Account: FC = () => {
             <Col xs={24} xl={9}>
               <Card className="border-0 bg-white/80 shadow-none backdrop-blur-sm" styles={{ body: { padding: 20 } }}>
                 <Flex vertical gap={14}>
-                  <Text className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-text-secondary)]">
-                    Быстрые действия
-                  </Text>
-
                   <Flex
                     gap={12}
                     wrap="wrap"
@@ -494,9 +490,15 @@ const AuthorComicCard: FC<{ comic: UserProfileComic }> = ({ comic }) => (
             </div>
           </Flex>
 
-          <Link to={`/comics/${comic.id}`}>
-            <Button icon={<LinkOutlined />}>Страница комикса</Button>
-          </Link>
+          {comic.status === 'draft' || comic.status === 'revision' ? (
+            <Link to={`/comics/${comic.id}/edit`}>
+              <Button icon={<EditOutlined />}>Продолжить редактирование</Button>
+            </Link>
+          ) : (
+            <Link to={`/comics/${comic.id}`}>
+              <Button icon={<LinkOutlined />}>Страница комикса</Button>
+            </Link>
+          )}
         </Flex>
 
         <Paragraph className="!mb-0" type="secondary" ellipsis={{ rows: 3 }}>

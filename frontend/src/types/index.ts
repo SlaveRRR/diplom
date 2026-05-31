@@ -7,3 +7,4 @@ export * from './theme';
 export * from './common';
 export * from './activity';
 export * from './analytics';
+export * from './home';

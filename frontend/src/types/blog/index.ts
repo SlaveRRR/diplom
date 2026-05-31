@@ -33,6 +33,14 @@ export interface BlogPostListItem {
   publishedAt: string;
 }
 
+export interface BlogPostsQueryParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  tagIds?: number[];
+  sort?: 'recent' | 'comments' | 'title';
+}
+
 export interface BlogPostDetail {
   id: number;
   title: string;

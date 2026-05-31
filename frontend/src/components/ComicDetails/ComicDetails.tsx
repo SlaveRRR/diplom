@@ -22,7 +22,6 @@ import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom
 import { TelegramIcon, TelegramShareButton, VKIcon, VKShareButton } from 'react-share';
 import {
   CommentOutlined,
-  CopyOutlined,
   EyeOutlined,
   HeartFilled,
   HeartOutlined,
@@ -131,6 +130,8 @@ export const ComicDetails: FC = () => {
   const [commentText, setCommentText] = useState('');
   const [replyToComment, setReplyToComment] = useState<ComicComment | null>(null);
   const [episodeSortOrder, setEpisodeSortOrder] = useState<EpisodeSortOrder>('latest');
+
+  const isDraft = data?.status === 'draft';
 
   const shareUrl = useMemo(() => {
     if (typeof window === 'undefined') {
@@ -343,25 +344,27 @@ export const ComicDetails: FC = () => {
                     {continueReadingChapterId ? 'Продолжить чтение' : 'Читать с первой главы'}
                   </Button>
 
-                  <Flex gap={12} wrap>
-                    <Button
-                      size="large"
-                      icon={data.isFavorite ? <StarFilled /> : <StarOutlined />}
-                      loading={favoriteMutation.isLoading}
-                      onClick={handleToggleFavorite}
-                    >
-                      {data.favoritesCount}
-                    </Button>
-                    <Button
-                      size="large"
-                      icon={data.isLiked ? <HeartFilled /> : <HeartOutlined />}
-                      loading={likeMutation.isLoading}
-                      onClick={handleToggleLike}
-                    >
-                      {data.likesCount}
-                    </Button>
-                    <Button size="large" icon={<ShareAltOutlined />} onClick={handleCopyLink} />
-                  </Flex>
+                  {!isDraft && (
+                    <Flex gap={12} wrap>
+                      <Button
+                        size="large"
+                        icon={data.isFavorite ? <StarFilled /> : <StarOutlined />}
+                        loading={favoriteMutation.isLoading}
+                        onClick={handleToggleFavorite}
+                      >
+                        {data.favoritesCount}
+                      </Button>
+                      <Button
+                        size="large"
+                        icon={data.isLiked ? <HeartFilled /> : <HeartOutlined />}
+                        loading={likeMutation.isLoading}
+                        onClick={handleToggleLike}
+                      >
+                        {data.likesCount}
+                      </Button>
+                      <Button size="large" icon={<ShareAltOutlined />} onClick={handleCopyLink} />
+                    </Flex>
+                  )}
                 </Flex>
               </Flex>
             </Col>
@@ -466,20 +469,21 @@ export const ComicDetails: FC = () => {
                   </Flex>
                 </Card>
 
-                <Card className="border-0 bg-white/8 shadow-none backdrop-blur-sm" styles={{ body: { padding: 20 } }}>
-                  <Flex vertical gap={14}>
-                    <Text className="text-xs uppercase tracking-[0.2em] text-white/50">Поделиться</Text>
-                    <Flex gap={10} wrap>
-                      <TelegramShareButton url={shareUrl} title={data.title}>
-                        <TelegramIcon round size={40} />
-                      </TelegramShareButton>
-                      <VKShareButton url={shareUrl} title={data.title}>
-                        <VKIcon round size={40} />
-                      </VKShareButton>
-                      <Button shape="circle" icon={<CopyOutlined />} onClick={handleCopyLink} />
+                {!isDraft && (
+                  <Card className="border-0 bg-white/8 shadow-none backdrop-blur-sm" styles={{ body: { padding: 20 } }}>
+                    <Flex vertical gap={14}>
+                      <Text className="text-xs uppercase tracking-[0.2em] text-white/50">Поделиться</Text>
+                      <Flex gap={10} wrap>
+                        <TelegramShareButton url={shareUrl} title={data.title}>
+                          <TelegramIcon round size={40} />
+                        </TelegramShareButton>
+                        <VKShareButton url={shareUrl} title={data.title}>
+                          <VKIcon round size={40} />
+                        </VKShareButton>
+                      </Flex>
                     </Flex>
-                  </Flex>
-                </Card>
+                  </Card>
+                )}
               </Flex>
             </Col>
           </Row>
@@ -572,9 +576,6 @@ export const ComicDetails: FC = () => {
                   <Title level={3} className="!mb-0">
                     Обсуждение
                   </Title>
-                  <Text type="secondary">
-                    Комментарии под комиксом сразу подтягиваются из backend и доступны всем читателям страницы.
-                  </Text>
                 </Flex>
 
                 <Form layout="vertical" onFinish={handleSubmitComment}>
@@ -616,7 +617,7 @@ export const ComicDetails: FC = () => {
                     type="primary"
                     htmlType="submit"
                     icon={<SendOutlined />}
-                    disabled={!commentText.trim()}
+                    disabled={isDraft || !commentText.trim()}
                     loading={commentMutation.isLoading}
                   >
                     {replyToComment ? 'Отправить ответ' : 'Отправить комментарий'}

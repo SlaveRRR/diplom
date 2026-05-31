@@ -114,5 +114,11 @@ export const useComicCreateStore = create<ComicCreateStore>()((set) => ({
       }),
     })),
   setCurrentStep: (currentStep) => set({ currentStep }),
+  hydrate: (payload) =>
+    set((state) => ({
+      ...state,
+      ...payload,
+      currentStep: payload.currentStep ?? 0,
+    })),
   reset: () => set(initialState),
 }));

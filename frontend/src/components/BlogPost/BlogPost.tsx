@@ -173,9 +173,6 @@ export const BlogPost: FC = () => {
             <Title level={3} className="!mb-0">
               Обсуждение
             </Title>
-            <Text type="secondary">
-              Комментарии у постов работают через ту же универсальную систему, что и у комиксов.
-            </Text>
           </Flex>
 
           {replyToComment ? (

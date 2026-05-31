@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '@api';
@@ -23,6 +24,24 @@ type UploadConfigInlineImage = {
 };
 
 type ReplaceMap = Record<string, string>;
+
+type BlogUploadState = {
+  stage: 'idle' | 'config' | 'upload' | 'confirm';
+  uploadedFiles: number;
+  totalFiles: number;
+  isDraftLocked: boolean;
+  lockedDraftId: number | null;
+  errorMessage: string | null;
+};
+
+const initialUploadState: BlogUploadState = {
+  stage: 'idle',
+  uploadedFiles: 0,
+  totalFiles: 0,
+  isDraftLocked: false,
+  lockedDraftId: null,
+  errorMessage: null,
+};
 
 const replaceImageSources = (value: unknown, replacements: ReplaceMap): unknown => {
   if (Array.isArray(value)) {
@@ -74,8 +93,15 @@ const collectInlineImageIds = (value: unknown, ids: Set<string>) => {
 
 export const useCreateBlogPostMutation = () => {
   const queryClient = useQueryClient();
+  const [uploadState, setUploadState] = useState<BlogUploadState>(initialUploadState);
+  const lockedDraftIdRef = useRef<number | null>(null);
 
-  return useMutation({
+  const clearUploadLock = () => {
+    lockedDraftIdRef.current = null;
+    setUploadState(initialUploadState);
+  };
+
+  const mutation = useMutation({
     mutationFn: async ({
       ageRating,
       content,
@@ -86,6 +112,12 @@ export const useCreateBlogPostMutation = () => {
       tagIds,
       title,
     }: CreateBlogPostMutationPayload) => {
+      if (lockedDraftIdRef.current) {
+        throw new Error(
+          'Предыдущая загрузка завершилась ошибкой после создания upload-config. Сбросьте форму, чтобы начать заново.',
+        );
+      }
+
       const usedInlineImageIds = new Set<string>();
       collectInlineImageIds(content, usedInlineImageIds);
 
@@ -114,43 +146,105 @@ export const useCreateBlogPostMutation = () => {
         };
       }
 
-      const uploadConfigResponse = await api.getBlogPostUploadConfig(uploadConfigPayload);
-      const uploadConfig = uploadConfigResponse.data.data;
-
-      if (coverFile && uploadConfig.cover) {
-        await api.uploadFile(uploadConfig.cover.upload_url, coverFile);
-      }
-
-      await Promise.all(
-        uploadConfig.inlineImages.map((uploadTarget) => {
-          const file = inlineImages[uploadTarget.uploadId];
-
-          if (!file) {
-            throw new Error('Не найден файл для одной из картинок статьи.');
-          }
-
-          return api.uploadFile(uploadTarget.upload_url, file);
-        }),
-      );
-
-      const replacementMap = Object.fromEntries(uploadConfig.inlineImages.map((item) => [item.uploadId, item.key]));
-      const finalContent = replaceImageSources(content, replacementMap) as Record<string, unknown>;
-
-      const confirmResponse = await api.confirmBlogPost({
-        postId,
-        postDraftId: uploadConfig.postDraftId,
-        title,
-        ageRating,
-        tagIds,
-        status,
-        content: finalContent,
+      setUploadState({
+        stage: 'config',
+        uploadedFiles: 0,
+        totalFiles: usedInlineImageIds.size + (coverFile ? 1 : 0),
+        isDraftLocked: false,
+        lockedDraftId: null,
+        errorMessage: null,
       });
 
-      return confirmResponse.data.data;
+      let createdDraftId: number | null = null;
+
+      try {
+        const uploadConfigResponse = await api.getBlogPostUploadConfig(uploadConfigPayload);
+        const uploadConfig = uploadConfigResponse.data.data;
+        createdDraftId = uploadConfig.postDraftId;
+        lockedDraftIdRef.current = createdDraftId;
+
+        const uploadEntries = [
+          ...(coverFile && uploadConfig.cover ? [{ file: coverFile, uploadUrl: uploadConfig.cover.upload_url }] : []),
+          ...uploadConfig.inlineImages.map((uploadTarget) => {
+            const file = inlineImages[uploadTarget.uploadId];
+
+            if (!file) {
+              throw new Error('Не найден файл для одной из картинок статьи.');
+            }
+
+            return {
+              file,
+              uploadUrl: uploadTarget.upload_url,
+            };
+          }),
+        ];
+
+        setUploadState((prevState) => ({
+          ...prevState,
+          stage: 'upload',
+          lockedDraftId: createdDraftId,
+        }));
+
+        for (const [index, uploadEntry] of uploadEntries.entries()) {
+          await api.uploadFile(uploadEntry.uploadUrl, uploadEntry.file);
+
+          setUploadState((prevState) => ({
+            ...prevState,
+            uploadedFiles: index + 1,
+          }));
+        }
+
+        const replacementMap = Object.fromEntries(uploadConfig.inlineImages.map((item) => [item.uploadId, item.key]));
+        const finalContent = replaceImageSources(content, replacementMap) as Record<string, unknown>;
+
+        setUploadState((prevState) => ({
+          ...prevState,
+          stage: 'confirm',
+        }));
+
+        const confirmResponse = await api.confirmBlogPost({
+          postId,
+          postDraftId: uploadConfig.postDraftId,
+          title,
+          ageRating,
+          tagIds,
+          status,
+          content: finalContent,
+        });
+
+        return confirmResponse.data.data;
+      } catch (error) {
+        const message =
+          error instanceof Error && error.message ? error.message : 'Не удалось завершить создание поста.';
+
+        if (createdDraftId) {
+          setUploadState({
+            stage: 'idle',
+            uploadedFiles: 0,
+            totalFiles: 0,
+            isDraftLocked: true,
+            lockedDraftId: createdDraftId,
+            errorMessage: message,
+          });
+        } else {
+          lockedDraftIdRef.current = null;
+          setUploadState(initialUploadState);
+        }
+
+        throw error;
+      }
     },
     onSuccess: () => {
+      lockedDraftIdRef.current = null;
+      setUploadState(initialUploadState);
       queryClient.invalidateQueries([BLOG_POSTS_QUERY_KEY]);
       queryClient.invalidateQueries([ACCOUNT_QUERY_KEY]);
     },
   });
+
+  return {
+    mutation,
+    uploadState,
+    clearUploadLock,
+  };
 };

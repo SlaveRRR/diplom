@@ -24,6 +24,9 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
 
         if sociallogin.account.provider == 'yandex':
             return self.build_yandex_avatar_url(sociallogin.account.extra_data)
+        
+        if sociallogin.account.provider == 'vk':
+            return sociallogin.account.extra_data.get("photo_200")
 
         return None
 

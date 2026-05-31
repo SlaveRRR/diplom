@@ -1,4 +1,5 @@
 ﻿import json
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -84,6 +85,41 @@ class BlogApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIsNone(payload['data']['cover'])
+
+    def test_posts_list_returns_paginated_payload(self):
+        first_post = Post.objects.create(
+            title='Пост о релизе',
+            content={'type': 'doc', 'content': []},
+            cover='posts/1/cover.webp',
+            age_rating='12+',
+            author=self.author,
+            status=Post.Status.PUBLISHED,
+            published_at=timezone.now(),
+        )
+        second_post = Post.objects.create(
+            title='Пост о разработке',
+            content={'type': 'doc', 'content': []},
+            cover='posts/2/cover.webp',
+            age_rating='16+',
+            author=self.author,
+            status=Post.Status.PUBLISHED,
+            published_at=timezone.now() - timedelta(days=1),
+        )
+        first_post.tags.set([self.tag])
+        second_post.tags.set([self.tag])
+
+        response = self.client.get('/api/v1/posts/', {'page': 1, 'page_size': 1, 'sort': 'recent'})
+        response.render()
+        payload = json.loads(response.content)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(payload['data']['pagination']['page'], 1)
+        self.assertEqual(payload['data']['pagination']['pageSize'], 1)
+        self.assertEqual(payload['data']['pagination']['total'], 2)
+        self.assertEqual(payload['data']['pagination']['totalPages'], 2)
+        self.assertEqual(len(payload['data']['items']), 1)
+        self.assertEqual(payload['data']['items'][0]['id'], first_post.id)
+        self.assertEqual(payload['data']['items'][0]['title'], first_post.title)
 
     @patch('blog.views.S3UploadService.object_exists', return_value=True)
     def test_confirm_creates_post_with_under_review_status(self, object_exists_mock):
@@ -342,6 +378,11 @@ class BlogApiTests(APITestCase):
         self.assertEqual(list_payload['data'][0]['id'], published_post.id)
         self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
         self.assertEqual(detail_payload['data']['author']['id'], self.author.id)
+        self.assertEqual(self.author.analytics_events.filter(event_type='view', content_kind='post', object_id=published_post.id).count(), 1)
+
+        detail_response_repeat = self.client.get(f'/api/v1/posts/{published_post.id}/')
+        self.assertEqual(detail_response_repeat.status_code, status.HTTP_200_OK)
+        self.assertEqual(self.author.analytics_events.filter(event_type='view', content_kind='post', object_id=published_post.id).count(), 1)
         self.assertEqual(hidden_response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_preview_can_open_unpublished_post(self):

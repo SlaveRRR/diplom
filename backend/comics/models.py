@@ -114,6 +114,10 @@ class Comic(TimeStampedModel):
 
     class Meta:
         ordering = ('-created_at',)
+        indexes = [
+            models.Index(fields=('status', 'published_at', 'created_at'), name='comic_status_pub_idx'),
+            models.Index(fields=('author', 'updated_at', 'created_at'), name='comic_author_upd_idx'),
+        ]
 
     def __str__(self):
         return self.title
@@ -286,6 +290,9 @@ class ComicReadingProgress(TimeStampedModel):
     last_page = models.PositiveIntegerField(default=1)
 
     class Meta:
+        indexes = [
+            models.Index(fields=('user', 'updated_at', 'created_at'), name='comic_prog_user_idx'),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=('user', 'comic'),

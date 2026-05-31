@@ -20,8 +20,20 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 LOG_DIR = BASE_DIR / 'logs'
 LOG_DIR.mkdir(exist_ok=True)
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1'] if MODE == 'DEV' else [os.getenv('FRONTEND_HOST', 'localhost')]
-CORS_ALLOWED_ORIGINS = ['http://localhost:5173'] if MODE == 'DEV' else [os.getenv('FRONTEND_URL', 'http://localhost:5173')]
+def get_env_list(name: str, default: str = ''):
+    raw = os.getenv(name, default)
+
+    return [item.strip() for item in raw.split(',') if item.strip()]
+
+
+ALLOWED_HOSTS = ['localhost', '127.0.0.1'] if MODE == 'DEV' else get_env_list(
+    'ALLOWED_HOSTS',
+    'localhost',
+)
+CORS_ALLOWED_ORIGINS = ['http://localhost:5173'] if MODE == 'DEV' else get_env_list(
+    'CORS_ALLOWED_ORIGINS',
+    os.getenv('FRONTEND_URL', 'http://localhost:5173'),
+)
 CORS_ALLOW_CREDENTIALS = True
 REFRESH_TOKEN_COOKIE_NAME = 'refresh_token'
 AUTH_USER_MODEL = 'users.User'
@@ -32,11 +44,24 @@ HEADLESS_FRONTEND_URLS = {
     'account_signup': f"{os.getenv('FRONTEND_URL', 'http://localhost:5173')}/signup",
     'socialaccount_login_error': f"{os.getenv('FRONTEND_URL', 'http://localhost:5173')}/signin",
 }
+
 BACKEND_PUBLIC_URL = os.getenv(
     'BACKEND_PUBLIC_URL',
     'http://localhost:8000',
 ).rstrip('/')
-CSRF_TRUSTED_ORIGINS = ['http://localhost:8000'] if MODE == 'DEV' else [os.getenv('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000')]
+
+FRONTEND_URL = os.getenv(
+    "FRONTEND_URL",
+    "http://localhost:5173",
+).rstrip("/")
+
+CSRF_TRUSTED_ORIGINS = ['http://localhost:8000'] if MODE == 'DEV' else get_env_list(
+    'CSRF_TRUSTED_ORIGINS',
+    os.getenv('FRONTEND_URL', 'http://localhost:5173'),
+)
+ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'http' if MODE == 'DEV' else 'https'
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
 
 S3_ENDPOINT_URL = os.getenv('S3_ENDPOINT_URL')
 S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')

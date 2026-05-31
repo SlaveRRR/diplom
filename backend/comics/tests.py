@@ -11,6 +11,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from blog.models import BlogTag, Post
 from comics import services
 from comics.models import (
     Chapter,
@@ -217,6 +218,77 @@ class ComicsApiTests(APITestCase):
         self.assertEqual(payload['data']['genres'][0]['description'], self.genre.description)
         self.assertEqual(payload['data']['tags'][0]['name'], self.tag.name)
         self.assertEqual(payload['data']['tags'][0]['description'], self.tag.description)
+
+    def test_home_selections_returns_precomputed_sections(self):
+        secondary_tag = Tag.objects.create(name='Драма', description='Сильные эмоциональные конфликты.')
+        blog_tag = BlogTag.objects.create(name='Новости', description='Анонсы и заметки для читателей.')
+
+        trending_comic = Comic.objects.create(
+            title='Хроники башни',
+            description='Популярный комикс.',
+            author=self.author,
+            status=Comic.Status.PUBLISHED,
+            cover='comics/tower/cover.webp',
+            age_rating=ComicAgeRating.AGE_16,
+            published_at=timezone.now(),
+        )
+        trending_comic.genre = self.genre
+        trending_comic.save(update_fields=['genre'])
+        trending_comic.tags.set([self.tag, secondary_tag])
+        ComicLike.objects.bulk_create([ComicLike(user=self.reader, comic=trending_comic)])
+        extra_reader = User.objects.create_user(
+            username='reader-extra',
+            email='reader-extra@example.com',
+            password='strongpass123',
+            role=User.Role.READER,
+        )
+        ComicLike.objects.create(user=extra_reader, comic=trending_comic)
+        another_reader = User.objects.create_user(
+            username='reader-another',
+            email='reader-another@example.com',
+            password='strongpass123',
+            role=User.Role.READER,
+        )
+        ComicLike.objects.create(user=another_reader, comic=trending_comic)
+
+        fresh_comic = Comic.objects.create(
+            title='Новая заря',
+            description='Свежий релиз.',
+            author=self.author,
+            status=Comic.Status.PUBLISHED,
+            cover='comics/dawn/cover.webp',
+            age_rating=ComicAgeRating.AGE_12,
+            published_at=timezone.now() - timedelta(hours=2),
+        )
+        fresh_comic.genre = self.genre
+        fresh_comic.save(update_fields=['genre'])
+        fresh_comic.tags.set([self.tag])
+
+        post = Post.objects.create(
+            author=self.author,
+            title='Новый анонс',
+            content={'type': 'doc', 'content': []},
+            status=Post.Status.PUBLISHED,
+            age_rating=ComicAgeRating.AGE_12,
+            published_at=timezone.now(),
+        )
+        post.tags.set([blog_tag])
+
+        response = self.client.get(reverse('home-selections'))
+        response.render()
+        payload = json.loads(response.content)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNone(payload['error'])
+        self.assertIn('heroComics', payload['data'])
+        self.assertIn('popularComics', payload['data'])
+        self.assertIn('freshComics', payload['data'])
+        self.assertIn('popularPosts', payload['data'])
+        self.assertIn('freshPosts', payload['data'])
+        self.assertIn('taxonomyTiles', payload['data'])
+        self.assertEqual(payload['data']['heroComics'][0]['title'], 'Хроники башни')
+        self.assertEqual(payload['data']['freshComics'][0]['title'], 'Новая заря')
+        self.assertEqual(payload['data']['popularPosts'][0]['title'], 'Новый анонс')
 
     @patch('comics.views.services.S3UploadService.generate_upload')
     def test_upload_config_creates_comic_and_chapter_drafts(self, mock_generate_upload):
@@ -450,6 +522,40 @@ class ComicsApiTests(APITestCase):
         self.assertEqual(payload['data']['continueReading']['lastPage'], 2)
         self.assertEqual(len(payload['data']['comments']), 1)
 
+    def test_comic_detail_hides_foreign_draft_by_id(self):
+        comic = Comic.objects.create(
+            title='Лунная Башня',
+            description='Черновик для редактирования.',
+            author=self.author,
+            genre=self.genre,
+            status=Comic.Status.DRAFT,
+        )
+
+        response = self.client.get(reverse('comic-detail', kwargs={'comic_id': comic.id}))
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        self.client.force_authenticate(self.reader)
+        response = self.client.get(reverse('comic-detail', kwargs={'comic_id': comic.id}))
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_comic_detail_allows_author_to_open_own_draft(self):
+        comic = Comic.objects.create(
+            title='Лунная Башня',
+            description='Черновик для редактирования.',
+            author=self.author,
+            genre=self.genre,
+            status=Comic.Status.DRAFT,
+        )
+        self.client.force_authenticate(self.author)
+
+        response = self.client.get(reverse('comic-detail', kwargs={'comic_id': comic.id}))
+        response.render()
+        payload = json.loads(response.content)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(payload['data']['id'], comic.id)
+        self.assertEqual(payload['data']['status'], Comic.Status.DRAFT)
+
     def test_comics_list_returns_catalog_payload(self):
         comic = Comic.objects.create(
             title='Лунная Башня',
@@ -473,18 +579,22 @@ class ComicsApiTests(APITestCase):
         payload = json.loads(response.content)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(payload['data']), 1)
-        self.assertEqual(payload['data'][0]['id'], comic.id)
-        self.assertEqual(payload['data'][0]['title'], comic.title)
-        self.assertEqual(payload['data'][0]['coverUrl'], services.build_public_media_url(comic.cover))
-        self.assertEqual(payload['data'][0]['genreId'], self.genre.id)
-        self.assertEqual(payload['data'][0]['genre'], self.genre.name)
-        self.assertEqual(payload['data'][0]['tagIds'], [self.tag.id])
-        self.assertEqual(payload['data'][0]['tags'], [self.tag.name])
-        self.assertEqual(payload['data'][0]['reviews'], 1)
-        self.assertEqual(payload['data'][0]['rating'], 5.0)
-        self.assertTrue(payload['data'][0]['isNew'])
-        self.assertTrue(payload['data'][0]['isTrending'])
+        self.assertEqual(payload['data']['pagination']['page'], 1)
+        self.assertEqual(payload['data']['pagination']['pageSize'], 12)
+        self.assertEqual(payload['data']['pagination']['total'], 1)
+        self.assertEqual(payload['data']['pagination']['totalPages'], 1)
+        self.assertEqual(len(payload['data']['items']), 1)
+        self.assertEqual(payload['data']['items'][0]['id'], comic.id)
+        self.assertEqual(payload['data']['items'][0]['title'], comic.title)
+        self.assertEqual(payload['data']['items'][0]['coverUrl'], services.build_public_media_url(comic.cover))
+        self.assertEqual(payload['data']['items'][0]['genreId'], self.genre.id)
+        self.assertEqual(payload['data']['items'][0]['genre'], self.genre.name)
+        self.assertEqual(payload['data']['items'][0]['tagIds'], [self.tag.id])
+        self.assertEqual(payload['data']['items'][0]['tags'], [self.tag.name])
+        self.assertEqual(payload['data']['items'][0]['reviews'], 1)
+        self.assertEqual(payload['data']['items'][0]['rating'], 5.0)
+        self.assertTrue(payload['data']['items'][0]['isNew'])
+        self.assertTrue(payload['data']['items'][0]['isTrending'])
 
     def test_create_comment_for_comic(self):
         comic = Comic.objects.create(title='Лунная Башня', author=self.author, genre=self.genre)
@@ -594,6 +704,51 @@ class ComicsApiTests(APITestCase):
         self.assertEqual(payload['data']['navigation']['nextChapterId'], second_chapter.id)
         self.assertEqual(payload['data']['progress']['chapterId'], first_chapter.id)
         self.assertEqual(payload['data']['progress']['lastPage'], 2)
+        comic.refresh_from_db()
+        self.assertEqual(comic.stats.views, 1)
+        self.assertEqual(comic.stats.unique_readers, 1)
+
+        second_response = self.client.get(reverse('comic-reader', kwargs={'comic_id': comic.id, 'chapter_id': first_chapter.id}))
+        self.assertEqual(second_response.status_code, status.HTTP_200_OK)
+        comic.refresh_from_db()
+        self.assertEqual(comic.stats.views, 1)
+        self.assertEqual(comic.stats.unique_readers, 1)
+
+    def test_reader_hides_foreign_draft_by_id(self):
+        comic = Comic.objects.create(title='Лунная Башня', author=self.author, genre=self.genre, status=Comic.Status.DRAFT)
+        chapter = Chapter.objects.create(
+            comic=comic,
+            title='Пролог',
+            chapter_number=1,
+            page_count=1,
+            page_keys=['drafts/1/comics/1/001.webp'],
+        )
+
+        response = self.client.get(reverse('comic-reader', kwargs={'comic_id': comic.id, 'chapter_id': chapter.id}))
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        self.client.force_authenticate(self.reader)
+        response = self.client.get(reverse('comic-reader', kwargs={'comic_id': comic.id, 'chapter_id': chapter.id}))
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_reader_allows_author_to_open_own_draft(self):
+        comic = Comic.objects.create(title='Лунная Башня', author=self.author, genre=self.genre, status=Comic.Status.DRAFT)
+        chapter = Chapter.objects.create(
+            comic=comic,
+            title='Пролог',
+            chapter_number=1,
+            page_count=1,
+            page_keys=['drafts/1/comics/1/001.webp'],
+        )
+        self.client.force_authenticate(self.author)
+
+        response = self.client.get(reverse('comic-reader', kwargs={'comic_id': comic.id, 'chapter_id': chapter.id}))
+        response.render()
+        payload = json.loads(response.content)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(payload['data']['comicId'], comic.id)
+        self.assertEqual(payload['data']['chapter']['id'], chapter.id)
 
     def test_progress_update_saves_unique_reader_and_last_page(self):
         comic = Comic.objects.create(title='Лунная Башня', author=self.author, genre=self.genre, status=Comic.Status.PUBLISHED)
@@ -613,6 +768,7 @@ class ComicsApiTests(APITestCase):
         self.assertEqual(payload['data']['lastPage'], 3)
         self.assertEqual(ComicReadingProgress.objects.get(user=self.reader, comic=comic).last_page, 3)
         self.assertEqual(ComicStats.objects.get(comic=comic).unique_readers, 1)
+        self.assertEqual(ComicStats.objects.get(comic=comic).views, 1)
 
         self.client.post(
             reverse('comic-reading-progress', kwargs={'comic_id': comic.id, 'chapter_id': chapter.id}),
@@ -622,3 +778,4 @@ class ComicsApiTests(APITestCase):
 
         self.assertEqual(ComicReadingProgress.objects.get(user=self.reader, comic=comic).last_page, 5)
         self.assertEqual(ComicStats.objects.get(comic=comic).unique_readers, 1)
+        self.assertEqual(ComicStats.objects.get(comic=comic).views, 1)

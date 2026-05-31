@@ -4,7 +4,7 @@ import { Link, useOutletContext } from 'react-router-dom';
 import { DeleteOutlined, HeartOutlined, ReloadOutlined } from '@ant-design/icons';
 
 import { colors } from '@constants';
-import { usePlatformTaxonomy } from '@hooks';
+import { usePlatformTaxonomy, useWindowSize } from '@hooks';
 import { CatalogItem } from '@components/Catalog/hooks/useCatalogStore/types';
 import { useComicFavoriteMutation } from '@components/ComicDetails/hooks';
 import { ComicCard, ComicCardActionButton, ComicCardSkeleton, Select } from '@components/shared';
@@ -31,6 +31,10 @@ export const Favorites = () => {
   const [genreId, setGenreId] = useState<SelectValue>();
   const [tagIds, setTagIds] = useState<SelectValue[]>([]);
   const [sort, setSort] = useState<SortKey>('recent');
+
+  const { size } = useWindowSize();
+
+  const orientation = size === 'mobile' ? 'vertical' : 'horizontal';
 
   const filteredItems = useMemo(() => {
     let filtered = [...items];
@@ -141,6 +145,7 @@ export const Favorites = () => {
               <Segmented<SortKey>
                 block
                 value={sort}
+                orientation={orientation}
                 onChange={(value) => setSort(value)}
                 options={[
                   { label: 'Сначала новые', value: 'recent' },

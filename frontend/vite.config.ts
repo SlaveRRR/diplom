@@ -5,50 +5,69 @@ import tsconfigPaths from 'vite-tsconfig-paths';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
+  const rawEnv = loadEnv(mode, process.cwd(), '');
+  const env = {
+    ...rawEnv,
+    ...process.env,
+  };
+
   const apiUrl = new URL(env.VITE_API ?? 'http://localhost:8000/api/v1/');
   const backendUrl = new URL(env.VITE_BACKEND_URL ?? 'http://localhost:8000/');
+  const apiPattern = new RegExp(`^${escapeRegExp(apiUrl.origin)}${escapeRegExp(apiUrl.pathname)}`);
+  const mediaPattern = new RegExp(
+    `^${escapeRegExp(backendUrl.origin)}(?:/media/|.*\\.(?:png|jpg|jpeg|webp|gif|svg)$)`,
+    'i',
+  );
 
   return {
     plugins: [
       react(),
       tailwindcss(),
       VitePWA({
-        registerType: 'prompt',
-        includeAssets: ['logo.svg'],
+        injectRegister: 'auto',
+        registerType: 'autoUpdate',
+        includeAssets: ['logo.png', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
         manifest: {
-          name: 'ComicsWebApp',
-          short_name: 'ComicsWebApp',
-          description: 'Платформа для чтения и публикации комиксов',
-          icons: [
-            {
-              src: '/logo.svg',
-              sizes: '192x192',
-              type: 'image/svg+xml',
-              purpose: 'any',
-            },
-            {
-              src: '/logo.svg',
-              sizes: '512x512',
-              type: 'image/svg+xml',
-              purpose: 'any maskable',
-            },
-          ],
+          name: 'ComicsApp',
+          short_name: 'ComicsApp',
+          description: 'Приложение для чтения и публикации комиксов.',
           theme_color: '#3D8CEC',
           background_color: '#ffffff',
           display: 'standalone',
           scope: '/',
           start_url: '/',
           orientation: 'portrait',
+          icons: [
+            {
+              src: '/pwa-192x192.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'any',
+            },
+            {
+              src: '/pwa-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any',
+            },
+            {
+              src: '/maskable-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable',
+            },
+          ],
         },
         workbox: {
           cleanupOutdatedCaches: true,
+          navigateFallback: '/index.html',
           maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
           runtimeCaching: [
             {
-              urlPattern: ({ request, url }) =>
-                request.method === 'GET' && url.origin === apiUrl.origin && url.pathname.startsWith(apiUrl.pathname),
+              urlPattern: apiPattern,
               handler: 'NetworkFirst',
               options: {
                 cacheName: 'api-data-cache',
@@ -63,10 +82,7 @@ export default defineConfig(({ mode }) => {
               },
             },
             {
-              urlPattern: ({ request, url }) =>
-                request.method === 'GET' &&
-                url.origin === backendUrl.origin &&
-                (url.pathname.includes('/media/') || /\.(?:png|jpg|jpeg|webp|gif|svg)$/i.test(url.pathname)),
+              urlPattern: mediaPattern,
               handler: 'StaleWhileRevalidate',
               options: {
                 cacheName: 'media-assets-cache',
@@ -109,25 +125,25 @@ export default defineConfig(({ mode }) => {
               return;
             }
 
-            if (id.includes('@ant-design/plots') || id.includes('@antv')) {
-              return 'charts';
-            }
-
-            if (
-              id.includes('antd') ||
-              id.includes('@ant-design') ||
-              id.includes('@rc-component') ||
-              id.includes('/rc-') ||
-              id.includes('/dayjs/')
-            ) {
-              return 'antd';
-            }
-
             if (id.includes('@tiptap') || id.includes('prosemirror')) {
               return 'editor';
             }
 
-            return 'vendor';
+            if (
+              id.includes('/react/') ||
+              id.includes('/react-dom/') ||
+              id.includes('scheduler') ||
+              id.includes('react-router') ||
+              id.includes('@tanstack/react-query')
+            ) {
+              return 'framework';
+            }
+
+            if (id.includes('axios') || id.includes('zod') || id.includes('zustand')) {
+              return 'data';
+            }
+
+            return undefined;
           },
         },
       },

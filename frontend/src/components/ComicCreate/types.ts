@@ -2,9 +2,11 @@ import { ComicTagOption } from '@types';
 
 export interface LocalUploadAsset {
   id: string;
-  file: File;
+  file: File | null;
   fingerprint: string;
   preview: string;
+  source: 'new' | 'existing';
+  storageKey?: string;
 }
 
 export interface ChapterDraft {
@@ -43,12 +45,14 @@ export interface ComicCreateActions {
   removeChapterPage: (chapterId: string, pageIndex: number) => void;
   moveChapterPage: (chapterId: string, pageIndex: number, direction: 'backward' | 'forward') => void;
   setCurrentStep: (step: number) => void;
+  hydrate: (state: Partial<ComicCreateState>) => void;
   reset: () => void;
 }
 
 export type ComicCreateStore = ComicCreateState & ComicCreateActions;
 
 export interface CreateComicPayload {
+  comicId?: number;
   title: string;
   description: string;
   ageRating: string;
@@ -57,6 +61,7 @@ export interface CreateComicPayload {
   cover: LocalUploadAsset;
   banner: LocalUploadAsset;
   chapters: ChapterDraft[];
+  submissionMode: ComicSubmissionMode;
 }
 
 export interface StepValidationResult {
@@ -70,10 +75,15 @@ export interface TagSelectOption {
   option: ComicTagOption;
 }
 
+export type ComicSubmissionMode = 'draft' | 'under_review';
+
 export type ComicUploadStage = 'idle' | 'config' | 'upload' | 'confirm';
 
 export interface ComicUploadState {
   stage: ComicUploadStage;
   uploadedFiles: number;
   totalFiles: number;
+  isDraftLocked: boolean;
+  lockedDraftId: string | null;
+  errorMessage: string | null;
 }

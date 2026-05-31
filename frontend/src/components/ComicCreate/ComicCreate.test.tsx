@@ -6,6 +6,7 @@ const navigateMock = vi.fn();
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => navigateMock,
+  useParams: () => ({}),
   useOutletContext: () => ({
     messageApi: {
       warning: vi.fn(),
@@ -52,7 +53,12 @@ vi.mock('./hooks', () => ({
     removeChapterPage: vi.fn(),
     moveChapterPage: vi.fn(),
     setCurrentStep: vi.fn(),
+    hydrate: vi.fn(),
     reset: vi.fn(),
+  }),
+  useEditableComicQuery: () => ({
+    data: undefined,
+    isLoading: false,
   }),
   useCreateComicMutation: () => ({
     mutation: {
@@ -63,7 +69,11 @@ vi.mock('./hooks', () => ({
       stage: 'idle',
       uploadedFiles: 0,
       totalFiles: 0,
+      isDraftLocked: false,
+      lockedDraftId: null,
+      errorMessage: null,
     },
+    clearUploadLock: vi.fn(),
   }),
 }));
 

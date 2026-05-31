@@ -1,35 +1,16 @@
 import { Button, Carousel, Col, Empty, Flex, Masonry, Row, Skeleton, Tag, Typography } from 'antd';
-import { FC, ReactNode, useMemo } from 'react';
+import { FC, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRightOutlined, CalendarOutlined, CommentOutlined, ReadOutlined } from '@ant-design/icons';
 
 import { colors } from '@constants';
-import { useAdultContentGate, usePlatformTaxonomy } from '@hooks';
-import { BlogPostListItem, CatalogComicResponse } from '@types';
-import { useBlogPostsQuery } from '@components/Blog/hooks';
-import { useCatalogQuery } from '@components/Catalog/hooks';
-import { ComicCard } from '@components/shared';
-import { SelectOption } from '@utils/select/types';
+import { useAdultContentGate } from '@hooks';
+import { BlogPostListItem, HomeTaxonomyTile } from '@types';
+import { ComicCard, ComicCardSkeleton } from '@components/shared';
+
+import { useHomeQuery } from './hooks';
 
 const { Paragraph, Text, Title } = Typography;
-
-const sortPopularComics = (items: CatalogComicResponse[]) =>
-  [...items].sort(
-    (left, right) =>
-      Number(right.isTrending) - Number(left.isTrending) ||
-      right.likesCount - left.likesCount ||
-      right.rating - left.rating ||
-      right.reviews - left.reviews,
-  );
-
-const sortFreshComics = (items: CatalogComicResponse[]) =>
-  [...items].sort((left, right) => Number(right.isNew) - Number(left.isNew) || right.id - left.id);
-
-const sortPopularPosts = (items: BlogPostListItem[]) =>
-  [...items].sort((left, right) => right.commentsCount - left.commentsCount || right.id - left.id);
-
-const sortFreshPosts = (items: BlogPostListItem[]) =>
-  [...items].sort((left, right) => +new Date(right.publishedAt) - +new Date(left.publishedAt));
 
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat('ru-RU', {
@@ -39,18 +20,6 @@ const formatDate = (value: string) =>
   }).format(new Date(value));
 
 const isAdultContent = (ageRating: string) => ageRating === '18+';
-
-type TaxonomyTileKind = 'genre' | 'tag';
-
-type TaxonomyTile = {
-  key: string;
-  height: number;
-  href: string;
-  kind: TaxonomyTileKind;
-  item: SelectOption;
-  accent: string;
-  surface: string;
-};
 
 type BlogSelectionCardProps = {
   post: BlogPostListItem;
@@ -62,7 +31,27 @@ const BlogSelectionCard = ({ post, accent, onOpen }: BlogSelectionCardProps) => 
   <Link to={`/blog/${post.id}`} onClick={(event) => onOpen(`/blog/${post.id}`, post.ageRating, event)}>
     <div className="h-full overflow-hidden rounded-[24px] border border-black/6 bg-white shadow-sm transition-transform duration-200 hover:-translate-y-1 hover:shadow-[0_18px_36px_rgba(32,20,82,0.08)]">
       <div className="relative h-60 w-full overflow-hidden">
-        <img src={post.coverUrl || post.cover} alt={post.title} className="h-full w-full object-cover" />
+        {post.coverUrl || post.cover ? (
+          <img
+            src={post.coverUrl || post.cover}
+            alt={post.title}
+            width={1200}
+            height={675}
+            loading="lazy"
+            decoding="async"
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div
+            className="flex h-full w-full items-end p-6"
+            style={{
+              background:
+                accent === 'brand'
+                  ? `linear-gradient(135deg, ${colors.surface.brandSubtle} 0%, ${colors.white} 58%, ${colors.surface.infoSubtle} 100%)`
+                  : `linear-gradient(135deg, ${colors.surface.infoSubtle} 0%, ${colors.white} 58%, ${colors.surface.brandSubtle} 100%)`,
+            }}
+          />
+        )}
         {isAdultContent(post.ageRating) ? (
           <div className="absolute inset-0 flex items-center justify-center bg-[linear-gradient(180deg,rgba(255,255,255,0.08)_0%,rgba(32,20,82,0.58)_100%)] backdrop-blur-[8px]">
             <Flex vertical align="center" gap={10} className="max-w-[190px] px-4 text-center text-white">
@@ -122,6 +111,15 @@ const BlogSelectionCard = ({ post, accent, onOpen }: BlogSelectionCardProps) => 
   </Link>
 );
 
+const BlogSelectionCardSkeleton = () => (
+  <div className="h-full overflow-hidden rounded-[24px] border border-black/6 bg-white shadow-sm">
+    <Skeleton.Image active className="!h-60 !w-full" />
+    <div className="p-5">
+      <Skeleton active paragraph={{ rows: 4 }} />
+    </div>
+  </div>
+);
+
 type HomeSectionProps = {
   eyebrow: string;
   title: string;
@@ -151,61 +149,16 @@ const HomeSection = ({ eyebrow, title, actionHref, actionLabel, children }: Home
   </Flex>
 );
 
-const buildTaxonomyTiles = (genres: SelectOption[], tags: SelectOption[]): TaxonomyTile[] => {
-  const accents = [
-    { accent: colors.brand.primary, surface: colors.surface.brandSubtle },
-    { accent: colors.brand.secondary, surface: colors.surface.infoSubtle },
-    { accent: colors.brand.accent, surface: colors.surface.accentSubtle },
-  ];
-  const heights = [260, 210, 240, 200, 230, 190, 220, 210];
-
-  const genreTiles = genres.slice(0, 4).map((item, index) => ({
-    key: `genre-${item.value}`,
-    kind: 'genre' as const,
-    item,
-    href: `/catalog?genre=${item.value}`,
-    height: heights[index],
-    accent: accents[index % accents.length].accent,
-    surface: accents[index % accents.length].surface,
-  }));
-
-  const tagTiles = tags.slice(0, 4).map((item, index) => ({
-    key: `tag-${item.value}`,
-    kind: 'tag' as const,
-    item,
-    href: `/catalog?tag=${item.value}`,
-    height: heights[index + genreTiles.length],
-    accent: accents[(index + 1) % accents.length].accent,
-    surface: accents[(index + 1) % accents.length].surface,
-  }));
-
-  return [
-    genreTiles[0],
-    tagTiles[0],
-    genreTiles[1],
-    tagTiles[1],
-    genreTiles[2],
-    tagTiles[2],
-    genreTiles[3],
-    tagTiles[3],
-  ].filter(Boolean) as TaxonomyTile[];
-};
-
 export const Home: FC = () => {
-  const { data: comics = [], isLoading: isLoadingComics } = useCatalogQuery();
-  const { data: posts = [], isLoading: isLoadingPosts } = useBlogPostsQuery();
-  const { data: taxonomy } = usePlatformTaxonomy();
+  const { data, isLoading } = useHomeQuery();
   const { guardNavigation, adultContentModal } = useAdultContentGate();
 
-  const sliderComics = useMemo(() => sortPopularComics(comics).slice(0, 5), [comics]);
-  const popularComics = useMemo(() => sortPopularComics(comics).slice(0, 4), [comics]);
-  const freshComics = useMemo(() => sortFreshComics(comics).slice(0, 4), [comics]);
-  const popularPosts = useMemo(() => sortPopularPosts(posts).slice(0, 3), [posts]);
-  const freshPosts = useMemo(() => sortFreshPosts(posts).slice(0, 3), [posts]);
-  const taxonomyTiles = useMemo(
-    () => buildTaxonomyTiles(taxonomy?.genres ?? [], taxonomy?.tags ?? []),
-    [taxonomy?.genres, taxonomy?.tags],
-  );
+  const sliderComics = data?.heroComics ?? [];
+  const popularComics = data?.popularComics ?? [];
+  const freshComics = data?.freshComics ?? [];
+  const popularPosts = data?.popularPosts ?? [];
+  const freshPosts = data?.freshPosts ?? [];
+  const taxonomyTiles = data?.taxonomyTiles ?? [];
 
   const comicSkeletonItems = [0, 1, 2, 3];
   const postSkeletonItems = [0, 1, 2];
@@ -217,9 +170,10 @@ export const Home: FC = () => {
   return (
     <Flex vertical gap={32} className="w-full pb-10 pt-2">
       <section className="overflow-hidden rounded-[32px] border border-black/6 bg-white shadow-[0_20px_60px_rgba(32,20,82,0.06)]">
-        {isLoadingComics ? (
-          <div className="p-6 sm:p-8">
-            <Skeleton active paragraph={{ rows: 8 }} />
+        {isLoading ? (
+          <div className="min-h-[380px] p-6 sm:min-h-[420px] sm:p-8">
+            <Skeleton.Image active className="!mb-6 !h-48 !w-full sm:!h-56" />
+            <Skeleton active paragraph={{ rows: 6 }} />
           </div>
         ) : sliderComics.length ? (
           <Carousel autoplay dots draggable>
@@ -315,10 +269,10 @@ export const Home: FC = () => {
 
       <HomeSection eyebrow="Комиксы" title="Популярные комиксы" actionHref="/catalog" actionLabel="Весь каталог">
         <Row gutter={[24, 24]}>
-          {isLoadingComics
+          {isLoading
             ? comicSkeletonItems.map((index) => (
                 <Col key={index} xs={24} sm={12} xl={6}>
-                  <Skeleton active paragraph={{ rows: 6 }} className="rounded-[24px] bg-white p-6" />
+                  <ComicCardSkeleton />
                 </Col>
               ))
             : popularComics.map((comic) => (
@@ -331,10 +285,10 @@ export const Home: FC = () => {
 
       <HomeSection eyebrow="Комиксы" title="Свежие релизы" actionHref="/catalog" actionLabel="Открыть новинки">
         <Row gutter={[24, 24]}>
-          {isLoadingComics
+          {isLoading
             ? comicSkeletonItems.map((index) => (
                 <Col key={index} xs={24} sm={12} xl={6}>
-                  <Skeleton active paragraph={{ rows: 6 }} className="rounded-[24px] bg-white p-6" />
+                  <ComicCardSkeleton />
                 </Col>
               ))
             : freshComics.map((comic) => (
@@ -359,7 +313,7 @@ export const Home: FC = () => {
               height: tile.height,
               data: tile,
             }))}
-            itemRender={({ data }: { data: TaxonomyTile }) => (
+            itemRender={({ data }: { data: HomeTaxonomyTile }) => (
               <Link to={data.href}>
                 <div
                   className="relative overflow-hidden rounded-[24px] border border-black/6 p-5 shadow-sm transition-transform duration-200 hover:-translate-y-1 hover:shadow-[0_18px_36px_rgba(32,20,82,0.08)]"
@@ -384,7 +338,7 @@ export const Home: FC = () => {
 
                       <div>
                         <Title level={3} className="!mb-2 !text-2xl !leading-tight">
-                          {String(data.item.label)}
+                          {data.item.name}
                         </Title>
                         <Paragraph className="!mb-0 !text-[15px] !leading-6 !text-[var(--color-text-secondary)]">
                           {data.item.description ||
@@ -408,10 +362,10 @@ export const Home: FC = () => {
 
       <HomeSection eyebrow="Блог" title="Популярные статьи" actionHref="/blog" actionLabel="Весь блог">
         <Row gutter={[24, 24]}>
-          {isLoadingPosts
+          {isLoading
             ? postSkeletonItems.map((index) => (
                 <Col key={index} xs={24} md={12} xl={8}>
-                  <Skeleton active paragraph={{ rows: 6 }} className="rounded-[24px] bg-white p-6" />
+                  <BlogSelectionCardSkeleton />
                 </Col>
               ))
             : popularPosts.map((post) => (
@@ -428,10 +382,10 @@ export const Home: FC = () => {
 
       <HomeSection eyebrow="Блог" title="Свежие публикации" actionHref="/blog" actionLabel="Все публикации">
         <Row gutter={[24, 24]}>
-          {isLoadingPosts
+          {isLoading
             ? postSkeletonItems.map((index) => (
                 <Col key={index} xs={24} md={12} xl={8}>
-                  <Skeleton active paragraph={{ rows: 6 }} className="rounded-[24px] bg-white p-6" />
+                  <BlogSelectionCardSkeleton />
                 </Col>
               ))
             : freshPosts.map((post) => (

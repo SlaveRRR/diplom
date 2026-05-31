@@ -7,6 +7,7 @@ const createAsset = (id: string, fingerprint = id): LocalUploadAsset => ({
   fingerprint,
   preview: `blob:${id}`,
   file: new File([id], `${id}.png`, { type: 'image/png' }),
+  source: 'new',
 });
 
 describe('useComicCreateStore', () => {

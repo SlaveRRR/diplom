@@ -46,7 +46,6 @@ describe('ComicCard', () => {
     expect(screen.getByText('Лунная башня')).toBeInTheDocument();
     expect(screen.getByText('reader')).toBeInTheDocument();
     expect(screen.getByText('Приключенческий комикс о странствиях и магии.')).toBeInTheDocument();
-    expect(screen.getByText('(123)')).toBeInTheDocument();
     expect(screen.getByText('16+')).toBeInTheDocument();
     expect(screen.getByText('Фэнтези')).toBeInTheDocument();
     expect(screen.getByText('Приключение')).toBeInTheDocument();

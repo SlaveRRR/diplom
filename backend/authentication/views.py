@@ -243,14 +243,14 @@ class ResendVerificationEmailView(APIView):
             )
         except Exception:
             return Response(
-                {'detail': 'Failed to resend verification email. Please try again later.'},
+                {'detail': 'Ошибка при отправке письма. Попробуйте позже.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
         set_verification_cooldown(email)
 
         return Response(
             {
-                'detail': 'Verification email sent successfully.',
+                'detail': 'Письмо отправлено.',
                 'email': email,
                 'retry_after': VERIFICATION_EMAIL_COOLDOWN,
             },

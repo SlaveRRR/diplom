@@ -27,6 +27,7 @@ vi.mock('@hooks', () => ({
     adultContentModal: <div data-testid="adult-modal" />,
     isAdultContentConfirmed: true,
   }),
+  useWindowSize: () => ({ size: '' }),
 }));
 
 vi.mock('@components/shared', () => ({
@@ -35,20 +36,28 @@ vi.mock('@components/shared', () => ({
 
 vi.mock('./hooks', () => ({
   useBlogPostsQuery: () => ({
-    data: [
-      {
-        id: 7,
-        title: 'Разбор структуры сюжета',
-        excerpt: 'Как выстраивать главы и ритм публикации.',
-        ageRating: '16+',
-        cover: '/cover.jpg',
-        coverUrl: '',
-        commentsCount: 12,
-        publishedAt: '2026-05-01T10:00:00Z',
-        author: { username: 'author' },
-        tags: [{ id: 1, name: 'редактура' }],
+    data: {
+      items: [
+        {
+          id: 7,
+          title: 'Разбор структуры сюжета',
+          excerpt: 'Как выстраивать главы и ритм публикации.',
+          ageRating: '16+',
+          cover: '/cover.jpg',
+          coverUrl: '',
+          commentsCount: 12,
+          publishedAt: '2026-05-01T10:00:00Z',
+          author: { username: 'author' },
+          tags: [{ id: 1, name: 'редактура' }],
+        },
+      ],
+      pagination: {
+        page: 1,
+        pageSize: 9,
+        total: 1,
+        totalPages: 1,
       },
-    ],
+    },
     isLoading: false,
   }),
   useBlogTagsQuery: () => ({

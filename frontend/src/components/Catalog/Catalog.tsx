@@ -1,4 +1,18 @@
-﻿import { Button, Card, Carousel, Col, Empty, Input, Row, Segmented, Space, theme, Tour, Typography } from 'antd';
+import {
+  Button,
+  Card,
+  Carousel,
+  Col,
+  Empty,
+  Input,
+  Pagination,
+  Row,
+  Segmented,
+  Space,
+  theme,
+  Tour,
+  Typography,
+} from 'antd';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
@@ -14,12 +28,14 @@ const { Search } = Input;
 type SortKey = 'popular' | 'new' | 'reviews';
 type SelectValue = string | number;
 
+const CATALOG_PAGE_SIZE = 12;
+const CATALOG_HIGHLIGHT_PAGE_SIZE = 12;
+
 export const Catalog = () => {
   const {
     token: { borderRadiusLG, colorBorderSecondary },
   } = theme.useToken();
 
-  const { data: items = [], isLoading } = useCatalogQuery();
   const { data: taxonomy, isLoading: isLoadingTaxonomy } = usePlatformTaxonomy();
   const { guardNavigation, adultContentModal } = useAdultContentGate();
   const [searchParams] = useSearchParams();
@@ -28,6 +44,7 @@ export const Catalog = () => {
   const [genreId, setGenreId] = useState<SelectValue>();
   const [tagIds, setTagIds] = useState<SelectValue[]>([]);
   const [sort, setSort] = useState<SortKey>('popular');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const searchRef = useRef<HTMLDivElement | null>(null);
   const filtersRef = useRef<HTMLDivElement | null>(null);
@@ -56,50 +73,39 @@ export const Catalog = () => {
     }
   }, [searchParams]);
 
-  const filteredItems = useMemo(() => {
-    let filtered = [...items];
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchValue, genreId, sort, tagIds]);
 
-    if (searchValue.trim()) {
-      const query = searchValue.trim().toLowerCase();
-      filtered = filtered.filter(
-        (item) =>
-          item.title.toLowerCase().includes(query) ||
-          item.author.toLowerCase().includes(query) ||
-          item.description.toLowerCase().includes(query),
-      );
-    }
+  const catalogQuery = useCatalogQuery({
+    page: currentPage,
+    pageSize: CATALOG_PAGE_SIZE,
+    search: searchValue || undefined,
+    genreId: typeof genreId === 'number' ? genreId : undefined,
+    tagIds: tagIds.length ? tagIds.map(Number) : undefined,
+    sort,
+  });
 
-    if (genreId) {
-      filtered = filtered.filter((item) => item.genreId !== null && item.genreId === genreId);
-    }
+  const highlightsQuery = useCatalogQuery({
+    page: 1,
+    pageSize: CATALOG_HIGHLIGHT_PAGE_SIZE,
+    sort: 'popular',
+  });
 
-    if (tagIds.length) {
-      filtered = filtered.filter((item) => item.tagIds.some((tagId) => tagIds.includes(tagId)));
-    }
-
-    switch (sort) {
-      case 'new':
-        filtered = filtered.sort((left, right) => Number(right.isNew) - Number(left.isNew));
-        break;
-      case 'reviews':
-        filtered = filtered.sort((left, right) => right.reviews - left.reviews);
-        break;
-      case 'popular':
-      default:
-        filtered = filtered.sort((left, right) => right.rating - left.rating || right.reviews - left.reviews);
-        break;
-    }
-
-    return filtered;
-  }, [genreId, items, searchValue, sort, tagIds]);
-
-  const highlighted = useMemo(() => items.filter((item) => item.isTrending || item.isNew).slice(0, 6), [items]);
+  const items = catalogQuery.data?.items ?? [];
+  const total = catalogQuery.data?.pagination.total ?? 0;
+  const highlightedSource = highlightsQuery.data?.items ?? [];
+  const highlighted = useMemo(
+    () => highlightedSource.filter((item) => item.isTrending || item.isNew).slice(0, 6),
+    [highlightedSource],
+  );
 
   const resetFilters = () => {
     setSearchValue('');
     setGenreId(undefined);
     setTagIds([]);
     setSort('popular');
+    setCurrentPage(1);
   };
 
   const tourSteps = [
@@ -210,7 +216,7 @@ export const Catalog = () => {
           </Col>
 
           <Col xs={24} md={12} xl={14} ref={carouselRef}>
-            {isLoading ? (
+            {highlightsQuery.isLoading ? (
               <Card className="p-4">
                 <Space direction="vertical" size={16} style={{ width: '100%' }}>
                   <Button loading style={{ width: 120 }} />
@@ -318,12 +324,10 @@ export const Catalog = () => {
             >
               Каталог
             </Title>
-            <Text type="secondary">
-              Найдено: {filteredItems.length} из {items.length}
-            </Text>
+            <Text type="secondary">Найдено: {total}</Text>
           </Space>
 
-          {isLoading ? (
+          {catalogQuery.isLoading ? (
             <Row gutter={[24, 24]}>
               {Array.from({ length: 8 }).map((_, index) => (
                 <Col key={index} xs={24} sm={12} lg={8} xl={6}>
@@ -331,29 +335,45 @@ export const Catalog = () => {
                 </Col>
               ))}
             </Row>
-          ) : filteredItems.length ? (
-            <Row gutter={[24, 24]}>
-              {filteredItems.map((item) => (
-                <Col key={item.id} xs={24} sm={12} lg={8} xl={6}>
-                  <ComicCard
-                    item={item}
-                    badgeText={item.isNew ? 'Новинка' : item.isTrending ? 'В тренде' : undefined}
-                    badgeColor={item.isNew ? colors.brand.secondary : colors.brand.accent}
+          ) : items.length ? (
+            <Space direction="vertical" size={24} style={{ width: '100%' }}>
+              <Row gutter={[24, 24]}>
+                {items.map((item) => (
+                  <Col key={item.id} xs={24} sm={12} lg={8} xl={6}>
+                    <ComicCard
+                      item={item}
+                      badgeText={item.isNew ? 'Новинка' : item.isTrending ? 'В тренде' : undefined}
+                      badgeColor={item.isNew ? colors.brand.secondary : colors.brand.accent}
+                    />
+                  </Col>
+                ))}
+              </Row>
+
+              {total > CATALOG_PAGE_SIZE ? (
+                <div className="flex justify-center">
+                  <Pagination
+                    current={currentPage}
+                    pageSize={CATALOG_PAGE_SIZE}
+                    total={total}
+                    onChange={setCurrentPage}
+                    showSizeChanger={false}
                   />
-                </Col>
-              ))}
-            </Row>
+                </div>
+              ) : null}
+            </Space>
           ) : (
             <Card>
               <Empty
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                 description={
-                  items.length
+                  total
                     ? 'По выбранным фильтрам ничего не найдено. Попробуйте изменить поиск, жанр или теги.'
                     : 'Каталог пока пуст. Когда появятся опубликованные комиксы, они отобразятся здесь.'
                 }
               >
-                {items.length ? <Button onClick={resetFilters}>Сбросить фильтры</Button> : null}
+                {searchValue || genreId || tagIds.length ? (
+                  <Button onClick={resetFilters}>Сбросить фильтры</Button>
+                ) : null}
               </Empty>
             </Card>
           )}

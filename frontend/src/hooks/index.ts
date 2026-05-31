@@ -7,3 +7,4 @@ export * from './useRequireAuthAction';
 export * from './useTheme';
 export * from './usePlatformTaxonomy';
 export * from './usePageOnboarding';
+export * from './useWindowSize';

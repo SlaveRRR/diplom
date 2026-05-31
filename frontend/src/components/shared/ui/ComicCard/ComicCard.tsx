@@ -133,9 +133,6 @@ export const ComicCard = ({
           <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
             <Space size={4}>
               <Rate disabled allowHalf value={item.rating} style={{ fontSize: 14 }} />
-              <Text type="secondary" style={{ fontSize: 'var(--font-body-sm)', lineHeight: 1.45 }}>
-                ({item.reviews.toLocaleString('ru-RU')})
-              </Text>
             </Space>
             {showStatus ? <Tag color={statusColors[item.status]}>{statusLabels[item.status]}</Tag> : null}
           </Space>

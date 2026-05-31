@@ -1,4 +1,5 @@
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'] as const;
+const IMAGE_PROCESSING_CONCURRENCY = 2;
 
 const parseNumericEnv = (value: string | undefined, fallback: number) => {
   const parsedValue = Number(value);
@@ -85,6 +86,51 @@ export const normalizeUploadImage = async (file: File) => {
   }
 
   return normalizedFile;
+};
+
+export const normalizeUploadImages = async (files: File[]) => {
+  const normalizedFiles = new Array<File>(files.length);
+  let nextIndex = 0;
+
+  const runQueue = async () => {
+    while (nextIndex < files.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      normalizedFiles[currentIndex] = await normalizeUploadImage(files[currentIndex]);
+    }
+  };
+
+  const workersCount = Math.min(IMAGE_PROCESSING_CONCURRENCY, files.length);
+  await Promise.all(Array.from({ length: workersCount }, () => runQueue()));
+
+  return normalizedFiles;
+};
+
+export const normalizeUploadImagesSettled = async (files: File[]) => {
+  const results = new Array<{ file?: File; error?: Error }>(files.length);
+  let nextIndex = 0;
+
+  const runQueue = async () => {
+    while (nextIndex < files.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+
+      try {
+        results[currentIndex] = {
+          file: await normalizeUploadImage(files[currentIndex]),
+        };
+      } catch (error) {
+        results[currentIndex] = {
+          error: error instanceof Error ? error : new Error('Не удалось обработать изображение.'),
+        };
+      }
+    }
+  };
+
+  const workersCount = Math.min(IMAGE_PROCESSING_CONCURRENCY, files.length);
+  await Promise.all(Array.from({ length: workersCount }, () => runQueue()));
+
+  return results;
 };
 
 export const getAllowedImageAccept = () => 'image/png,image/jpeg,image/webp';

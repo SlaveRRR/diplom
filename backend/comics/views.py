@@ -1,7 +1,9 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from django.db import transaction
 from django.db.models import Avg, Count, Q
+from django.core.paginator import Paginator
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiResponse, extend_schema
@@ -13,15 +15,21 @@ from comics import services
 from comics.models import Chapter, ChapterUploadDraft, Comic, ComicAgeRating, ComicRating, ComicUploadDraft, Genre, Tag, UploadDraftStatus
 from comics.models import ComicReadingProgress, ComicStats
 from analytics.models import AnalyticsEvent
-from analytics.services import record_content_event
+from analytics.services import record_content_event, register_unique_content_view
+from blog.services import build_plain_text_excerpt
+from blog.serializers import build_post_list_payload
+from blog.models import Post
 from comics.serializers import (
     ComicCommentCreateSerializer,
     ComicCommentSerializer,
     ComicConfirmRequestSerializer,
     ComicConfirmResponseSerializer,
     ComicCatalogItemSerializer,
+    ComicCatalogPageSerializer,
     ComicContinueReadingSerializer,
     ComicDetailSerializer,
+    ComicEditorSerializer,
+    HomeSelectionsSerializer,
     ComicInteractionResponseSerializer,
     ComicReaderSerializer,
     ComicReadingProgressUpdateSerializer,
@@ -51,6 +59,29 @@ class ComicsAccessMixin:
         return None
 
 
+def can_access_comic(user, comic):
+    if comic.status == Comic.Status.PUBLISHED:
+        return True
+
+    if not getattr(user, 'is_authenticated', False):
+        return False
+
+    return user.is_staff or comic.author_id == user.id
+
+
+def ensure_comic_access(request, comic):
+    if not can_access_comic(request.user, comic):
+        raise Http404('Comic not found')
+
+
+def get_positive_int(value, default, minimum=1, maximum=100):
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return min(max(parsed, minimum), maximum)
+
+
 def build_catalog_item_payload(comic, recent_boundary):
     readers_count = comic.stats.unique_readers if hasattr(comic, 'stats') else 0
     is_new = bool((comic.published_at and comic.published_at >= recent_boundary) or comic.created_at >= recent_boundary)
@@ -76,6 +107,101 @@ def build_catalog_item_payload(comic, recent_boundary):
         'isNew': is_new,
         'isTrending': is_trending,
     }
+
+
+def build_comic_editor_payload(comic):
+    return {
+        'id': comic.id,
+        'title': comic.title,
+        'description': comic.description,
+        'cover': comic.cover,
+        'coverUrl': services.build_public_media_url(comic.cover),
+        'banner': comic.banner,
+        'bannerUrl': services.build_public_media_url(comic.banner),
+        'age_rating': comic.age_rating,
+        'genreId': comic.genre_id,
+        'tagIds': [tag.id for tag in comic.tags.all()],
+        'status': comic.status,
+        'chapters': [
+            {
+                'id': chapter.id,
+                'title': chapter.title,
+                'description': chapter.description,
+                'chapter_number': chapter.chapter_number,
+                'pages': [
+                    {
+                        'key': key,
+                        'url': services.build_public_media_url(key),
+                    }
+                    for key in chapter.page_keys
+                ],
+            }
+            for chapter in comic.chapters.order_by('chapter_number', 'id')
+        ],
+    }
+
+
+def get_public_catalog_queryset():
+    return (
+        Comic.objects.filter(status=Comic.Status.PUBLISHED)
+        .select_related('author', 'genre', 'stats')
+        .prefetch_related('tags')
+        .annotate(
+            average_rating=Avg('ratings__value'),
+            comments_total=Count('comments', distinct=True),
+            likes_total=Count('likes', distinct=True),
+            favorites_total=Count('favorites', distinct=True),
+        )
+    )
+
+
+def build_home_taxonomy_tiles_payload():
+    accents = [
+        {'accent': '#6941C6', 'surface': '#F4EBFF'},
+        {'accent': '#175CD3', 'surface': '#EFF8FF'},
+        {'accent': '#EE46BC', 'surface': '#FDF2FA'},
+    ]
+    heights = [260, 210, 240, 200, 230, 190, 220, 210]
+
+    genres = list(Genre.objects.order_by('name')[:4].values('id', 'name', 'slug', 'description'))
+    tags = list(Tag.objects.order_by('name')[:4].values('id', 'name', 'slug', 'description'))
+
+    genre_tiles = [
+        {
+            'key': f"genre-{item['id']}",
+            'kind': 'genre',
+            'item': item,
+            'href': f"/catalog?genre={item['id']}",
+            'height': heights[index],
+            'accent': accents[index % len(accents)]['accent'],
+            'surface': accents[index % len(accents)]['surface'],
+        }
+        for index, item in enumerate(genres)
+    ]
+    tag_tiles = [
+        {
+            'key': f"tag-{item['id']}",
+            'kind': 'tag',
+            'item': item,
+            'href': f"/catalog?tag={item['id']}",
+            'height': heights[index + len(genre_tiles)],
+            'accent': accents[(index + 1) % len(accents)]['accent'],
+            'surface': accents[(index + 1) % len(accents)]['surface'],
+        }
+        for index, item in enumerate(tags)
+    ]
+
+    ordered_tiles = [
+        genre_tiles[0] if len(genre_tiles) > 0 else None,
+        tag_tiles[0] if len(tag_tiles) > 0 else None,
+        genre_tiles[1] if len(genre_tiles) > 1 else None,
+        tag_tiles[1] if len(tag_tiles) > 1 else None,
+        genre_tiles[2] if len(genre_tiles) > 2 else None,
+        tag_tiles[2] if len(tag_tiles) > 2 else None,
+        genre_tiles[3] if len(genre_tiles) > 3 else None,
+        tag_tiles[3] if len(tag_tiles) > 3 else None,
+    ]
+    return [tile for tile in ordered_tiles if tile]
 
 
 class TaxonomyView(APIView):
@@ -108,6 +234,76 @@ class TaxonomyView(APIView):
         )
 
 
+class HomeSelectionsView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        tags=['Platform'],
+        responses={200: HomeSelectionsSerializer},
+        summary='Get precomputed home page selections',
+    )
+    def get(self, request):
+        recent_boundary = timezone.now() - timedelta(days=14)
+
+        comics = list(get_public_catalog_queryset()[:48])
+        comic_payload = [build_catalog_item_payload(comic, recent_boundary) for comic in comics]
+
+        hero_comics = sorted(
+            comic_payload,
+            key=lambda item: (
+                int(item['isTrending']),
+                item['likesCount'],
+                item['rating'],
+                item['reviews'],
+            ),
+            reverse=True,
+        )[:5]
+        popular_comics = sorted(
+            comic_payload,
+            key=lambda item: (
+                int(item['isTrending']),
+                item['likesCount'],
+                item['rating'],
+                item['reviews'],
+            ),
+            reverse=True,
+        )[:4]
+        fresh_comics = sorted(
+            comic_payload,
+            key=lambda item: (int(item['isNew']), item['id']),
+            reverse=True,
+        )[:4]
+
+        posts = list(
+            Post.objects.filter(status=Post.Status.PUBLISHED)
+            .select_related('author')
+            .prefetch_related('tags')
+            .annotate(comments_total=Count('comments', distinct=True))
+            .order_by('-published_at', '-updated_at', '-created_at')[:24]
+        )
+        post_payload = [build_post_list_payload(post, build_plain_text_excerpt(post.content)) for post in posts]
+        popular_posts = sorted(
+            post_payload,
+            key=lambda item: (item['commentsCount'], item['id']),
+            reverse=True,
+        )[:3]
+        fresh_posts = sorted(
+            post_payload,
+            key=lambda item: item['published_at'] or timezone.make_aware(datetime.min),
+            reverse=True,
+        )[:3]
+
+        payload = {
+            'heroComics': hero_comics,
+            'popularComics': popular_comics,
+            'freshComics': fresh_comics,
+            'popularPosts': popular_posts,
+            'freshPosts': fresh_posts,
+            'taxonomyTiles': build_home_taxonomy_tiles_payload(),
+        }
+        return success_response(HomeSelectionsSerializer(payload).data, status.HTTP_200_OK)
+
+
 class ComicUploadConfigView(ComicsAccessMixin, APIView):
     @extend_schema(
         tags=['Comics'],
@@ -124,6 +320,14 @@ class ComicUploadConfigView(ComicsAccessMixin, APIView):
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
 
+        editable_comic = None
+        comic_id = validated_data.get('comicId')
+        if comic_id:
+            editable_comic = get_object_or_404(
+                Comic.objects.filter(author=request.user, status__in=[Comic.Status.DRAFT, Comic.Status.REVISION]),
+                id=comic_id,
+            )
+
         upload_service = services.S3UploadService()
         comic_draft = ComicUploadDraft.objects.create(
             user=request.user,
@@ -135,8 +339,24 @@ class ComicUploadConfigView(ComicsAccessMixin, APIView):
             scope_prefix=f'drafts/{request.user.id}/comics/',
         )
 
-        cover_key = services.build_comic_media_key(request.user.id, comic_draft.id, 'cover', validated_data['cover']['filename'])
-        banner_key = services.build_comic_media_key(request.user.id, comic_draft.id, 'banner', validated_data['banner']['filename'])
+        cover_key = validated_data['cover'].get('existingKey', '')
+        if validated_data['cover'].get('filename'):
+            cover_key = services.build_comic_media_key(
+                request.user.id,
+                comic_draft.id,
+                'cover',
+                validated_data['cover']['filename'],
+            )
+
+        banner_key = validated_data['banner'].get('existingKey', '')
+        if validated_data['banner'].get('filename'):
+            banner_key = services.build_comic_media_key(
+                request.user.id,
+                comic_draft.id,
+                'banner',
+                validated_data['banner']['filename'],
+            )
+
         comic_draft.scope_prefix = f'drafts/{request.user.id}/comics/{comic_draft.id}/'
         comic_draft.cover = cover_key
         comic_draft.banner = banner_key
@@ -157,15 +377,25 @@ class ComicUploadConfigView(ComicsAccessMixin, APIView):
             page_uploads = []
             page_keys = []
             for order, page_data in enumerate(chapter_data['pages'], start=1):
-                page_key = services.build_chapter_page_key(
-                    request.user.id,
-                    comic_draft.id,
-                    chapter_draft.id,
-                    order,
-                    page_data['filename'],
-                )
+                if page_data.get('existingKey'):
+                    page_key = page_data['existingKey']
+                else:
+                    page_key = services.build_chapter_page_key(
+                        request.user.id,
+                        comic_draft.id,
+                        chapter_draft.id,
+                        order,
+                        page_data['filename'],
+                    )
                 page_keys.append(page_key)
-                page_uploads.append(upload_service.generate_upload(page_key, page_data['content_type']))
+                if page_data.get('filename'):
+                    upload_target = upload_service.generate_upload(page_key, page_data['content_type'])
+                    page_uploads.append(
+                        {
+                            **upload_target,
+                            'page_index': order - 1,
+                        }
+                    )
 
             chapter_draft.scope_prefix = f'drafts/{request.user.id}/comics/{comic_draft.id}/chapters/{chapter_draft.id}/'
             chapter_draft.page_keys = page_keys
@@ -183,8 +413,16 @@ class ComicUploadConfigView(ComicsAccessMixin, APIView):
         response_data = {
             'comic_draft_id': comic_draft.id,
             'expires_at': comic_draft.expires_at,
-            'cover': upload_service.generate_upload(cover_key, validated_data['cover']['content_type']),
-            'banner': upload_service.generate_upload(banner_key, validated_data['banner']['content_type']),
+            'cover': (
+                upload_service.generate_upload(cover_key, validated_data['cover']['content_type'])
+                if validated_data['cover'].get('filename')
+                else None
+            ),
+            'banner': (
+                upload_service.generate_upload(banner_key, validated_data['banner']['content_type'])
+                if validated_data['banner'].get('filename')
+                else None
+            ),
             'chapters': chapters_payload,
         }
         return success_response(response_data, status.HTTP_201_CREATED)
@@ -210,6 +448,13 @@ class ComicConfirmView(ComicsAccessMixin, APIView):
 
         serializer = ComicConfirmRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        submission_mode = serializer.validated_data['submission_mode']
+        editable_comic = None
+        if serializer.validated_data.get('comic_id'):
+            editable_comic = get_object_or_404(
+                Comic.objects.filter(author=request.user, status__in=[Comic.Status.DRAFT, Comic.Status.REVISION]),
+                id=serializer.validated_data['comic_id'],
+            )
 
         comic_draft = get_object_or_404(ComicUploadDraft, id=serializer.validated_data['comic_draft_id'], user=request.user)
 
@@ -249,17 +494,44 @@ class ComicConfirmView(ComicsAccessMixin, APIView):
                 {'missing_keys': missing_keys},
             )
 
-        comic = Comic.objects.create(
-            title=comic_draft.title,
-            description=comic_draft.description,
-            cover=comic_draft.cover,
-            banner=comic_draft.banner,
-            age_rating=comic_draft.age_rating,
-            author=request.user,
-            genre=genre,
-            status=Comic.Status.DRAFT,
-        )
-        comic.tags.set(tags)
+        if editable_comic:
+            editable_comic.title = comic_draft.title
+            editable_comic.description = comic_draft.description
+            editable_comic.cover = comic_draft.cover
+            editable_comic.banner = comic_draft.banner
+            editable_comic.age_rating = comic_draft.age_rating
+            editable_comic.genre = genre
+            editable_comic.status = submission_mode
+            if submission_mode == Comic.Status.DRAFT:
+                editable_comic.published_at = None
+            editable_comic.save(
+                update_fields=[
+                    'title',
+                    'description',
+                    'cover',
+                    'banner',
+                    'age_rating',
+                    'genre',
+                    'status',
+                    'published_at',
+                    'updated_at',
+                ]
+            )
+            editable_comic.tags.set(tags)
+            editable_comic.chapters.all().delete()
+            comic = editable_comic
+        else:
+            comic = Comic.objects.create(
+                title=comic_draft.title,
+                description=comic_draft.description,
+                cover=comic_draft.cover,
+                banner=comic_draft.banner,
+                age_rating=comic_draft.age_rating,
+                author=request.user,
+                genre=genre,
+                status=submission_mode,
+            )
+            comic.tags.set(tags)
 
         chapter_ids = []
         for chapter_draft in chapter_drafts:
@@ -284,6 +556,7 @@ class ComicConfirmView(ComicsAccessMixin, APIView):
 
         return success_response(
             {
+                'comic_id': comic.id,
                 'id': comic.id,
                 'title': comic.title,
                 'status': comic.status,
@@ -313,6 +586,7 @@ class ComicDetailView(APIView):
             ),
             id=comic_id,
         )
+        ensure_comic_access(request, comic)
 
         comments = list(comic.comments.order_by('-created_at'))
         like_count = comic.likes.count()
@@ -404,29 +678,53 @@ class ComicListView(APIView):
 
     @extend_schema(
         tags=['Comics'],
-        responses={200: ComicCatalogItemSerializer(many=True)},
+        responses={200: ComicCatalogPageSerializer},
         summary='Get public comics catalog list',
     )
     def get(self, request):
         now = timezone.now()
         recent_boundary = now - timedelta(days=14)
+        search = request.query_params.get('search', '').strip()
+        genre_id = request.query_params.get('genre_id')
+        tag_ids = [int(value) for value in request.query_params.get('tag_ids', '').split(',') if value.isdigit()]
+        sort = request.query_params.get('sort', 'popular')
+        page = get_positive_int(request.query_params.get('page'), 1)
+        page_size = get_positive_int(request.query_params.get('page_size'), 12)
 
-        comics = (
-            Comic.objects.filter(status=Comic.Status.PUBLISHED)
-            .select_related('author', 'genre', 'stats')
-            .prefetch_related('tags')
-            .annotate(
-                average_rating=Avg('ratings__value'),
-                comments_total=Count('comments', distinct=True),
-                likes_total=Count('likes', distinct=True),
-                favorites_total=Count('favorites', distinct=True),
+        comics = get_public_catalog_queryset()
+
+        if search:
+            comics = comics.filter(
+                Q(title__icontains=search) | Q(description__icontains=search) | Q(author__username__icontains=search)
             )
-            .order_by('-published_at', '-created_at')
-        )
 
-        payload = [build_catalog_item_payload(comic, recent_boundary) for comic in comics]
+        if genre_id and genre_id.isdigit():
+            comics = comics.filter(genre_id=int(genre_id))
 
-        return success_response(ComicCatalogItemSerializer(payload, many=True).data, status.HTTP_200_OK)
+        if tag_ids:
+            comics = comics.filter(tags__id__in=tag_ids).distinct()
+
+        if sort == 'reviews':
+            comics = comics.order_by('-comments_total', '-published_at', '-created_at')
+        elif sort == 'new':
+            comics = comics.order_by('-published_at', '-created_at')
+        else:
+            comics = comics.order_by('-likes_total', '-average_rating', '-comments_total', '-published_at', '-created_at')
+
+        paginator = Paginator(comics, page_size)
+        page_obj = paginator.get_page(page)
+        payload_items = [build_catalog_item_payload(comic, recent_boundary) for comic in page_obj.object_list]
+        payload = {
+            'items': payload_items,
+            'pagination': {
+                'page': page_obj.number,
+                'pageSize': page_size,
+                'total': paginator.count,
+                'totalPages': paginator.num_pages,
+            },
+        }
+
+        return success_response(ComicCatalogPageSerializer(payload).data, status.HTTP_200_OK)
 
 
 class FavoriteComicListView(ComicsAccessMixin, APIView):
@@ -652,6 +950,7 @@ class ComicReaderView(APIView):
             Comic.objects.select_related('stats').prefetch_related('chapters'),
             id=comic_id,
         )
+        ensure_comic_access(request, comic)
         chapter = get_object_or_404(Chapter.objects.select_related('comic'), id=chapter_id, comic=comic)
 
         chapters = list(comic.chapters.order_by('chapter_number'))
@@ -669,16 +968,18 @@ class ComicReaderView(APIView):
             is_favorite = comic.favorites.filter(user=request.user).exists()
 
         comic_stats, _ = ComicStats.objects.get_or_create(comic=comic)
-        comic_stats.views += 1
-        comic_stats.save(update_fields=['views'])
-        record_content_event(
+        is_new_unique_view = register_unique_content_view(
+            request=request,
             owner=comic.author,
-            actor=request.user if request.user.is_authenticated else None,
             content_kind=AnalyticsEvent.ContentKind.COMIC,
             object_id=comic.id,
             title_snapshot=comic.title,
-            event_type=AnalyticsEvent.EventType.VIEW,
         )
+
+        if is_new_unique_view:
+            comic_stats.views += 1
+            comic_stats.unique_readers += 1
+            comic_stats.save(update_fields=['views', 'unique_readers'])
 
         payload = {
             'comicId': comic.id,
@@ -709,6 +1010,7 @@ class ComicReaderView(APIView):
                 'previousChapterId': previous_chapter_id,
                 'nextChapterId': next_chapter_id,
             },
+            'status': comic.status,
             'likesCount': comic.likes.count(),
             'commentsCount': comic.comments.count(),
             'isLiked': is_liked,
@@ -718,6 +1020,28 @@ class ComicReaderView(APIView):
         }
 
         return success_response(ComicReaderSerializer(payload).data, status.HTTP_200_OK)
+
+
+class ComicEditorView(ComicsAccessMixin, APIView):
+    @extend_schema(
+        tags=['Comics'],
+        responses={200: ComicEditorSerializer, 404: OpenApiResponse(description='Editable comic not found')},
+        summary='Get editable comic payload for author',
+    )
+    def get(self, request, comic_id):
+        access_error = self.ensure_authenticated(request.user)
+        if access_error:
+            return access_error
+
+        comic = get_object_or_404(
+            Comic.objects.filter(author=request.user, status__in=[Comic.Status.DRAFT, Comic.Status.REVISION])
+            .select_related('genre')
+            .prefetch_related('tags', 'chapters'),
+            id=comic_id,
+        )
+
+        payload = build_comic_editor_payload(comic)
+        return success_response(ComicEditorSerializer(payload).data, status.HTTP_200_OK)
 
 
 class ComicReadingProgressView(ComicsAccessMixin, APIView):
@@ -750,7 +1074,16 @@ class ComicReadingProgressView(ComicsAccessMixin, APIView):
         )
 
         stats, _ = ComicStats.objects.get_or_create(comic=comic)
-        stats.unique_readers = ComicReadingProgress.objects.filter(comic=comic).count()
-        stats.save(update_fields=['unique_readers'])
+        is_new_unique_view = register_unique_content_view(
+            request=request,
+            owner=comic.author,
+            content_kind=AnalyticsEvent.ContentKind.COMIC,
+            object_id=comic.id,
+            title_snapshot=comic.title,
+        )
+        if is_new_unique_view:
+            stats.views += 1
+            stats.unique_readers += 1
+            stats.save(update_fields=['views', 'unique_readers'])
 
         return success_response(ComicContinueReadingSerializer(progress).data, status.HTTP_200_OK)

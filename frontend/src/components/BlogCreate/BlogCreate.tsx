@@ -19,7 +19,13 @@ import StarterKit from '@tiptap/starter-kit';
 
 import { colors } from '@constants';
 import { usePlatformTaxonomy } from '@hooks';
-import { getAllowedImageAccept, MAX_IMAGE_DIMENSION_PX, MAX_IMAGE_UPLOAD_SIZE_MB, normalizeUploadImage } from '@utils';
+import {
+  getAllowedImageAccept,
+  MAX_IMAGE_DIMENSION_PX,
+  MAX_IMAGE_UPLOAD_SIZE_MB,
+  normalizeUploadImage,
+  normalizeUploadImagesSettled,
+} from '@utils';
 import { useBlogTagsQuery } from '@components/Blog/hooks';
 import { Select } from '@components/shared';
 import { OutletContext } from '@pages/LayoutPage/types';
@@ -89,7 +95,7 @@ export const BlogCreate: FC = () => {
   const { data: tags = [], isLoading: isLoadingTags } = useBlogTagsQuery();
   const { data: taxonomy, isLoading: isLoadingTaxonomy } = usePlatformTaxonomy();
   const { data: editablePost, isLoading: isLoadingEditablePost } = useEditableBlogPostQuery(postId);
-  const mutation = useCreateBlogPostMutation();
+  const { mutation, uploadState, clearUploadLock } = useCreateBlogPostMutation();
   const {
     ageRating,
     editingPostId,
@@ -305,21 +311,41 @@ export const BlogCreate: FC = () => {
       const documentNode = parser.parseFromString(value, 'text/html');
       const images = Array.from(documentNode.querySelectorAll('img'));
 
-      for (const [index, image] of images.entries()) {
-        const src = image.getAttribute('src');
+      const convertibleImages = await Promise.all(
+        images.map(async (image, index) => {
+          const src = image.getAttribute('src');
 
-        if (!src || !src.startsWith('data:')) {
-          continue;
+          if (!src || !src.startsWith('data:')) {
+            return null;
+          }
+
+          return {
+            image,
+            index,
+            file: await dataUrlToFile(src, `docx-image-${index + 1}.png`),
+          };
+        }),
+      );
+
+      const validImages = convertibleImages.filter(
+        (item): item is { image: HTMLImageElement; index: number; file: File } => Boolean(item),
+      );
+      const normalizedResults = await normalizeUploadImagesSettled(validImages.map((item) => item.file));
+
+      normalizedResults.forEach((result, index) => {
+        if (!result.file) {
+          messageApi.warning(result.error?.message || 'Не удалось обработать изображение из .docx.');
+          return;
         }
 
-        const fileFromDocx = await normalizeUploadImage(await dataUrlToFile(src, `docx-image-${index + 1}.png`));
+        const currentImage = validImages[index].image;
         const uploadId = createUploadId();
-        const previewUrl = URL.createObjectURL(fileFromDocx);
+        const previewUrl = URL.createObjectURL(result.file);
 
-        registerInlineImage(uploadId, fileFromDocx, previewUrl);
-        image.setAttribute('src', previewUrl);
-        image.setAttribute('data-upload-id', uploadId);
-      }
+        registerInlineImage(uploadId, result.file, previewUrl);
+        currentImage.setAttribute('src', previewUrl);
+        currentImage.setAttribute('data-upload-id', uploadId);
+      });
 
       editor?.commands.setContent(documentNode.body.innerHTML, { emitUpdate: true });
       messageApi.success('Текст из .docx импортирован в редактор.');
@@ -331,6 +357,12 @@ export const BlogCreate: FC = () => {
   };
 
   const handleSubmit = async (targetStatus: 'draft' | 'under_review') => {
+    if (uploadState.isDraftLocked) {
+      messageApi.error(
+        'Предыдущая загрузка завершилась ошибкой после создания upload-config. Сбросьте форму, чтобы начать заново.',
+      );
+      return;
+    }
     if (!title.trim()) {
       messageApi.error('Введите заголовок статьи.');
       return;
@@ -377,10 +409,28 @@ export const BlogCreate: FC = () => {
     <Flex vertical gap={24} className="w-full">
       {MODERATION_ALERT}
 
+      {uploadState.isDraftLocked ? (
+        <Alert
+          type="error"
+          showIcon
+          message="Загрузка остановлена после ошибки S3"
+          description={
+            <Flex vertical gap={12} align="flex-start">
+              <span>
+                {uploadState.errorMessage ||
+                  'Upload-config уже был создан, но загрузка в хранилище завершилась ошибкой. Чтобы не создавать новые черновики поверх старого состояния, форма заблокирована до сброса.'}
+              </span>
+              <Button onClick={clearUploadLock}>Сбросить состояние загрузки</Button>
+            </Flex>
+          }
+        />
+      ) : null}
+
       <Flex gap={12} wrap="wrap">
         <Button
           icon={<SaveOutlined />}
           loading={mutation.isLoading || isLoadingEditablePost}
+          disabled={uploadState.isDraftLocked}
           onClick={() => handleSubmit('draft')}
         >
           Сохранить как черновик
@@ -390,6 +440,7 @@ export const BlogCreate: FC = () => {
           size="large"
           icon={<SaveOutlined />}
           loading={mutation.isLoading || isLoadingEditablePost}
+          disabled={uploadState.isDraftLocked}
           onClick={() => handleSubmit('under_review')}
         >
           Отправить на модерацию

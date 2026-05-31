@@ -2,12 +2,6 @@ import { render, screen } from '@testing-library/react';
 
 import { Favorites } from './Favorites';
 
-vi.mock('@ant-design/icons', () => ({
-  DeleteOutlined: () => <span data-testid="icon-delete" />,
-  HeartOutlined: () => <span data-testid="icon-heart" />,
-  ReloadOutlined: () => <span data-testid="icon-reload" />,
-}));
-
 vi.mock('react-router-dom', () => ({
   Link: ({ children, to }: { children: React.ReactNode; to: string }) => <a href={to}>{children}</a>,
   useOutletContext: () => ({ messageApi: { success: vi.fn() } }),
@@ -18,6 +12,7 @@ vi.mock('@hooks', () => ({
     data: { genres: [], tags: [] },
     isLoading: false,
   }),
+  useWindowSize: () => ({ size: '' }),
 }));
 
 vi.mock('@components/shared', () => ({

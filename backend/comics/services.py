@@ -22,6 +22,7 @@ class S3UploadService:
             Params={
                 'Bucket': settings.S3_BUCKET_NAME,
                 'Key': object_key,
+                'ContentType': content_type or 'application/octet-stream',
             },
             ExpiresIn=settings.S3_PRESIGNED_EXPIRATION,
         )

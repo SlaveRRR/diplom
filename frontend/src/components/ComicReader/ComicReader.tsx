@@ -2,7 +2,7 @@ import { Button, Card, Drawer, Empty, Flex, FloatButton, Grid, List, Skeleton, T
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
 import {
-  BookOutlined,
+  ArrowRightOutlined,
   CommentOutlined,
   FullscreenExitOutlined,
   FullscreenOutlined,
@@ -30,7 +30,18 @@ import { ReaderLocalProgress } from './types';
 
 const { Text, Title } = Typography;
 
-const getGuestProgressKey = (comicId: string) => `comic-reader-progress:${comicId}`;
+const GUEST_PROGRESS_STORAGE_KEY = (comicId: string) => `comic-reader-progress:${comicId}`;
+const READER_MODE_STORAGE_KEY = 'comic-reader-mode';
+
+type ReaderMode = 'scroll' | 'paged';
+
+const getInitialReaderMode = (): ReaderMode => {
+  if (typeof window === 'undefined') {
+    return 'scroll';
+  }
+
+  return window.localStorage.getItem(READER_MODE_STORAGE_KEY) === 'paged' ? 'paged' : 'scroll';
+};
 
 export const ComicReader = () => {
   const screens = Grid.useBreakpoint();
@@ -47,9 +58,11 @@ export const ComicReader = () => {
   const [isEpisodesOpen, setIsEpisodesOpen] = useState(false);
   const [isReaderChromeVisible, setIsReaderChromeVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [readerMode, setReaderMode] = useState<ReaderMode>(getInitialReaderMode);
   const [activePage, setActivePage] = useState(1);
   const [pagesReadyToLoad, setPagesReadyToLoad] = useState<Record<number, boolean>>({});
   const [loadedPages, setLoadedPages] = useState<Record<number, boolean>>({});
+
   const progressTimerRef = useRef<number | null>(null);
   const pageElementsRef = useRef<Record<number, HTMLDivElement | null>>({});
   const hasInitialScrollRef = useRef(false);
@@ -57,13 +70,16 @@ export const ComicReader = () => {
   const initializedChapterRef = useRef<number | null>(null);
 
   const isPreview = searchParams.has('preview');
+  const isPagedMode = readerMode === 'paged';
+
+  const isDraft = data?.status === 'draft';
 
   const guestProgress = useMemo(() => {
     if (!comicId || typeof window === 'undefined') {
       return null;
     }
 
-    const raw = window.localStorage.getItem(getGuestProgressKey(comicId));
+    const raw = window.localStorage.getItem(GUEST_PROGRESS_STORAGE_KEY(comicId));
 
     if (!raw) {
       return null;
@@ -94,12 +110,20 @@ export const ComicReader = () => {
 
   useEffect(() => {
     hasInitialScrollRef.current = false;
+    lastSavedPageRef.current = null;
+    initializedChapterRef.current = null;
     setActivePage(1);
     setPagesReadyToLoad({});
     setLoadedPages({});
-    lastSavedPageRef.current = null;
-    initializedChapterRef.current = null;
   }, [chapterId]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.localStorage.setItem(READER_MODE_STORAGE_KEY, readerMode);
+  }, [readerMode]);
 
   useEffect(() => {
     if (!data) {
@@ -119,13 +143,19 @@ export const ComicReader = () => {
 
     setPagesReadyToLoad(Object.fromEntries(Array.from(initialPages).map((pageIndex) => [pageIndex, true])));
     setLoadedPages({});
+    setActivePage(resumePage);
+    setIsReaderChromeVisible(!isPreview);
     lastSavedPageRef.current = resumePage;
     initializedChapterRef.current = data.chapter.id;
-    setIsReaderChromeVisible(!isPreview);
-  }, [data, resumePage, isPreview]);
+  }, [data, isPreview, resumePage]);
 
   useEffect(() => {
     if (!data || hasInitialScrollRef.current) {
+      return;
+    }
+
+    if (isPagedMode) {
+      hasInitialScrollRef.current = true;
       return;
     }
 
@@ -136,10 +166,10 @@ export const ComicReader = () => {
       setActivePage(resumePage);
       hasInitialScrollRef.current = true;
     }
-  }, [data, resumePage]);
+  }, [data, isPagedMode, resumePage]);
 
   useEffect(() => {
-    if (!data) {
+    if (!data || isPagedMode) {
       return;
     }
 
@@ -171,10 +201,10 @@ export const ComicReader = () => {
     });
 
     return () => observer.disconnect();
-  }, [data]);
+  }, [data, isPagedMode]);
 
   useEffect(() => {
-    if (!data) {
+    if (!data || isPagedMode) {
       return;
     }
 
@@ -216,7 +246,29 @@ export const ComicReader = () => {
     });
 
     return () => observer.disconnect();
-  }, [data]);
+  }, [data, isPagedMode]);
+
+  useEffect(() => {
+    if (!data || !isPagedMode) {
+      return;
+    }
+
+    setPagesReadyToLoad((current) => {
+      const next = { ...current };
+      let changed = false;
+
+      [activePage - 1, activePage, activePage + 1]
+        .filter((pageIndex) => pageIndex >= 1 && pageIndex <= data.chapter.pageCount)
+        .forEach((pageIndex) => {
+          if (!next[pageIndex]) {
+            next[pageIndex] = true;
+            changed = true;
+          }
+        });
+
+      return changed ? next : current;
+    });
+  }, [activePage, data, isPagedMode]);
 
   useEffect(() => {
     if (typeof document === 'undefined') {
@@ -260,7 +312,7 @@ export const ComicReader = () => {
 
     if (comicId && guestProgress?.lastPage !== activePage) {
       window.localStorage.setItem(
-        getGuestProgressKey(comicId),
+        GUEST_PROGRESS_STORAGE_KEY(comicId),
         JSON.stringify({
           chapterId: data.chapter.id,
           lastPage: activePage,
@@ -294,6 +346,76 @@ export const ComicReader = () => {
     ]);
   };
 
+  const handleReaderModeChange = (mode: ReaderMode) => {
+    setReaderMode(mode);
+
+    if (mode === 'paged') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      const currentPageElement = pageElementsRef.current[activePage];
+
+      if (currentPageElement) {
+        currentPageElement.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      }
+    });
+  };
+
+  const handlePagedNavigation = (direction: 'prev' | 'next') => {
+    setActivePage((currentPage) => {
+      const nextPage = direction === 'prev' ? currentPage - 1 : currentPage + 1;
+
+      return Math.min(Math.max(nextPage, 1), data?.chapter.pageCount ?? 1);
+    });
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const renderPage = (pageIndex: number, pageUrl: string) => {
+    const isLoaded = loadedPages[pageIndex];
+    const isReady = pagesReadyToLoad[pageIndex];
+
+    if (!isReady) {
+      return (
+        <div className="flex min-h-[40vh] items-center justify-center bg-[#151018] sm:min-h-[60vh]">
+          <Skeleton.Image active className="!h-[40vh] !w-full sm:!h-[60vh]" />
+        </div>
+      );
+    }
+
+    return (
+      <>
+        {!isLoaded ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-[#151018]">
+            <Skeleton.Image active className="!h-[40vh] !w-full sm:!h-[60vh]" />
+          </div>
+        ) : null}
+        <img
+          src={pageUrl}
+          alt={`${data?.comicTitle ?? 'Комикс'} page ${pageIndex}`}
+          loading="lazy"
+          className={`block transition-opacity duration-300 ${
+            isPagedMode ? 'h-auto max-h-[calc(100vh-180px)] max-w-full' : 'h-auto max-w-full w-full'
+          } ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+          onLoad={() => {
+            setLoadedPages((current) => ({
+              ...current,
+              [pageIndex]: true,
+            }));
+          }}
+          onError={() => {
+            setLoadedPages((current) => ({
+              ...current,
+              [pageIndex]: true,
+            }));
+          }}
+        />
+      </>
+    );
+  };
+
   if (isLoading) {
     return (
       <Flex vertical gap={24} className="w-full">
@@ -317,8 +439,10 @@ export const ComicReader = () => {
     );
   }
 
+  const currentPage = data.chapter.pages[Math.max(activePage - 1, 0)] ?? data.chapter.pages[0];
+
   return (
-    <div className="-mt-6 min-h-screen w-full  bg-[#1c1623] text-white">
+    <div className="-mt-6 min-h-screen w-full bg-[#1c1623] text-white">
       {!isPreview ? (
         <div
           className={`sticky top-0 z-20 w-full border-b border-white/10 bg-[#24193e]/95 px-3 py-3 backdrop-blur transition-all duration-300 sm:px-6 ${
@@ -374,27 +498,6 @@ export const ComicReader = () => {
             >
               <Button
                 type="text"
-                className="!text-white"
-                icon={data.isFavorite ? <StarFilled /> : <StarOutlined />}
-                onClick={async () => {
-                  if (!isAuth) {
-                    redirectToAuth('favorite');
-                    return;
-                  }
-
-                  try {
-                    await api.toggleComicFavorite(data.comicId);
-                    await invalidateComicInteractionQueries();
-                    messageApi.success('Избранное обновлено.');
-                  } catch (error) {
-                    messageApi.error(error instanceof Error ? error.message : 'Не удалось обновить избранное.');
-                  }
-                }}
-              >
-                {screens.md ? 'Подписаться' : null}
-              </Button>
-              <Button
-                type="text"
                 size={screens.md ? 'middle' : 'small'}
                 className="!text-white"
                 icon={<MenuOutlined />}
@@ -413,55 +516,37 @@ export const ComicReader = () => {
       ) : null}
 
       <div className="mx-auto w-full max-w-[1120px] overflow-x-hidden bg-[#111]">
-        {data.chapter.pages.map((page) => (
+        {isPagedMode ? (
           <div
-            key={page.index}
-            ref={(element) => {
-              pageElementsRef.current[page.index] = element;
-            }}
-            data-page-index={page.index}
+            data-page-index={currentPage.index}
             onClick={() => {
               if (!isPreview) {
                 setIsReaderChromeVisible((current) => !current);
               }
             }}
-            className="relative min-h-[40vh] bg-[#151018] sm:min-h-[60vh]"
+            className="relative flex min-h-[40vh] items-center justify-center bg-[#151018] sm:min-h-[60vh]"
           >
-            {pagesReadyToLoad[page.index] ? (
-              <>
-                {!loadedPages[page.index] ? (
-                  <div className="absolute inset-0 flex items-center justify-center bg-[#151018]">
-                    <Skeleton.Image active className="!h-[40vh] !w-full sm:!h-[60vh]" />
-                  </div>
-                ) : null}
-                <img
-                  src={page.url}
-                  alt={`${data.comicTitle} page ${page.index}`}
-                  loading="lazy"
-                  className={`block h-auto max-w-full w-full transition-opacity duration-300 ${
-                    loadedPages[page.index] ? 'opacity-100' : 'opacity-0'
-                  }`}
-                  onLoad={() => {
-                    setLoadedPages((current) => ({
-                      ...current,
-                      [page.index]: true,
-                    }));
-                  }}
-                  onError={() => {
-                    setLoadedPages((current) => ({
-                      ...current,
-                      [page.index]: true,
-                    }));
-                  }}
-                />
-              </>
-            ) : (
-              <div className="flex min-h-[40vh] items-center justify-center bg-[#151018] sm:min-h-[60vh]">
-                <Skeleton.Image active className="!h-[40vh] !w-full sm:!h-[60vh]" />
-              </div>
-            )}
+            {renderPage(currentPage.index, currentPage.url)}
           </div>
-        ))}
+        ) : (
+          data.chapter.pages.map((page) => (
+            <div
+              key={page.index}
+              ref={(element) => {
+                pageElementsRef.current[page.index] = element;
+              }}
+              data-page-index={page.index}
+              onClick={() => {
+                if (!isPreview) {
+                  setIsReaderChromeVisible((current) => !current);
+                }
+              }}
+              className="relative min-h-[40vh] bg-[#151018] sm:min-h-[60vh]"
+            >
+              {renderPage(page.index, page.url)}
+            </div>
+          ))
+        )}
       </div>
 
       {!isPreview ? (
@@ -512,16 +597,48 @@ export const ComicReader = () => {
           >
             <Flex align="center" justify="space-between" gap={12} wrap="wrap">
               <Flex align="center" gap={12} wrap="wrap">
-                <Button
-                  size={screens.md ? 'middle' : 'large'}
-                  icon={<BookOutlined />}
-                  onClick={() => navigate(`/comics/${data.comicId}`)}
-                >
-                  К комиксу
-                </Button>
-                <Text className="text-white/80" style={{ fontSize: screens.md ? undefined : 15 }}>
-                  Страница {activePage} из {data.chapter.pageCount}
-                </Text>
+                <div className="flex items-center rounded-2xl bg-white/5 p-1">
+                  <Button
+                    type={readerMode === 'scroll' ? 'primary' : 'text'}
+                    className={readerMode === 'scroll' ? '' : '!text-white'}
+                    onClick={() => handleReaderModeChange('scroll')}
+                  >
+                    Лента
+                  </Button>
+                  <Button
+                    type={readerMode === 'paged' ? 'primary' : 'text'}
+                    className={readerMode === 'paged' ? '' : '!text-white'}
+                    onClick={() => handleReaderModeChange('paged')}
+                  >
+                    По страницам
+                  </Button>
+                </div>
+
+                {isPagedMode ? (
+                  <div className="flex items-center gap-2 rounded-2xl bg-white/5 p-1">
+                    <Button
+                      type="text"
+                      className="!text-white"
+                      icon={<LeftOutlined />}
+                      disabled={activePage <= 1}
+                      onClick={() => handlePagedNavigation('prev')}
+                    />
+                    <div className="min-w-[170px] px-4 py-2 text-center text-sm font-medium text-white sm:text-base">
+                      Страница {activePage} / {data.chapter.pageCount}
+                    </div>
+                    <Button
+                      type="text"
+                      className="!text-white"
+                      icon={<ArrowRightOutlined />}
+                      disabled={activePage >= data.chapter.pageCount}
+                      onClick={() => handlePagedNavigation('next')}
+                    />
+                  </div>
+                ) : (
+                  <Text className="text-white/80" style={{ fontSize: screens.md ? undefined : 15 }}>
+                    Страница {activePage} из {data.chapter.pageCount}
+                  </Text>
+                )}
               </Flex>
 
               <Flex align="center" gap={8} wrap="wrap" className={screens.md ? '' : 'w-full'}>
@@ -542,9 +659,6 @@ export const ComicReader = () => {
                     Следующая глава
                   </Button>
                 ) : null}
-                <Button block={!screens.md} icon={<MenuOutlined />} onClick={() => setIsEpisodesOpen(true)}>
-                  Список эпизодов
-                </Button>
               </Flex>
             </Flex>
           </div>
@@ -558,50 +672,66 @@ export const ComicReader = () => {
               }}
             >
               <FloatButton
-                icon={data.isLiked ? <HeartFilled /> : <HeartOutlined />}
-                tooltip={`${data.likesCount} лайков`}
-                onClick={async () => {
-                  if (!isAuth) {
-                    redirectToAuth('like');
-                    return;
-                  }
-
-                  try {
-                    await api.toggleComicLike(data.comicId);
-                    await invalidateComicInteractionQueries();
-                    messageApi.success('Лайк обновлён.');
-                  } catch (error) {
-                    messageApi.error(error instanceof Error ? error.message : 'Не удалось обновить лайк.');
-                  }
-                }}
-              />
-              <FloatButton
-                icon={<CommentOutlined />}
-                tooltip={`${data.commentsCount} комментариев`}
-                onClick={() => navigate(`/comics/${data.comicId}#comments`)}
-              />
-              <FloatButton
-                icon={<ShareAltOutlined />}
-                tooltip="Поделиться"
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(window.location.href);
-                    messageApi.success('Ссылка на главу скопирована.');
-                  } catch {
-                    messageApi.error('Не удалось скопировать ссылку.');
-                  }
-                }}
-              />
-              <FloatButton
                 icon={<UpOutlined />}
                 tooltip="Наверх"
                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
               />
-              <FloatButton
-                icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
-                tooltip={isFullscreen ? 'Выйти из полного экрана' : 'Полный экран'}
-                onClick={toggleFullscreen}
-              />
+              {!isDraft && (
+                <>
+                  <FloatButton
+                    icon={data.isLiked ? <HeartFilled /> : <HeartOutlined />}
+                    tooltip={`${data.likesCount} лайков`}
+                    onClick={async () => {
+                      if (!isAuth) {
+                        redirectToAuth('like');
+                        return;
+                      }
+
+                      try {
+                        await api.toggleComicLike(data.comicId);
+                        await invalidateComicInteractionQueries();
+                      } catch (error) {
+                        messageApi.error(error instanceof Error ? error.message : 'Не удалось обновить лайк.');
+                      }
+                    }}
+                  />
+                  <FloatButton
+                    icon={<CommentOutlined />}
+                    tooltip={`${data.commentsCount} комментариев`}
+                    onClick={() => navigate(`/comics/${data.comicId}#comments`)}
+                  />
+                  <FloatButton
+                    icon={<ShareAltOutlined />}
+                    tooltip="Поделиться"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(window.location.href);
+                        messageApi.success('Ссылка на главу скопирована.');
+                      } catch {
+                        messageApi.error('Не удалось скопировать ссылку.');
+                      }
+                    }}
+                  />
+                  <FloatButton
+                    icon={data.isFavorite ? <StarFilled /> : <StarOutlined />}
+                    tooltip="Избранное"
+                    onClick={async () => {
+                      if (!isAuth) {
+                        redirectToAuth('favorite');
+                        return;
+                      }
+
+                      try {
+                        await api.toggleComicFavorite(data.comicId);
+                        await invalidateComicInteractionQueries();
+                        messageApi.success('Избранное обновлено.');
+                      } catch (error) {
+                        messageApi.error(error instanceof Error ? error.message : 'Не удалось обновить избранное.');
+                      }
+                    }}
+                  />
+                </>
+              )}
             </FloatButton.Group>
           ) : null}
         </>

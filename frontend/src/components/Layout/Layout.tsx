@@ -153,7 +153,17 @@ export const Layout: FC<LayoutProps> = ({ children, notificationApi }) => {
     [hasAnalyticsAccess],
   );
 
-  const menuContent = () => <NavigationMenu mode="inline" selectedKeys={[selectedKey]} items={menuItems} />;
+  const handleMenuItemClick = useCallback(() => {
+    setMobileMenuOpen(false);
+
+    if (!isMobile) {
+      setCollapsed(true);
+    }
+  }, [isMobile]);
+
+  const menuContent = () => (
+    <NavigationMenu mode="inline" selectedKeys={[selectedKey]} items={menuItems} onClick={handleMenuItemClick} />
+  );
 
   return (
     <RootLayout>
@@ -231,17 +241,19 @@ export const Layout: FC<LayoutProps> = ({ children, notificationApi }) => {
           $isReaderMode={isReaderRoute}
         >
           {children}
-          <Footer className="mt-10 border-t border-black/8 pt-6 text-sm text-[var(--color-text-secondary)]">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <Space wrap size={[12, 8]}>
-                <Link to="/user-agreement">Пользовательское соглашение</Link>
-                <Link to="/privacy-policy">Политика конфиденциальности</Link>
-                <Link to="/personal-data">Политика обработки персональных данных</Link>
-                <Link to="/content-guidelines">Памятка по модерации</Link>
-                <a href={`mailto:${SUPPORT_EMAIL}`}>Почта техподдержки</a>
-              </Space>
-            </div>
-          </Footer>
+          {!isReaderRoute && (
+            <Footer className="mt-10 border-t border-black/8 pt-6 text-sm text-[var(--color-text-secondary)]">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <Space wrap size={[12, 8]}>
+                  <Link to="/user-agreement">Пользовательское соглашение</Link>
+                  <Link to="/privacy-policy">Политика конфиденциальности</Link>
+                  <Link to="/personal-data">Политика обработки персональных данных</Link>
+                  <Link to="/content-guidelines">Памятка по модерации</Link>
+                  <a href={`mailto:${SUPPORT_EMAIL}`}>Почта техподдержки</a>
+                </Space>
+              </div>
+            </Footer>
+          )}
         </MainContent>
       </MainLayout>
     </RootLayout>

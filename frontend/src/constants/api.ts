@@ -22,6 +22,7 @@ export const NOTIFICATIONS_DELETE_ENDPOINT = '/notifications/delete/';
 export const READING_HISTORY_ENDPOINT = '/history/';
 export const ANALYTICS_ENDPOINT = '/analytics/';
 export const ANALYTICS_EXPORT_ENDPOINT = '/analytics/export/';
+export const HOME_SELECTIONS_ENDPOINT = '/home/';
 
 export const getUserProfileEndpoint = (userId: string | number) => `/profiles/${userId}/`;
 
@@ -41,6 +42,7 @@ export const getBlogPostEditorEndpoint = (postId: string | number) => `/posts/${
 export const getBlogPostCommentsEndpoint = (postId: string | number) => `/posts/${postId}/comments/`;
 
 export const getComicDetailsEndpoint = (comicId: string | number) => `/comics/${comicId}/`;
+export const getComicEditorEndpoint = (comicId: string | number) => `/comics/${comicId}/editor/`;
 
 export const getComicCommentsEndpoint = (comicId: string | number) => `/comics/${comicId}/comments/`;
 

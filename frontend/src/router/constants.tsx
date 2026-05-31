@@ -120,6 +120,11 @@ export const ROUTES: Route[] = [
         privateRoute: true,
       },
       {
+        path: '/comics/:comicId/edit',
+        page: <CreateComicPage />,
+        privateRoute: true,
+      },
+      {
         path: '/account',
         page: <AccountPage />,
         privateRoute: true,

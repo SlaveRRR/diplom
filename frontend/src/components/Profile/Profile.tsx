@@ -140,11 +140,7 @@ export const Profile: FC = () => {
                         @{data.username}
                       </Title>
                       <Paragraph className="!mb-0 max-w-3xl text-base leading-7 text-[var(--color-text-secondary)]">
-                        {data.name || data.surname
-                          ? `${data.name} ${data.surname}`.trim()
-                          : isAuthor
-                            ? 'Здесь собрана публичная информация об авторе и опубликованные комиксы, доступные всем пользователям платформы.'
-                            : 'Открытая карточка пользователя с базовой информацией и публичной активностью на платформе.'}
+                        {!!data.name || (!!data.surname && `${data.name} ${data.surname}`.trim())}
                       </Paragraph>
                     </div>
                   </Flex>
@@ -161,10 +157,6 @@ export const Profile: FC = () => {
             <Col xs={24} xl={9}>
               <Card className="border-0 bg-white/80 shadow-none backdrop-blur-sm" styles={{ body: { padding: 20 } }}>
                 <Flex vertical gap={14}>
-                  <Text className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-text-secondary)]">
-                    Действия
-                  </Text>
-
                   {data.isCurrentUser ? (
                     <Link to="/account" className="w-full sm:w-auto">
                       <Button className="w-full sm:w-auto" type="primary" icon={<LinkOutlined />}>
@@ -182,11 +174,6 @@ export const Profile: FC = () => {
                       {data.isFollowing ? 'Отписаться' : 'Подписаться'}
                     </Button>
                   )}
-
-                  <Text className="text-sm text-[var(--color-text-secondary)]">
-                    Личные данные, загрузка аватара и внутренний список всех работ доступны только в кабинете владельца
-                    аккаунта.
-                  </Text>
                 </Flex>
               </Card>
             </Col>

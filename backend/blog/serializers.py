@@ -105,6 +105,18 @@ class BlogPostListItemSerializer(serializers.Serializer):
     publishedAt = serializers.DateTimeField(source='published_at', allow_null=True)
 
 
+class PaginationMetaSerializer(serializers.Serializer):
+    page = serializers.IntegerField()
+    pageSize = serializers.IntegerField()
+    total = serializers.IntegerField()
+    totalPages = serializers.IntegerField()
+
+
+class BlogPostListPageSerializer(serializers.Serializer):
+    items = BlogPostListItemSerializer(many=True)
+    pagination = PaginationMetaSerializer()
+
+
 class BlogPostDetailSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     title = serializers.CharField()

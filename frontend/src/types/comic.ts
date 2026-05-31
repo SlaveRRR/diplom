@@ -3,21 +3,28 @@ export interface UploadConfigFilePayload {
   content_type: string;
 }
 
+export interface UploadAssetPayload {
+  existingKey?: string;
+  filename?: string;
+  content_type?: string;
+}
+
 export interface ChapterUploadConfigPayload {
   title: string;
   description: string;
   chapter_number: number;
-  pages: UploadConfigFilePayload[];
+  pages: UploadAssetPayload[];
 }
 
 export interface ComicUploadConfigPayload {
+  comicId?: number;
   title: string;
   description: string;
   ageRating: string;
   tagIds: number[];
   genreId: number;
-  cover: UploadConfigFilePayload;
-  banner: UploadConfigFilePayload;
+  cover: UploadAssetPayload;
+  banner: UploadAssetPayload;
   chapters: ChapterUploadConfigPayload[];
 }
 
@@ -28,27 +35,30 @@ export interface UploadTarget {
 }
 
 export interface ChapterUploadConfigResponse {
-  draft_id: string;
+  chapter_draft_id: string;
   chapter_number: number;
-  pages: UploadTarget[];
+  pages: Array<UploadTarget & { page_index: number }>;
 }
 
 export interface ComicUploadConfigResponse {
   comic_draft_id: string;
   expires_at: string;
-  cover: UploadTarget;
-  banner: UploadTarget;
+  cover: UploadTarget | null;
+  banner: UploadTarget | null;
   chapters: ChapterUploadConfigResponse[];
 }
 
 export interface ComicConfirmPayload {
   comic_draft_id: string;
+  comic_id?: number;
+  submission_mode: 'draft' | 'under_review';
 }
 
 export interface ComicConfirmResponse {
-  comic_id: number;
+  id: number;
+  comic_id?: number;
   title: string;
-  status: string;
+  status: 'draft' | 'under_review' | 'published' | 'blocked' | 'revision';
   chapter_ids: number[];
 }
 
@@ -138,6 +148,8 @@ export interface ComicCommentCreatePayload {
   replyToId?: number | null;
 }
 
+type Status = 'draft' | 'under_review' | 'published' | 'blocked' | 'revision';
+
 export interface CatalogComicResponse {
   id: number;
   title: string;
@@ -154,9 +166,18 @@ export interface CatalogComicResponse {
   reviews: number;
   likesCount: number;
   readersCount: number;
-  status: 'draft' | 'under_review' | 'published' | 'blocked' | 'revision';
+  status: Status;
   isNew: boolean;
   isTrending: boolean;
+}
+
+export interface CatalogComicsQueryParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  genreId?: number | null;
+  tagIds?: number[];
+  sort?: 'popular' | 'new' | 'reviews';
 }
 
 export interface ComicReadingProgress {
@@ -201,4 +222,33 @@ export interface ComicReaderResponse {
   favoritesCount: number;
   isFavorite: boolean;
   progress: ComicReadingProgress | null;
+  status: Status;
+}
+
+export interface ComicEditorPage {
+  key: string;
+  url: string;
+}
+
+export interface ComicEditorChapter {
+  id: number;
+  title: string;
+  description: string;
+  chapterNumber: number;
+  pages: ComicEditorPage[];
+}
+
+export interface ComicEditorResponse {
+  id: number;
+  title: string;
+  description: string;
+  cover: string;
+  coverUrl: string;
+  banner: string;
+  bannerUrl: string;
+  ageRating: string;
+  genreId: number | null;
+  tagIds: number[];
+  status: Status;
+  chapters: ComicEditorChapter[];
 }

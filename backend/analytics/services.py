@@ -9,7 +9,7 @@ from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.styles import Font
 
-from analytics.models import AnalyticsEvent
+from analytics.models import AnalyticsEvent, UniqueContentView
 from blog.models import Post
 from comics.models import Comic
 
@@ -355,3 +355,63 @@ def build_excel_response(payload):
     )
     response['Content-Disposition'] = 'attachment; filename="analytics-report.xlsx"'
     return response
+
+
+def build_viewer_key(request):
+    user = getattr(request, 'user', None)
+    if getattr(user, 'is_authenticated', False):
+        return f'user:{user.pk}'
+
+    session = getattr(request, 'session', None)
+    if session is None:
+        return None
+
+    if not session.session_key:
+        session.save()
+
+    if not session.session_key:
+        return None
+
+    return f'session:{session.session_key}'
+
+
+def register_unique_content_view(*, request, owner, content_kind: str, object_id: int, title_snapshot: str):
+    if not getattr(owner, 'pk', None):
+        return False
+
+    viewer_key = build_viewer_key(request)
+    if not viewer_key:
+        return False
+
+    actor = request.user if getattr(request.user, 'is_authenticated', False) else None
+    unique_view, created = UniqueContentView.objects.get_or_create(
+        owner=owner,
+        content_kind=content_kind,
+        object_id=object_id,
+        viewer_key=viewer_key,
+        defaults={
+            'actor': actor,
+            'title_snapshot': title_snapshot[:255],
+        },
+    )
+
+    if not created:
+        updates = ['last_viewed_at']
+        if actor and unique_view.actor_id is None:
+            unique_view.actor = actor
+            updates.append('actor')
+        if title_snapshot and unique_view.title_snapshot != title_snapshot[:255]:
+            unique_view.title_snapshot = title_snapshot[:255]
+            updates.append('title_snapshot')
+        unique_view.save(update_fields=updates)
+        return False
+
+    record_content_event(
+        owner=owner,
+        actor=actor,
+        content_kind=content_kind,
+        object_id=object_id,
+        event_type=AnalyticsEvent.EventType.VIEW,
+        title_snapshot=title_snapshot,
+    )
+    return True
