@@ -168,12 +168,12 @@ export const Blog = () => {
                       </Flex>
 
                       <div>
-                        <Title level={3} className="!mb-2 !text-2xl" ellipsis={{ rows: 2 }}>
+                        <Title level={3} className="!mb-2 !text-2xl" ellipsis={{ rows: 2, tooltip: post.title }}>
                           {post.title}
                         </Title>
                         <Paragraph
                           className="!mb-0 min-h-16 text-[15px] text-[var(--color-text-secondary)]"
-                          ellipsis={{ rows: 3 }}
+                          ellipsis={{ rows: 3, tooltip: post.excerpt }}
                         >
                           {post.excerpt}
                         </Paragraph>

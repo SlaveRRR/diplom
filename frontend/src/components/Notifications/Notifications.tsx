@@ -153,7 +153,7 @@ export const Notifications = () => {
                       description={
                         <Flex justify="space-between" align="center" wrap="wrap" gap={12}>
                           <Text type="secondary">{formatDate(item.createdAt)}</Text>
-                          <Space size={12}>
+                          <Space size={12} wrap>
                             {item.link ? (
                               <Button
                                 size="small"

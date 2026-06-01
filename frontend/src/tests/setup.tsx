@@ -3,7 +3,7 @@ import { QueryClientProvider as CoreQueryClientProvider, QueryClient } from '@ta
 import '@testing-library/jest-dom';
 
 import { afterEach } from 'vitest';
-import { cleanup, render } from '@testing-library/react';
+import { cleanup } from '@testing-library/react';
 
 beforeAll(() => {
   vi.mock('antd');
@@ -28,12 +28,4 @@ const queryClient = new QueryClient({
 const QueryClientProvider = ({ children }) => (
   <CoreQueryClientProvider client={queryClient}>{children}</CoreQueryClientProvider>
 );
-
-function customRender(ui: React.ReactElement, options = {}) {
-  return render(ui, {
-    wrapper: ({ children }) => children,
-    ...options,
-  });
-}
-
-export { customRender, QueryClientProvider };
+export { QueryClientProvider };

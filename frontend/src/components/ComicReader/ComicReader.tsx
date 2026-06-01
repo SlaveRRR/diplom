@@ -1,4 +1,4 @@
-import { Button, Card, Drawer, Empty, Flex, FloatButton, Grid, List, Skeleton, Typography } from 'antd';
+import { Button, Card, Drawer, Empty, Flex, FloatButton, Grid, List, Typography } from 'antd';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
 import {
@@ -24,6 +24,7 @@ import { useRequireAuthAction } from '@hooks/useRequireAuthAction';
 import { OutletContext } from '@pages/LayoutPage/types';
 
 import { COMIC_DETAILS_QUERY_KEY } from '../ComicDetails/hooks/useComicDetailsQuery';
+import { ReaderHeaderSkeleton, ReaderPageSkeleton } from './components';
 import { useComicReaderQuery, useComicReadingProgressMutation } from './hooks';
 import { COMIC_READER_QUERY_KEY } from './hooks/useComicReaderQuery';
 import { ReaderLocalProgress } from './types';
@@ -378,18 +379,14 @@ export const ComicReader = () => {
     const isReady = pagesReadyToLoad[pageIndex];
 
     if (!isReady) {
-      return (
-        <div className="flex min-h-[40vh] items-center justify-center bg-[#151018] sm:min-h-[60vh]">
-          <Skeleton.Image active className="!h-[40vh] !w-full sm:!h-[60vh]" />
-        </div>
-      );
+      return <ReaderPageSkeleton />;
     }
 
     return (
       <>
         {!isLoaded ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#151018]">
-            <Skeleton.Image active className="!h-[40vh] !w-full sm:!h-[60vh]" />
+          <div className="absolute inset-0">
+            <ReaderPageSkeleton />
           </div>
         ) : null}
         <img
@@ -418,12 +415,13 @@ export const ComicReader = () => {
 
   if (isLoading) {
     return (
-      <Flex vertical gap={24} className="w-full">
-        <Card>
-          <Skeleton active paragraph={{ rows: 4 }} />
-        </Card>
-        <Skeleton.Image active className="!h-[70vh] !w-full" />
-      </Flex>
+      <div className="-mt-6 min-h-screen w-full bg-[#1c1623] text-white">
+        <ReaderHeaderSkeleton />
+        <div className="mx-auto w-full max-w-[1120px] overflow-x-hidden bg-[#111]">
+          <ReaderPageSkeleton className="min-h-[58vh] sm:min-h-[72vh]" />
+          <ReaderPageSkeleton className="min-h-[42vh] sm:min-h-[56vh]" />
+        </div>
+      </div>
     );
   }
 

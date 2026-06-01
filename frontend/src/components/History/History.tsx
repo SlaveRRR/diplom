@@ -81,7 +81,7 @@ const ComicHistoryCard = ({ item }: { item: ComicReadingHistoryItem }) => (
       <Flex vertical gap={8} className="min-w-0 flex-1">
         <Flex justify="space-between" align="start" wrap="wrap" gap={12}>
           <div>
-            <Title level={4} className="!mb-1">
+            <Title level={4} className="!mb-1" ellipsis={{ rows: 1, tooltip: item.title }}>
               {item.title}
             </Title>
             <Text type="secondary">Последнее чтение: {formatDate(item.lastReadAt)}</Text>
@@ -114,7 +114,7 @@ const PostHistoryCard = ({ item }: { item: PostReadingHistoryItem }) => (
       <Flex vertical gap={8} className="min-w-0 flex-1">
         <Flex justify="space-between" align="start" wrap="wrap" gap={12}>
           <div>
-            <Title level={4} className="!mb-1">
+            <Title level={4} className="!mb-1" ellipsis={{ rows: 1, tooltip: item.title }}>
               {item.title}
             </Title>
             <Text type="secondary">Последнее чтение: {formatDate(item.lastReadAt)}</Text>
@@ -127,7 +127,11 @@ const PostHistoryCard = ({ item }: { item: PostReadingHistoryItem }) => (
           </Link>
         </Flex>
 
-        <Paragraph className="!mb-0" type="secondary" ellipsis={{ rows: 3 }}>
+        <Paragraph
+          className="!mb-0"
+          type="secondary"
+          ellipsis={{ rows: 3, tooltip: item.excerpt || 'Для этой статьи пока нет краткого превью.' }}
+        >
           {item.excerpt || 'Для этой статьи пока нет краткого превью.'}
         </Paragraph>
       </Flex>

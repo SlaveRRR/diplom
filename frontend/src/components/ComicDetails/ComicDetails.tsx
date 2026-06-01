@@ -412,12 +412,15 @@ export const ComicDetails: FC = () => {
                         {averageRating.toFixed(1)} из 5 • {formatCount(ratingsCount)} оценок
                       </Text>
                     </Flex>
-                    <Rate
-                      allowClear={false}
-                      value={data.userRating ?? 0}
-                      onChange={(value) => void handleRateComic(value)}
-                      disabled={ratingMutation.isLoading}
-                    />
+                    <div className="inline-flex w-fit rounded-2xl bg-white/14 px-4 py-3 shadow-[0_10px_24px_rgba(8,8,8,0.16)] backdrop-blur-sm">
+                      <Rate
+                        allowClear={false}
+                        value={data.userRating ?? 0}
+                        onChange={(value) => void handleRateComic(value)}
+                        disabled={ratingMutation.isLoading}
+                        className="[&_.ant-rate-star]:!mr-2 [&_.ant-rate-star-first]:!text-[32px] [&_.ant-rate-star-second]:!text-[32px] [&_.ant-rate-star-zero_.ant-rate-star-first]:!text-white/24 [&_.ant-rate-star-zero_.ant-rate-star-second]:!text-white/24"
+                      />
+                    </div>
                     <Text className="text-white/64">
                       {data.userRating
                         ? `Ваша оценка: ${data.userRating}/5`
@@ -531,6 +534,21 @@ export const ComicDetails: FC = () => {
                         <Title level={4} className="!mb-0">
                           {episode.title}
                         </Title>
+                        {episode.description ? (
+                          <Paragraph
+                            type="secondary"
+                            className="!mb-0 max-w-2xl"
+                            ellipsis={{
+                              rows: 2,
+                              tooltip: {
+                                title: episode.description,
+                                placement: 'topLeft',
+                              },
+                            }}
+                          >
+                            {episode.description}
+                          </Paragraph>
+                        ) : null}
                         <Text type="secondary">{episode.pageCount} страниц</Text>
                       </Flex>
                       <Flex gap={20} wrap="wrap" className="ml-auto">

@@ -483,7 +483,7 @@ const AuthorComicCard: FC<{ comic: UserProfileComic }> = ({ comic }) => (
             </Space>
 
             <div>
-              <Title level={4} className="!mb-1" ellipsis={{ rows: 1 }}>
+              <Title level={4} className="!mb-1" ellipsis={{ rows: 1, tooltip: comic.title }}>
                 {comic.title}
               </Title>
               <Text type="secondary">{comic.genre ?? 'Без жанра'}</Text>
@@ -501,7 +501,11 @@ const AuthorComicCard: FC<{ comic: UserProfileComic }> = ({ comic }) => (
           )}
         </Flex>
 
-        <Paragraph className="!mb-0" type="secondary" ellipsis={{ rows: 3 }}>
+        <Paragraph
+          className="!mb-0"
+          type="secondary"
+          ellipsis={{ rows: 3, tooltip: comic.description || 'Описание пока не заполнено.' }}
+        >
           {comic.description || 'Описание пока не заполнено.'}
         </Paragraph>
 
@@ -567,7 +571,7 @@ const AuthorPostCard: FC<{ post: UserProfilePost }> = ({ post }) => (
             </Tag>
 
             <div>
-              <Title level={4} className="!mb-1" ellipsis={{ rows: 1 }}>
+              <Title level={4} className="!mb-1" ellipsis={{ rows: 1, tooltip: post.title }}>
                 {post.title}
               </Title>
               <Text type="secondary">
@@ -591,7 +595,11 @@ const AuthorPostCard: FC<{ post: UserProfilePost }> = ({ post }) => (
           )}
         </Flex>
 
-        <Paragraph className="!mb-0" type="secondary" ellipsis={{ rows: 4 }}>
+        <Paragraph
+          className="!mb-0"
+          type="secondary"
+          ellipsis={{ rows: 4, tooltip: post.excerpt || 'Текст поста пока слишком короткий для превью.' }}
+        >
           {post.excerpt || 'Текст поста пока слишком короткий для превью.'}
         </Paragraph>
 

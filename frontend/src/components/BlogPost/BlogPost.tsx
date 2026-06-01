@@ -122,12 +122,16 @@ export const BlogPost: FC = () => {
   return (
     <Flex vertical gap={24} className="w-full">
       <section className="overflow-hidden rounded-[32px] border border-black/6 bg-white shadow-[0_20px_60px_rgba(32,20,82,0.06)]">
-        <div
-          className="h-72 w-full bg-cover bg-center"
-          style={{
-            backgroundImage: `linear-gradient(180deg, rgba(15,15,15,0.18), rgba(15,15,15,0.42)), url(${data.coverUrl || data.cover})`,
-          }}
-        />
+        {data.coverUrl || data.cover ? (
+          <div
+            className="h-72 w-full bg-cover bg-center"
+            style={{
+              backgroundImage: `linear-gradient(180deg, rgba(15,15,15,0.18), rgba(15,15,15,0.42)), url(${data.coverUrl || data.cover})`,
+            }}
+          />
+        ) : (
+          <div className="flex h-72 w-full items-end bg-[radial-gradient(circle_at_top_left,rgba(255,208,91,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(114,84,230,0.14),transparent_36%),linear-gradient(135deg,#fffdf7_0%,#ffffff_100%)] p-6 sm:p-8" />
+        )}
         <Flex vertical gap={20} className="p-6 sm:p-8">
           <Flex gap={8} wrap="wrap">
             <Tag color={data.ageRating === '18+' ? 'volcano' : 'default'} className="m-0 rounded-full px-3 py-1">

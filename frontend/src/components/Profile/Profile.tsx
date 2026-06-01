@@ -241,7 +241,7 @@ const PublicComicCard: FC<{ comic: UserProfileComic }> = ({ comic }) => (
             </Space>
 
             <div>
-              <Title level={4} className="!mb-1" ellipsis={{ rows: 1 }}>
+              <Title level={4} className="!mb-1" ellipsis={{ rows: 1, tooltip: comic.title }}>
                 {comic.title}
               </Title>
               <Text type="secondary">{comic.genre ?? 'Без жанра'}</Text>
@@ -253,7 +253,11 @@ const PublicComicCard: FC<{ comic: UserProfileComic }> = ({ comic }) => (
           </Link>
         </Flex>
 
-        <Paragraph className="!mb-0" type="secondary" ellipsis={{ rows: 3 }}>
+        <Paragraph
+          className="!mb-0"
+          type="secondary"
+          ellipsis={{ rows: 3, tooltip: comic.description || 'Описание пока не заполнено.' }}
+        >
           {comic.description || 'Описание пока не заполнено.'}
         </Paragraph>
 

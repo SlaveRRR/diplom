@@ -86,10 +86,13 @@ const BlogSelectionCard = ({ post, accent, onOpen }: BlogSelectionCardProps) => 
         </Flex>
 
         <div>
-          <Title level={4} className="!mb-2 !text-xl" ellipsis={{ rows: 2 }}>
+          <Title level={4} className="!mb-2 !text-xl" ellipsis={{ rows: 2, tooltip: post.title }}>
             {post.title}
           </Title>
-          <Paragraph className="!mb-0 min-h-12 text-[15px] text-[var(--color-text-secondary)]" ellipsis={{ rows: 2 }}>
+          <Paragraph
+            className="!mb-0 min-h-12 text-[15px] text-[var(--color-text-secondary)]"
+            ellipsis={{ rows: 2, tooltip: post.excerpt }}
+          >
             {post.excerpt}
           </Paragraph>
         </div>

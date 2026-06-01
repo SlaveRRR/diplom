@@ -107,7 +107,7 @@ export const ComicCard = ({
             <Space direction="vertical" size={4}>
               <Text
                 strong
-                ellipsis
+                ellipsis={{ tooltip: item.title }}
                 style={{
                   fontSize: 'var(--font-card-title)',
                   lineHeight: 1.3,
@@ -126,7 +126,11 @@ export const ComicCard = ({
             {action}
           </Space>
 
-          <Paragraph type="secondary" ellipsis={{ rows: 2 }} style={{ marginBottom: 0, minHeight: 44 }}>
+          <Paragraph
+            type="secondary"
+            ellipsis={{ rows: 2, tooltip: item.description }}
+            style={{ marginBottom: 0, minHeight: 44 }}
+          >
             {item.description}
           </Paragraph>
 
