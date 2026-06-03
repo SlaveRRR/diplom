@@ -92,6 +92,21 @@ class BlogCommentCreateSerializer(serializers.Serializer):
         return normalized
 
 
+class ContentReactionSummarySerializer(serializers.Serializer):
+    emoji = serializers.CharField()
+    count = serializers.IntegerField()
+    isSelected = serializers.BooleanField()
+
+
+class ContentReactionToggleSerializer(serializers.Serializer):
+    emoji = serializers.CharField(max_length=32)
+
+
+class ContentReactionResponseSerializer(serializers.Serializer):
+    reactions = ContentReactionSummarySerializer(many=True)
+    currentEmoji = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+
+
 class BlogPostListItemSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     title = serializers.CharField()
@@ -128,6 +143,8 @@ class BlogPostDetailSerializer(serializers.Serializer):
     author = BlogAuthorSerializer()
     comments = BlogCommentSerializer(many=True)
     commentsCount = serializers.IntegerField()
+    reactions = ContentReactionSummarySerializer(many=True)
+    currentEmoji = serializers.CharField(allow_null=True)
     publishedAt = serializers.DateTimeField(source='published_at', allow_null=True)
 
 
@@ -212,6 +229,8 @@ def build_post_detail_payload(post, resolved_content):
         'author': build_post_author_payload(post.author),
         'comments': comments,
         'commentsCount': len(comments),
+        'reactions': post.reactions_summary,
+        'currentEmoji': post.current_reaction,
         'published_at': post.published_at,
     }
 

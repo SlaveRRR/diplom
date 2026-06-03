@@ -21,6 +21,8 @@ from blog.serializers import (
     BlogPostListItemSerializer,
     BlogPostListPageSerializer,
     BlogTagSerializer,
+    ContentReactionResponseSerializer,
+    ContentReactionToggleSerializer,
     PostConfirmRequestSerializer,
     PostUploadConfigRequestSerializer,
     PostUploadConfigResponseSerializer,
@@ -42,7 +44,7 @@ from analytics.services import record_content_event, register_unique_content_vie
 from comics.services import build_public_media_url
 from core.api import error_response, success_response
 from interactions.models import Comment, Notification, PostReadingHistory
-from interactions.services import create_notification
+from interactions.services import build_reactions_payload, create_notification, toggle_reaction
 
 
 class BlogAccessMixin:
@@ -145,6 +147,9 @@ class BlogPostDetailView(APIView):
                 title_snapshot=post.title,
             )
 
+        reactions_payload = build_reactions_payload(content_object=post, user=request.user)
+        post.reactions_summary = reactions_payload['reactions']
+        post.current_reaction = reactions_payload['currentEmoji']
         payload = build_post_detail_payload(post, resolve_post_content_media(post.content))
         return success_response(BlogPostDetailSerializer(payload).data, status.HTTP_200_OK)
 
@@ -377,5 +382,25 @@ class BlogCommentCreateView(BlogAccessMixin, APIView):
             'user': build_post_author_payload(request.user),
         }
         return success_response(BlogCommentSerializer(payload).data, status.HTTP_201_CREATED)
+
+
+class BlogPostReactionToggleView(BlogAccessMixin, APIView):
+    @extend_schema(
+        tags=['Blog'],
+        request=ContentReactionToggleSerializer,
+        responses={200: ContentReactionResponseSerializer},
+        summary='Set or remove emoji reaction for blog post',
+    )
+    def post(self, request, post_id):
+        access_error = self.ensure_authenticated(request.user)
+        if access_error:
+            return access_error
+
+        post = get_object_or_404(Post, id=post_id, status=Post.Status.PUBLISHED)
+        serializer = ContentReactionToggleSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        payload = toggle_reaction(content_object=post, user=request.user, emoji=serializer.validated_data['emoji'])
+        return success_response(ContentReactionResponseSerializer(payload).data, status.HTTP_200_OK)
 
 

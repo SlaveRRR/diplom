@@ -300,14 +300,14 @@ def build_analytics_workbook(payload):
         'likes': 'Лайки',
         'favorites': 'Избранное',
         'publications': 'Публикации',
-        'engagement': 'Вовлечение',
+        'engagement': 'Вовлеченность',
         'engagementRate': 'ER, %',
     }
     for key, value in payload['summary'].items():
         overview_sheet.append([metric_labels.get(key, key), value['value'], value['delta']])
 
     timeline_sheet = workbook.create_sheet('Динамика')
-    timeline_sheet.append(['Период', 'Просмотры', 'Охват', 'Комментарии', 'Лайки', 'Избранное', 'Публикации', 'Вовлечение'])
+    timeline_sheet.append(['Период', 'Просмотры', 'Охват', 'Комментарии', 'Лайки', 'Избранное', 'Публикации', 'Вовлеченность'])
     for cell in timeline_sheet[1]:
         cell.font = Font(bold=True)
     for point in payload['timeline']:
@@ -323,7 +323,7 @@ def build_analytics_workbook(payload):
         ])
 
     top_sheet = workbook.create_sheet('Топ материалов')
-    top_sheet.append(['Тип контента', 'ID', 'Название', 'Просмотры', 'Охват', 'Комментарии', 'Лайки', 'Избранное', 'Публикации', 'Вовлечение'])
+    top_sheet.append(['Тип контента', 'ID', 'Название', 'Просмотры', 'Охват', 'Комментарии', 'Лайки', 'Избранное', 'Публикации', 'Вовлеченность'])
     for cell in top_sheet[1]:
         cell.font = Font(bold=True)
     for item in payload['topItems']:

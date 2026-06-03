@@ -128,6 +128,87 @@ class UserFollowToggleSerializer(serializers.Serializer):
     followersCount = serializers.IntegerField()
 
 
+class UserStatsSerializer(serializers.Serializer):
+    chaptersReadCount = serializers.IntegerField()
+    comicsStartedCount = serializers.IntegerField()
+    comicsFinishedCount = serializers.IntegerField()
+    favoriteComicsCount = serializers.IntegerField()
+    commentsCount = serializers.IntegerField()
+    readingStreakDays = serializers.IntegerField()
+    longestReadingStreakDays = serializers.IntegerField()
+    publishedComicsCount = serializers.IntegerField()
+    publishedChaptersCount = serializers.IntegerField()
+
+
+class UserAchievementProgressSerializer(serializers.Serializer):
+    code = serializers.CharField()
+    title = serializers.CharField()
+    description = serializers.CharField()
+    target = serializers.IntegerField()
+    currentValue = serializers.IntegerField()
+    achieved = serializers.BooleanField()
+    awardedAt = serializers.DateTimeField(allow_null=True)
+
+
+class UserAchievementsResponseSerializer(serializers.Serializer):
+    stats = UserStatsSerializer()
+    achievements = UserAchievementProgressSerializer(many=True)
+
+
+class MonthlyRecapMetricSerializer(serializers.Serializer):
+    chaptersRead = serializers.IntegerField()
+    comicsStarted = serializers.IntegerField()
+    comicsFinished = serializers.IntegerField()
+    readingDays = serializers.IntegerField()
+    favoritesAdded = serializers.IntegerField()
+    commentsWritten = serializers.IntegerField()
+    achievementsUnlocked = serializers.IntegerField()
+    publications = serializers.IntegerField()
+
+
+class MonthlyRecapPeriodSerializer(serializers.Serializer):
+    year = serializers.IntegerField()
+    month = serializers.IntegerField()
+    title = serializers.CharField()
+    isCurrentMonth = serializers.BooleanField()
+
+
+class MonthlyRecapNamedStatSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    value = serializers.IntegerField()
+
+
+class MonthlyRecapTopComicSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    title = serializers.CharField()
+    genre = serializers.CharField(allow_blank=True)
+    chaptersRead = serializers.IntegerField()
+
+
+class MonthlyRecapTopPostSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    title = serializers.CharField()
+    reads = serializers.IntegerField()
+
+
+class MonthlyRecapAchievementItemSerializer(serializers.Serializer):
+    code = serializers.CharField()
+    title = serializers.CharField()
+    awardedAt = serializers.DateTimeField()
+
+
+class UserMonthlyRecapResponseSerializer(serializers.Serializer):
+    period = MonthlyRecapPeriodSerializer()
+    summary = MonthlyRecapMetricSerializer()
+    topComic = MonthlyRecapTopComicSerializer(allow_null=True)
+    topPost = MonthlyRecapTopPostSerializer(allow_null=True)
+    topGenres = MonthlyRecapNamedStatSerializer(many=True)
+    topTags = MonthlyRecapNamedStatSerializer(many=True)
+    achievementsUnlocked = MonthlyRecapAchievementItemSerializer(many=True)
+    generatedAt = serializers.DateTimeField()
+    isFinalized = serializers.BooleanField()
+
+
 class AvatarUploadConfigRequestSerializer(serializers.Serializer):
     filename = serializers.CharField(max_length=255)
     content_type = serializers.CharField(max_length=255)

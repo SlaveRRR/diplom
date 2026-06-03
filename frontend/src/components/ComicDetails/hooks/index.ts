@@ -4,3 +4,4 @@ export * from './useComicFavoriteMutation';
 export * from './useComicCommentMutation';
 export * from './useComicCommentsSocket';
 export * from './useComicRatingMutation';
+export * from './useComicReactionMutation';

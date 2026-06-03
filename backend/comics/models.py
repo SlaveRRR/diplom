@@ -97,6 +97,7 @@ class Comic(TimeStampedModel):
         choices=Status.choices,
         default=Status.DRAFT,
     )
+    has_published_updates = models.BooleanField(default=False)
     moderation_message = models.TextField(blank=True)
     genre = models.ForeignKey(
         Genre,
@@ -108,6 +109,10 @@ class Comic(TimeStampedModel):
     tags = models.ManyToManyField(Tag, related_name='comics', blank=True)
     comments = GenericRelation(
         'interactions.Comment',
+        related_query_name='comic',
+    )
+    reactions = GenericRelation(
+        'interactions.ContentReaction',
         related_query_name='comic',
     )
     published_at = models.DateTimeField(null=True, blank=True)

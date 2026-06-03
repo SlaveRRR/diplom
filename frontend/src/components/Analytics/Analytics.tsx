@@ -17,13 +17,16 @@
   Typography,
 } from 'antd';
 import { Dayjs } from 'dayjs';
-import { ReactNode, useMemo, useRef, useState } from 'react';
+import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import {
   BarChartOutlined,
+  CaretDownFilled,
+  CaretUpFilled,
   DownloadOutlined,
   FileSearchOutlined,
   LineChartOutlined,
+  MinusOutlined,
   RiseOutlined,
 } from '@ant-design/icons';
 
@@ -44,6 +47,80 @@ const { RangePicker } = DatePicker;
 const { Text, Title } = Typography;
 
 const formatDelta = (value: number) => `${value > 0 ? '+' : ''}${value.toLocaleString('ru-RU')}`;
+
+const getTrendMeta = (value: number) => {
+  if (value > 0) {
+    return {
+      color: '#16a34a',
+      icon: <CaretUpFilled />,
+    };
+  }
+
+  if (value < 0) {
+    return {
+      color: '#dc2626',
+      icon: <CaretDownFilled />,
+    };
+  }
+
+  return {
+    color: '#94a3b8',
+    icon: <MinusOutlined />,
+  };
+};
+
+const StatisticTrend = ({ value }: { value: number }) => {
+  const trend = getTrendMeta(value);
+
+  return (
+    <Text
+      style={{
+        color: trend.color,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+      }}
+    >
+      {trend.icon}
+      {formatDelta(value)}
+    </Text>
+  );
+};
+
+const useAnimatedNumber = (targetValue: number, duration = 900) => {
+  const [animatedValue, setAnimatedValue] = useState(targetValue);
+  const previousValueRef = useRef(targetValue);
+
+  useEffect(() => {
+    const startValue = previousValueRef.current;
+    const startTime = performance.now();
+
+    const tick = (currentTime: number) => {
+      const progress = Math.min((currentTime - startTime) / duration, 1);
+      setAnimatedValue(startValue + (targetValue - startValue) * progress);
+
+      if (progress < 1) {
+        window.requestAnimationFrame(tick);
+      } else {
+        previousValueRef.current = targetValue;
+      }
+    };
+
+    const frameId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [duration, targetValue]);
+
+  return animatedValue;
+};
+
+const AnimatedStatisticValue = ({ value, precision = 0 }: { value: number; precision?: number }) => {
+  const animatedValue = useAnimatedNumber(value);
+
+  return animatedValue.toLocaleString('ru-RU', {
+    minimumFractionDigits: precision,
+    maximumFractionDigits: precision,
+  });
+};
 
 const AnalyticsCardPlaceholder = ({ title, description }: { title: string; description: string }) => (
   <Flex vertical gap={16}>
@@ -346,8 +423,9 @@ export const Analytics = () => {
               <Statistic
                 title="Просмотры"
                 value={data.summary.views.value}
+                formatter={() => <AnimatedStatisticValue value={data.summary.views.value} />}
                 prefix={<LineChartOutlined />}
-                suffix={<Text type="secondary">{formatDelta(data.summary.views.delta)}</Text>}
+                suffix={<StatisticTrend value={data.summary.views.delta} />}
               />
             </Card>
           </Col>
@@ -356,8 +434,9 @@ export const Analytics = () => {
               <Statistic
                 title="Охват"
                 value={data.summary.reach.value}
+                formatter={() => <AnimatedStatisticValue value={data.summary.reach.value} />}
                 prefix={<RiseOutlined />}
-                suffix={<Text type="secondary">{formatDelta(data.summary.reach.delta)}</Text>}
+                suffix={<StatisticTrend value={data.summary.reach.delta} />}
               />
             </Card>
           </Col>
@@ -366,8 +445,9 @@ export const Analytics = () => {
               <Statistic
                 title="Комментарии"
                 value={data.summary.comments.value}
+                formatter={() => <AnimatedStatisticValue value={data.summary.comments.value} />}
                 prefix={<FileSearchOutlined />}
-                suffix={<Text type="secondary">{formatDelta(data.summary.comments.delta)}</Text>}
+                suffix={<StatisticTrend value={data.summary.comments.delta} />}
               />
             </Card>
           </Col>
@@ -377,8 +457,9 @@ export const Analytics = () => {
                 title="ER, %"
                 value={data.summary.engagementRate.value}
                 precision={2}
+                formatter={() => <AnimatedStatisticValue value={data.summary.engagementRate.value} precision={2} />}
                 prefix={<BarChartOutlined />}
-                suffix={<Text type="secondary">{formatDelta(data.summary.engagementRate.delta)}</Text>}
+                suffix={<StatisticTrend value={data.summary.engagementRate.delta} />}
               />
             </Card>
           </Col>

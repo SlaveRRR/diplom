@@ -6,6 +6,7 @@ from blog.views import (
     BlogPostDetailView,
     BlogPostEditorView,
     BlogPostListView,
+    BlogPostReactionToggleView,
     BlogPostUploadConfigView,
     BlogTagListView,
 )
@@ -18,4 +19,5 @@ urlpatterns = [
     path('posts/<int:post_id>/editor/', BlogPostEditorView.as_view(), name='blog-post-editor'),
     path('posts/<int:post_id>/', BlogPostDetailView.as_view(), name='blog-post-detail'),
     path('posts/<int:post_id>/comments/', BlogCommentCreateView.as_view(), name='blog-post-comment-create'),
+    path('posts/<int:post_id>/reaction/', BlogPostReactionToggleView.as_view(), name='blog-post-reaction-toggle'),
 ]

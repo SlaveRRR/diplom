@@ -1,0 +1,135 @@
+import { AchievementCardMeta } from './types';
+
+export const USER_ACHIEVEMENTS_QUERY_KEY = 'user-achievements';
+
+export const achievementMeta: AchievementCardMeta[] = [
+  {
+    code: 'read_1_chapter',
+    section: 'Чтение',
+    art: '📖',
+    hint: 'Первые шаги',
+    accent: '#2563eb',
+    background: 'linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%)',
+  },
+  {
+    code: 'read_10_chapters',
+    section: 'Чтение',
+    art: '🕮',
+    hint: 'Ритм чтения',
+    accent: '#1d4ed8',
+    background: 'linear-gradient(135deg, #bfdbfe 0%, #dbeafe 100%)',
+  },
+  {
+    code: 'read_100_chapters',
+    section: 'Чтение',
+    art: '🌙',
+    hint: 'Глубокое погружение',
+    accent: '#4f46e5',
+    background: 'linear-gradient(135deg, #ddd6fe 0%, #eef2ff 100%)',
+  },
+  {
+    code: 'read_500_chapters',
+    section: 'Чтение',
+    art: '📚',
+    hint: 'Большая библиотека',
+    accent: '#7c3aed',
+    background: 'linear-gradient(135deg, #ede9fe 0%, #faf5ff 100%)',
+  },
+  {
+    code: 'start_10_comics',
+    section: 'Чтение',
+    art: '🧭',
+    hint: 'Разные миры',
+    accent: '#0f766e',
+    background: 'linear-gradient(135deg, #ccfbf1 0%, #f0fdfa 100%)',
+  },
+  {
+    code: 'finish_1_comic',
+    section: 'Чтение',
+    art: '🏁',
+    hint: 'Первый финиш',
+    accent: '#15803d',
+    background: 'linear-gradient(135deg, #dcfce7 0%, #f0fdf4 100%)',
+  },
+  {
+    code: 'finish_10_comics',
+    section: 'Чтение',
+    art: '🏆',
+    hint: 'До конца',
+    accent: '#ca8a04',
+    background: 'linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%)',
+  },
+  {
+    code: 'favorite_10',
+    section: 'Коллекция и общение',
+    art: '💙',
+    hint: 'Избранное',
+    accent: '#2563eb',
+    background: 'linear-gradient(135deg, #dbeafe 0%, #f8fbff 100%)',
+  },
+  {
+    code: 'favorite_50',
+    section: 'Коллекция и общение',
+    art: '🗂️',
+    hint: 'Большая подборка',
+    accent: '#1e40af',
+    background: 'linear-gradient(135deg, #bfdbfe 0%, #eff6ff 100%)',
+  },
+  {
+    code: 'comment_1',
+    section: 'Коллекция и общение',
+    art: '💬',
+    hint: 'Первый отклик',
+    accent: '#db2777',
+    background: 'linear-gradient(135deg, #fbcfe8 0%, #fdf2f8 100%)',
+  },
+  {
+    code: 'comment_50',
+    section: 'Коллекция и общение',
+    art: '🫶',
+    hint: 'Активный участник',
+    accent: '#be185d',
+    background: 'linear-gradient(135deg, #f9a8d4 0%, #fff1f7 100%)',
+  },
+  {
+    code: 'streak_7',
+    section: 'Серия активности',
+    art: '🔥',
+    hint: 'Неделя подряд',
+    accent: '#ea580c',
+    background: 'linear-gradient(135deg, #fed7aa 0%, #fff7ed 100%)',
+  },
+  {
+    code: 'streak_30',
+    section: 'Серия активности',
+    art: '☄️',
+    hint: 'Месяц подряд',
+    accent: '#c2410c',
+    background: 'linear-gradient(135deg, #fdba74 0%, #ffedd5 100%)',
+  },
+  {
+    code: 'creator_first_comic',
+    section: 'Авторство',
+    art: '🎨',
+    hint: 'Первая работа',
+    accent: '#7c3aed',
+    background: 'linear-gradient(135deg, #e9d5ff 0%, #faf5ff 100%)',
+  },
+  {
+    code: 'creator_10_chapters',
+    section: 'Авторство',
+    art: '✍️',
+    hint: 'Стабильный выпуск',
+    accent: '#6d28d9',
+    background: 'linear-gradient(135deg, #ddd6fe 0%, #f5f3ff 100%)',
+  },
+];
+
+export const sectionOrder = ['Чтение', 'Коллекция и общение', 'Серия активности', 'Авторство'];
+
+export const sectionDescriptions: Record<string, string> = {
+  Чтение: 'Открывается за главы, новые тайтлы и завершенные истории.',
+  'Коллекция и общение': 'Фиксирует вашу активность в избранном и участие в обсуждениях.',
+  'Серия активности': 'Показывает, насколько регулярно вы возвращаетесь к чтению.',
+  Авторство: 'Награждает за публикацию собственных работ и рост каталога.',
+};

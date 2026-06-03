@@ -50,6 +50,7 @@ class Post(TimeStampedModel):
     moderation_message = models.TextField(blank=True)
     published_at = models.DateTimeField(null=True, blank=True)
     comments = GenericRelation('interactions.Comment', related_query_name='post')
+    reactions = GenericRelation('interactions.ContentReaction', related_query_name='post')
 
     class Meta:
         ordering = ('-updated_at', '-created_at')

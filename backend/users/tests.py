@@ -7,14 +7,24 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from blog.models import Post
-from comics.models import Comic
-from users.models import AvatarUploadDraft, UserFollow
+from comics.models import Chapter, Comic
+from users.achievements import register_chapter_read
+from users.models import AvatarUploadDraft, UserAchievement, UserFollow, UserStats
 
 User = get_user_model()
 
 
 @override_settings(S3_PUBLIC_BASE_URL='https://cdn.example.com')
 class UsersApiTests(APITestCase):
+    def test_user_stats_are_created_automatically_for_new_user(self):
+        user = User.objects.create_user(
+            username='stats-reader',
+            email='stats-reader@example.com',
+            password='strongpass123',
+        )
+
+        self.assertTrue(UserStats.objects.filter(user=user).exists())
+
     def test_current_user_can_be_updated(self):
         user = User.objects.create_user(
             username='reader3',
@@ -234,3 +244,76 @@ class UsersApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(payload['error']['message'], 'You cannot follow yourself.')
+
+    def test_repeated_chapter_read_does_not_duplicate_stats_or_achievement(self):
+        author = User.objects.create_user(
+            username='comic-author',
+            email='comic-author@example.com',
+            password='strongpass123',
+            role=User.Role.AUTHOR,
+        )
+        reader = User.objects.create_user(
+            username='comic-reader',
+            email='comic-reader@example.com',
+            password='strongpass123',
+        )
+        comic = Comic.objects.create(
+            title='First comic',
+            description='Readable comic',
+            author=author,
+            status=Comic.Status.PUBLISHED,
+        )
+        chapter = Chapter.objects.create(
+            comic=comic,
+            title='Chapter 1',
+            chapter_number=1,
+            page_count=5,
+            page_keys=['comics/1/chapter-1/page-1.webp'],
+        )
+
+        register_chapter_read(reader, chapter)
+        register_chapter_read(reader, chapter)
+
+        stats = UserStats.objects.get(user=reader)
+
+        self.assertEqual(stats.chapters_read_count, 1)
+        self.assertEqual(stats.comics_started_count, 1)
+        self.assertEqual(stats.comics_finished_count, 1)
+        self.assertEqual(UserAchievement.objects.filter(user=reader, code='read_1_chapter').count(), 1)
+        self.assertEqual(UserAchievement.objects.filter(user=reader, code='finish_1_comic').count(), 1)
+
+    def test_achievements_endpoint_returns_live_progress(self):
+        author = User.objects.create_user(
+            username='api-author',
+            email='api-author@example.com',
+            password='strongpass123',
+            role=User.Role.AUTHOR,
+        )
+        reader = User.objects.create_user(
+            username='api-reader',
+            email='api-reader@example.com',
+            password='strongpass123',
+        )
+        comic = Comic.objects.create(
+            title='Endpoint comic',
+            description='Readable comic',
+            author=author,
+            status=Comic.Status.PUBLISHED,
+        )
+        chapter = Chapter.objects.create(
+            comic=comic,
+            title='Chapter 1',
+            chapter_number=1,
+            page_count=4,
+            page_keys=['comics/2/chapter-1/page-1.webp'],
+        )
+        register_chapter_read(reader, chapter)
+
+        self.client.force_authenticate(user=reader)
+        response = self.client.get('/api/v1/users/me/achievements/')
+        response.render()
+        payload = json.loads(response.content)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(payload['data']['stats']['chaptersReadCount'], 1)
+        self.assertTrue(any(item['code'] == 'read_1_chapter' and item['achieved'] for item in payload['data']['achievements']))

@@ -1,6 +1,7 @@
 from django.contrib import admin, messages
 from django.utils import timezone
 
+from analytics.models import AnalyticsEvent
 from core.moderation import MODERATION_STATUS_LABELS, notify_moderation_result, record_publication_event
 
 
@@ -19,6 +20,10 @@ class ModerationAdminMixin(admin.ModelAdmin):
     def after_publish(self, obj):
         return None
 
+    def get_publication_content_kind(self, obj):
+        model_name = obj._meta.model_name
+        return AnalyticsEvent.ContentKind.COMIC if model_name == 'comic' else AnalyticsEvent.ContentKind.POST
+
     def save_model(self, request, obj, form, change):
         previous_status = None
         if change and obj.pk:
@@ -28,6 +33,8 @@ class ModerationAdminMixin(admin.ModelAdmin):
 
         if getattr(obj, 'status', None) == 'published' and getattr(obj, 'published_at', None) is None:
             obj.published_at = timezone.now()
+        if getattr(obj, 'status', None) == 'published' and previous_status != 'published' and hasattr(obj, 'has_published_updates'):
+            obj.has_published_updates = False
 
         super().save_model(request, obj, form, change)
 
@@ -39,6 +46,7 @@ class ModerationAdminMixin(admin.ModelAdmin):
                     item_label=self.moderation_item_label,
                     object_id=obj.id,
                     title=obj.title,
+                    content_kind=self.get_publication_content_kind(obj),
                 )
 
         if not change or previous_status == obj.status or obj.status not in {'published', 'revision', 'blocked'}:

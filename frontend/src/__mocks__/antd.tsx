@@ -164,9 +164,11 @@ Skeleton.Image = ({ children, active }) => (
   </div>
 );
 
-export const Statistic = ({ title, value }) => (
+export const Statistic = ({ title, value, formatter, prefix, suffix }) => (
   <div data-testid="statistic">
-    {title}: {value}
+    {title}: {prefix}
+    {formatter ? formatter(value) : value}
+    {suffix}
   </div>
 );
 

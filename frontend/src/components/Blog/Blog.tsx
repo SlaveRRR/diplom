@@ -1,8 +1,9 @@
-import { Button, Card, Col, Empty, Flex, Input, Pagination, Row, Segmented, Tag, Typography } from 'antd';
+﻿import { Button, Card, Col, Empty, Flex, Input, Pagination, Row, Segmented, Tag, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarOutlined, CommentOutlined, EditOutlined, SearchOutlined } from '@ant-design/icons';
 
+import { colors } from '@constants';
 import { useAdultContentGate, useApp, useWindowSize } from '@hooks';
 import { Select } from '@components/shared';
 
@@ -131,7 +132,20 @@ export const Blog = () => {
                     className="h-full overflow-hidden border-0 shadow-sm transition-transform duration-200 hover:-translate-y-1"
                     cover={
                       <div className="relative h-64 w-full overflow-hidden">
-                        <img src={post.coverUrl || post.cover} alt={post.title} className="h-64 w-full object-cover" />
+                        {!!post.coverUrl || !!post.cover ? (
+                          <img
+                            src={post.coverUrl || post.cover}
+                            alt={post.title}
+                            className="h-64 w-full object-cover"
+                          />
+                        ) : (
+                          <div
+                            className="flex h-full w-full items-end p-6"
+                            style={{
+                              background: `linear-gradient(135deg, ${colors.surface.brandSubtle} 0%, ${colors.white} 58%, ${colors.surface.infoSubtle} 100%)`,
+                            }}
+                          />
+                        )}
                         {isAdultContent(post.ageRating) && !isAdultContentConfirmed ? (
                           <div className="absolute inset-0 flex items-center justify-center bg-[linear-gradient(180deg,rgba(255,255,255,0.08)_0%,rgba(32,20,82,0.58)_100%)] backdrop-blur-[8px]">
                             <Flex

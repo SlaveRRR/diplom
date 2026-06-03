@@ -26,6 +26,8 @@ from comics.serializers import (
     ComicConfirmResponseSerializer,
     ComicCatalogItemSerializer,
     ComicCatalogPageSerializer,
+    ContentReactionResponseSerializer,
+    ContentReactionToggleSerializer,
     ComicContinueReadingSerializer,
     ComicDetailSerializer,
     ComicEditorSerializer,
@@ -41,7 +43,14 @@ from comics.serializers import (
 )
 from core.api import error_response, success_response
 from interactions.models import Comment, ComicFavorite, ComicLike, Notification
-from interactions.services import broadcast_comic_comment, create_notification
+from interactions.services import (
+    broadcast_comic_comment,
+    build_reactions_payload,
+    create_notification,
+    notify_followers,
+    toggle_reaction,
+)
+from users.achievements import register_chapter_read, sync_creator_stats
 
 AGE_RATING_DESCRIPTIONS = {
     ComicAgeRating.AGE_0: 'Подходит для самого широкого возраста без чувствительных сцен.',
@@ -324,7 +333,10 @@ class ComicUploadConfigView(ComicsAccessMixin, APIView):
         comic_id = validated_data.get('comicId')
         if comic_id:
             editable_comic = get_object_or_404(
-                Comic.objects.filter(author=request.user, status__in=[Comic.Status.DRAFT, Comic.Status.REVISION]),
+                Comic.objects.filter(
+                    author=request.user,
+                    status__in=[Comic.Status.DRAFT, Comic.Status.REVISION, Comic.Status.PUBLISHED],
+                ),
                 id=comic_id,
             )
 
@@ -452,9 +464,17 @@ class ComicConfirmView(ComicsAccessMixin, APIView):
         editable_comic = None
         if serializer.validated_data.get('comic_id'):
             editable_comic = get_object_or_404(
-                Comic.objects.filter(author=request.user, status__in=[Comic.Status.DRAFT, Comic.Status.REVISION]),
+                Comic.objects.filter(
+                    author=request.user,
+                    status__in=[Comic.Status.DRAFT, Comic.Status.REVISION, Comic.Status.PUBLISHED],
+                ),
                 id=serializer.validated_data['comic_id'],
             )
+            if editable_comic.status == Comic.Status.PUBLISHED and submission_mode != Comic.Status.PUBLISHED:
+                return error_response(
+                    'Published comic edits must be saved as published updates.',
+                    status.HTTP_400_BAD_REQUEST,
+                )
 
         comic_draft = get_object_or_404(ComicUploadDraft, id=serializer.validated_data['comic_draft_id'], user=request.user)
 
@@ -495,15 +515,39 @@ class ComicConfirmView(ComicsAccessMixin, APIView):
             )
 
         if editable_comic:
+            was_published = editable_comic.status == Comic.Status.PUBLISHED
+            preserve_publication = was_published and submission_mode == Comic.Status.PUBLISHED
+            previous_tag_ids = set(editable_comic.tags.values_list('id', flat=True))
+            previous_snapshot = {
+                'title': editable_comic.title,
+                'description': editable_comic.description,
+                'cover': editable_comic.cover,
+                'banner': editable_comic.banner,
+                'age_rating': editable_comic.age_rating,
+                'genre_id': editable_comic.genre_id,
+                'chapters': {
+                    chapter.chapter_number: {
+                        'title': chapter.title,
+                        'description': chapter.description,
+                        'page_keys': list(chapter.page_keys),
+                    }
+                    for chapter in editable_comic.chapters.all()
+                },
+            }
+            added_chapters_count = 0
+            added_pages_count = 0
+
             editable_comic.title = comic_draft.title
             editable_comic.description = comic_draft.description
             editable_comic.cover = comic_draft.cover
             editable_comic.banner = comic_draft.banner
             editable_comic.age_rating = comic_draft.age_rating
             editable_comic.genre = genre
-            editable_comic.status = submission_mode
-            if submission_mode == Comic.Status.DRAFT:
+            editable_comic.status = Comic.Status.PUBLISHED if preserve_publication else submission_mode
+            if editable_comic.status == Comic.Status.DRAFT:
                 editable_comic.published_at = None
+            elif preserve_publication and editable_comic.published_at is None:
+                editable_comic.published_at = timezone.now()
             editable_comic.save(
                 update_fields=[
                     'title',
@@ -518,7 +562,11 @@ class ComicConfirmView(ComicsAccessMixin, APIView):
                 ]
             )
             editable_comic.tags.set(tags)
-            editable_comic.chapters.all().delete()
+
+            remaining_chapters = {
+                chapter.chapter_number: chapter
+                for chapter in editable_comic.chapters.all()
+            }
             comic = editable_comic
         else:
             comic = Comic.objects.create(
@@ -535,20 +583,103 @@ class ComicConfirmView(ComicsAccessMixin, APIView):
 
         chapter_ids = []
         for chapter_draft in chapter_drafts:
-            chapter = Chapter.objects.create(
-                comic=comic,
-                title=chapter_draft.title,
-                description=chapter_draft.description,
-                chapter_number=chapter_draft.chapter_number,
-                page_count=len(chapter_draft.page_keys),
-                page_keys=chapter_draft.page_keys,
-            )
+            if editable_comic:
+                chapter = remaining_chapters.pop(chapter_draft.chapter_number, None)
+                if chapter:
+                    previous_page_count = chapter.page_count
+                    chapter.title = chapter_draft.title
+                    chapter.description = chapter_draft.description
+                    chapter.page_count = len(chapter_draft.page_keys)
+                    chapter.page_keys = chapter_draft.page_keys
+                    if preserve_publication and chapter.published_at is None:
+                        chapter.published_at = comic.published_at
+                    chapter.save(
+                        update_fields=[
+                            'title',
+                            'description',
+                            'page_count',
+                            'page_keys',
+                            'published_at',
+                            'updated_at',
+                        ]
+                    )
+                    if preserve_publication and chapter.page_count > previous_page_count:
+                        added_pages_count += chapter.page_count - previous_page_count
+                else:
+                    chapter = Chapter.objects.create(
+                        comic=comic,
+                        title=chapter_draft.title,
+                        description=chapter_draft.description,
+                        chapter_number=chapter_draft.chapter_number,
+                        page_count=len(chapter_draft.page_keys),
+                        page_keys=chapter_draft.page_keys,
+                        published_at=comic.published_at if preserve_publication else None,
+                    )
+                    if preserve_publication:
+                        added_chapters_count += 1
+                        added_pages_count += len(chapter_draft.page_keys)
+            else:
+                chapter = Chapter.objects.create(
+                    comic=comic,
+                    title=chapter_draft.title,
+                    description=chapter_draft.description,
+                    chapter_number=chapter_draft.chapter_number,
+                    page_count=len(chapter_draft.page_keys),
+                    page_keys=chapter_draft.page_keys,
+                )
             chapter_ids.append(chapter.id)
             chapter_draft.status = UploadDraftStatus.COMPLETED
             chapter_draft.save(update_fields=['status', 'updated_at'])
 
+        if editable_comic and remaining_chapters:
+            Chapter.objects.filter(id__in=[chapter.id for chapter in remaining_chapters.values()]).delete()
+
         comic_draft.status = UploadDraftStatus.COMPLETED
         comic_draft.save(update_fields=['status', 'updated_at'])
+
+        if editable_comic and preserve_publication:
+            current_tag_ids = set(tag.id for tag in tags)
+            chapter_snapshot = {
+                chapter_draft.chapter_number: {
+                    'title': chapter_draft.title,
+                    'description': chapter_draft.description,
+                    'page_keys': list(chapter_draft.page_keys),
+                }
+                for chapter_draft in chapter_drafts
+            }
+            has_published_updates = any(
+                [
+                    previous_snapshot['title'] != comic.title,
+                    previous_snapshot['description'] != comic.description,
+                    previous_snapshot['cover'] != comic.cover,
+                    previous_snapshot['banner'] != comic.banner,
+                    previous_snapshot['age_rating'] != comic.age_rating,
+                    previous_snapshot['genre_id'] != comic.genre_id,
+                    previous_tag_ids != current_tag_ids,
+                    previous_snapshot['chapters'] != chapter_snapshot,
+                ]
+            )
+            if has_published_updates != comic.has_published_updates:
+                comic.has_published_updates = has_published_updates
+                comic.save(update_fields=['has_published_updates', 'updated_at'])
+
+            if added_chapters_count or added_pages_count:
+                parts = []
+                if added_chapters_count:
+                    parts.append(f'новых глав: {added_chapters_count}')
+                if added_pages_count:
+                    parts.append(f'новых страниц: {added_pages_count}')
+                notify_followers(
+                    author=comic.author,
+                    message=(
+                        f'{comic.author.username} обновил комикс «{comic.title}»: '
+                        f'{", ".join(parts)}.'
+                    ),
+                    link=f'/comics/{comic.id}',
+                    notification_type=Notification.Type.INFO,
+                )
+
+            sync_creator_stats(comic.author)
 
         if request.user.role == request.user.Role.READER:
             request.user.role = request.user.Role.AUTHOR
@@ -620,6 +751,8 @@ class ComicDetailView(APIView):
             for chapter in comic.chapters.order_by('chapter_number')
         ]
 
+        reactions_payload = build_reactions_payload(content_object=comic, user=request.user)
+
         payload = {
             'id': comic.id,
             'title': comic.title,
@@ -663,6 +796,8 @@ class ComicDetailView(APIView):
             'ratingsCount': ratings_count,
             'userRating': user_rating,
             'commentsCount': comment_count,
+            'reactions': reactions_payload['reactions'],
+            'currentEmoji': reactions_payload['currentEmoji'],
             'readersCount': comic.stats.unique_readers if hasattr(comic, 'stats') else 0,
             'chaptersCount': len(chapters),
             'chapters': chapters,
@@ -937,6 +1072,26 @@ class ComicRatingView(ComicsAccessMixin, APIView):
         )
 
 
+class ComicReactionToggleView(ComicsAccessMixin, APIView):
+    @extend_schema(
+        tags=['Interactions'],
+        request=ContentReactionToggleSerializer,
+        responses={200: ContentReactionResponseSerializer},
+        summary='Set or remove emoji reaction for comic',
+    )
+    def post(self, request, comic_id):
+        access_error = self.ensure_authenticated(request.user)
+        if access_error:
+            return access_error
+
+        comic = get_object_or_404(Comic, id=comic_id)
+        serializer = ContentReactionToggleSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        payload = toggle_reaction(content_object=comic, user=request.user, emoji=serializer.validated_data['emoji'])
+        return success_response(ContentReactionResponseSerializer(payload).data, status.HTTP_200_OK)
+
+
 class ComicReaderView(APIView):
     permission_classes = [AllowAny]
 
@@ -981,6 +1136,8 @@ class ComicReaderView(APIView):
             comic_stats.unique_readers += 1
             comic_stats.save(update_fields=['views', 'unique_readers'])
 
+        reactions_payload = build_reactions_payload(content_object=comic, user=request.user)
+
         payload = {
             'comicId': comic.id,
             'comicTitle': comic.title,
@@ -1013,6 +1170,8 @@ class ComicReaderView(APIView):
             'status': comic.status,
             'likesCount': comic.likes.count(),
             'commentsCount': comic.comments.count(),
+            'reactions': reactions_payload['reactions'],
+            'currentEmoji': reactions_payload['currentEmoji'],
             'isLiked': is_liked,
             'favoritesCount': comic.favorites.count(),
             'isFavorite': is_favorite,
@@ -1034,7 +1193,10 @@ class ComicEditorView(ComicsAccessMixin, APIView):
             return access_error
 
         comic = get_object_or_404(
-            Comic.objects.filter(author=request.user, status__in=[Comic.Status.DRAFT, Comic.Status.REVISION])
+            Comic.objects.filter(
+                author=request.user,
+                status__in=[Comic.Status.DRAFT, Comic.Status.REVISION, Comic.Status.PUBLISHED],
+            )
             .select_related('genre')
             .prefetch_related('tags', 'chapters'),
             id=comic_id,
@@ -1085,5 +1247,7 @@ class ComicReadingProgressView(ComicsAccessMixin, APIView):
             stats.views += 1
             stats.unique_readers += 1
             stats.save(update_fields=['views', 'unique_readers'])
+
+        register_chapter_read(request.user, chapter)
 
         return success_response(ComicContinueReadingSerializer(progress).data, status.HTTP_200_OK)

@@ -75,7 +75,7 @@ export interface TagSelectOption {
   option: ComicTagOption;
 }
 
-export type ComicSubmissionMode = 'draft' | 'under_review';
+export type ComicSubmissionMode = 'draft' | 'under_review' | 'published';
 
 export type ComicUploadStage = 'idle' | 'config' | 'upload' | 'confirm';
 

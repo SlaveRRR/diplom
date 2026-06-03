@@ -40,7 +40,7 @@ class NotificationListView(InteractionsAccessMixin, APIView):
         if access_error:
             return access_error
 
-        notifications = list(request.user.notifications.all()[:50])
+        notifications = list(request.user.notifications.all().order_by('-created_at')[:50])
         payload = {
             'unreadCount': request.user.notifications.filter(read_at__isnull=True).count(),
             'items': [

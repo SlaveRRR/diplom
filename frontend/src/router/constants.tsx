@@ -5,6 +5,9 @@ import { LayoutPage } from '@pages/LayoutPage';
 import { Route } from './types';
 
 const AccountPage = lazy(() => import('@pages/AccountPage').then(({ AccountPage }) => ({ default: AccountPage })));
+const AchievementsPage = lazy(() =>
+  import('@pages/AchievementsPage').then(({ AchievementsPage }) => ({ default: AchievementsPage })),
+);
 const AnalyticsPage = lazy(() =>
   import('@pages/AnalyticsPage').then(({ AnalyticsPage }) => ({ default: AnalyticsPage })),
 );
@@ -33,6 +36,9 @@ const HistoryPage = lazy(() => import('@pages/HistoryPage').then(({ HistoryPage 
 const HomePage = lazy(() => import('@pages/HomePage').then(({ HomePage }) => ({ default: HomePage })));
 const NotificationsPage = lazy(() =>
   import('@pages/NotificationsPage').then(({ NotificationsPage }) => ({ default: NotificationsPage })),
+);
+const MonthlyRecapPage = lazy(() =>
+  import('@pages/MonthlyRecapPage').then(({ MonthlyRecapPage }) => ({ default: MonthlyRecapPage })),
 );
 const PersonalDataPage = lazy(() =>
   import('@pages/PersonalDataPage').then(({ PersonalDataPage }) => ({ default: PersonalDataPage })),
@@ -96,6 +102,16 @@ export const ROUTES: Route[] = [
       {
         path: '/analytics',
         page: <AnalyticsPage />,
+        privateRoute: true,
+      },
+      {
+        path: '/recap',
+        page: <MonthlyRecapPage />,
+        privateRoute: true,
+      },
+      {
+        path: '/achievements',
+        page: <AchievementsPage />,
         privateRoute: true,
       },
       {

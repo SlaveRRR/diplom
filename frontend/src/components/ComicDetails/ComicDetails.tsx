@@ -35,6 +35,7 @@ import {
 
 import { colors } from '@constants';
 import { ComicComment, ComicDetailChapter } from '@types';
+import { Reactions } from '@components/shared';
 import { useApp } from '@hooks/useApp';
 import { useRequireAuthAction } from '@hooks/useRequireAuthAction';
 import { OutletContext } from '@pages/LayoutPage/types';
@@ -46,6 +47,7 @@ import {
   useComicFavoriteMutation,
   useComicLikeMutation,
   useComicRatingMutation,
+  useComicReactionMutation,
 } from './hooks';
 import { EpisodeSortOrder } from './types';
 
@@ -124,6 +126,7 @@ export const ComicDetails: FC = () => {
   const { data, isLoading, isError } = useComicDetailsQuery(comicId);
   const likeMutation = useComicLikeMutation(comicId);
   const favoriteMutation = useComicFavoriteMutation(comicId);
+  const reactionMutation = useComicReactionMutation(comicId);
   const commentMutation = useComicCommentMutation(comicId);
   const ratingMutation = useComicRatingMutation(comicId);
   useComicCommentsSocket(comicId);
@@ -240,6 +243,19 @@ export const ComicDetails: FC = () => {
       messageApi.success('Оценка сохранена.');
     } catch (error) {
       messageApi.error(error instanceof Error ? error.message : 'Не удалось сохранить оценку.');
+    }
+  };
+
+  const handleToggleReaction = async (emoji: string) => {
+    if (!isAuth) {
+      redirectToAuth('like');
+      return;
+    }
+
+    try {
+      await reactionMutation.mutateAsync(emoji);
+    } catch (error) {
+      messageApi.error(error instanceof Error ? error.message : 'Не удалось обновить реакцию.');
     }
   };
 
@@ -426,6 +442,18 @@ export const ComicDetails: FC = () => {
                         ? `Ваша оценка: ${data.userRating}/5`
                         : 'Поставьте оценку, чтобы помочь другим читателям.'}
                     </Text>
+                  </Flex>
+                </Card>
+
+                <Card className="border-0 bg-white/8 shadow-none backdrop-blur-sm" styles={{ body: { padding: 16 } }}>
+                  <Flex vertical gap={10}>
+                    <Text className="text-white/64">Реакции читателей</Text>
+                    <Reactions
+                      reactions={data.reactions}
+                      loading={reactionMutation.isLoading}
+                      onSelect={handleToggleReaction}
+                      pickerLabel="Добавить"
+                    />
                   </Flex>
                 </Card>
               </Flex>

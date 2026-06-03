@@ -670,9 +670,14 @@ export const ComicReader = () => {
               }}
             >
               <FloatButton
-                icon={<UpOutlined />}
-                tooltip="Наверх"
-                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                icon={isPagedMode ? <LeftOutlined /> : <UpOutlined />}
+                tooltip="В начало"
+                onClick={() => {
+                  if (isPagedMode) return setActivePage(1);
+                  else {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }
+                }}
               />
               {!isDraft && (
                 <>

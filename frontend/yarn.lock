@@ -2072,6 +2072,16 @@
     "@rc-component/util" "^1.4.0"
     clsx "^2.1.1"
 
+"@react-instastories/base@^1.0.7":
+  version "1.0.7"
+  resolved "https://registry.yarnpkg.com/@react-instastories/base/-/base-1.0.7.tgz#49bf7503b71ce45c950fd41773b1cbe87bdcf260"
+  integrity sha512-TQLjdFJaKfQr9d29zzS7QziVijOmaVm9qggskdGHE0ZAhhJPx74movE5LU+VA+h4pIZTgWtSVvzJYoKOkSMgTg==
+
+"@react-instastories/external@^1.0.7":
+  version "1.0.7"
+  resolved "https://registry.yarnpkg.com/@react-instastories/external/-/external-1.0.7.tgz#95d1c773e7ebc5cf1fdde0199bb2f27fae15aa8a"
+  integrity sha512-bfQCAvgxCj7z8GHaMLDquMdLAnymFBxhSTyqEpBS9tlw7lY0ZBVoyUIFZ1V38173xuyX088VfHKb1Rtv1VW/QQ==
+
 "@remix-run/router@1.23.2":
   version "1.23.2"
   resolved "https://registry.yarnpkg.com/@remix-run/router/-/router-1.23.2.tgz#156c4b481c0bee22a19f7924728a67120de06971"
@@ -4090,6 +4100,13 @@ electron-to-chromium@^1.5.328:
   resolved "https://registry.yarnpkg.com/electron-to-chromium/-/electron-to-chromium-1.5.351.tgz#7314fbb5b4835a1869feaec09665541b6a84cd37"
   integrity sha512-9D7Iqx8RImSvCnOsj86rCH6eQjZFQoM04Jn6HnZVM0Nu/G58/gmKYQ1d12MZTbjQbQSTGI8nwEy07ErsA2slLA==
 
+emoji-picker-react@^4.19.1:
+  version "4.19.1"
+  resolved "https://registry.yarnpkg.com/emoji-picker-react/-/emoji-picker-react-4.19.1.tgz#b901e17c91612257c9bc99af861d0326c68a90bb"
+  integrity sha512-BmDdqInKFVYJpv7qS9WI6L9656cDAC+FkDvUjJds56nKHbaVTBNeDmLwKBytRnzu37zWHs9Isg7gt5PT43y6xA==
+  dependencies:
+    flairup "1.0.0"
+
 emoji-regex@^10.3.0:
   version "10.6.0"
   resolved "https://registry.yarnpkg.com/emoji-regex/-/emoji-regex-10.6.0.tgz#bf3d6e8f7f8fd22a65d9703475bc0147357a6b0d"
@@ -4561,6 +4578,11 @@ find-up@^5.0.0:
   dependencies:
     locate-path "^6.0.0"
     path-exists "^4.0.0"
+
+flairup@1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/flairup/-/flairup-1.0.0.tgz#d3af0052ad02734c12d2446608a869498adb351b"
+  integrity sha512-IKlE+pNvL2R+kVL1kEhUYqRxVqeFnjiIvHWDMLFXNaqyUdFXQM2wte44EfMYJNHkW16X991t2Zg8apKkhv7OBA==
 
 flat-cache@^4.0.0:
   version "4.0.1"

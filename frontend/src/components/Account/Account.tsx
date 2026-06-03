@@ -470,7 +470,7 @@ const AuthorComicCard: FC<{ comic: UserProfileComic }> = ({ comic }) => (
         </div>
       )}
 
-      <Flex vertical gap={12} className="min-w-0 flex-1">
+      <Flex vertical gap={12} className="flex-1 min-w-65">
         <Flex justify="space-between" align="start" gap={12} wrap="wrap">
           <Flex vertical gap={8} className="min-w-0">
             <Space wrap>
@@ -490,9 +490,11 @@ const AuthorComicCard: FC<{ comic: UserProfileComic }> = ({ comic }) => (
             </div>
           </Flex>
 
-          {comic.status === 'draft' || comic.status === 'revision' ? (
+          {comic.status === 'draft' || comic.status === 'revision' || comic.status === 'published' ? (
             <Link to={`/comics/${comic.id}/edit`}>
-              <Button icon={<EditOutlined />}>Продолжить редактирование</Button>
+              <Button icon={<EditOutlined />}>
+                {comic.status === 'published' ? 'Редактировать комикс' : 'Продолжить редактирование'}
+              </Button>
             </Link>
           ) : (
             <Link to={`/comics/${comic.id}`}>
@@ -560,7 +562,7 @@ const AuthorPostCard: FC<{ post: UserProfilePost }> = ({ post }) => (
         </div>
       )}
 
-      <Flex vertical gap={12} className="min-w-0 flex-1">
+      <Flex vertical gap={12} className="flex-1 min-w-65">
         <Flex justify="space-between" align="start" gap={12} wrap="wrap">
           <Flex vertical gap={8} className="min-w-0">
             <Tag

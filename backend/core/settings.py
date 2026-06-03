@@ -332,7 +332,7 @@ SIMPLE_JWT = {
 }
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'ComicsHub API',
+    'TITLE': 'ComicsApp API',
     'DESCRIPTION': 'API for comics reading and publishing platform',
     'VERSION': '1.0.0',
     'TAGS': [
@@ -373,7 +373,7 @@ SOCIALACCOUNT_PROVIDERS = {
                 'client_id': os.getenv('YANDEX_CLIENT_ID'),
                 'secret': os.getenv('YANDEX_CLIENT_SECRET'),
                 'settings': {
-                    'scope': ['login:avatar'],
+                    'scope': ['login:avatar','login:email'],
                 },
             }
         ]

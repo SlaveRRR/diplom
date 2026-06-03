@@ -87,7 +87,7 @@ class ComicConfirmRequestSerializer(serializers.Serializer):
     comic_draft_id = serializers.UUIDField()
     comic_id = serializers.IntegerField(required=False, allow_null=True, min_value=1)
     submission_mode = serializers.ChoiceField(
-        choices=(Comic.Status.DRAFT, Comic.Status.UNDER_REVIEW),
+        choices=(Comic.Status.DRAFT, Comic.Status.UNDER_REVIEW, Comic.Status.PUBLISHED),
         default=Comic.Status.UNDER_REVIEW,
     )
 
@@ -202,6 +202,21 @@ class ComicCommentCreateSerializer(serializers.Serializer):
         return normalized
 
 
+class ContentReactionSummarySerializer(serializers.Serializer):
+    emoji = serializers.CharField()
+    count = serializers.IntegerField()
+    isSelected = serializers.BooleanField()
+
+
+class ContentReactionToggleSerializer(serializers.Serializer):
+    emoji = serializers.CharField(max_length=32)
+
+
+class ContentReactionResponseSerializer(serializers.Serializer):
+    reactions = ContentReactionSummarySerializer(many=True)
+    currentEmoji = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+
+
 class ComicContinueReadingSerializer(serializers.Serializer):
     chapterId = serializers.IntegerField(source='chapter_id')
     lastPage = serializers.IntegerField(source='last_page')
@@ -270,6 +285,8 @@ class ComicDetailSerializer(serializers.Serializer):
     ratingsCount = serializers.IntegerField()
     userRating = serializers.IntegerField(allow_null=True)
     commentsCount = serializers.IntegerField()
+    reactions = ContentReactionSummarySerializer(many=True)
+    currentEmoji = serializers.CharField(allow_null=True)
     readersCount = serializers.IntegerField()
     chaptersCount = serializers.IntegerField()
     chapters = ComicDetailChapterSerializer(many=True)
@@ -369,6 +386,8 @@ class ComicReaderSerializer(serializers.Serializer):
     navigation = ComicReaderNavigationSerializer()
     likesCount = serializers.IntegerField()
     commentsCount = serializers.IntegerField()
+    reactions = ContentReactionSummarySerializer(many=True)
+    currentEmoji = serializers.CharField(allow_null=True)
     isLiked = serializers.BooleanField()
     favoritesCount = serializers.IntegerField()
     isFavorite = serializers.BooleanField()

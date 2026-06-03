@@ -16,6 +16,8 @@ from comics.models import Comic
 from core.api import error_response, success_response
 from interactions.models import Notification
 from interactions.services import create_notification
+from users.achievements import build_achievement_progress_payload
+from users.recap import get_or_create_monthly_recap
 from users.models import AvatarUploadDraft, UserFollow
 from users.serializers import (
     AvatarUploadConfigRequestSerializer,
@@ -23,6 +25,8 @@ from users.serializers import (
     AvatarUploadConfirmRequestSerializer,
     AvatarUploadConfirmResponseSerializer,
     CurrentUserSerializer,
+    UserMonthlyRecapResponseSerializer,
+    UserAchievementsResponseSerializer,
     UserAccountSerializer,
     UserFollowToggleSerializer,
     UserProfileComicBuilder,
@@ -122,6 +126,42 @@ class AccountView(APIView):
     def get(self, request):
         payload = build_account_payload(request.user)
         return success_response(UserAccountSerializer(payload).data, status.HTTP_200_OK)
+
+
+class UserAchievementsView(APIView):
+    @extend_schema(
+        tags=['Users'],
+        responses={200: UserAchievementsResponseSerializer},
+        summary='Get current user achievement progress and awarded achievements',
+    )
+    def get(self, request):
+        payload = build_achievement_progress_payload(request.user)
+        return success_response(UserAchievementsResponseSerializer(payload).data, status.HTTP_200_OK)
+
+
+class UserMonthlyRecapView(APIView):
+    @extend_schema(
+        tags=['Users'],
+        responses={200: UserMonthlyRecapResponseSerializer},
+        summary='Get current user monthly recap snapshot',
+    )
+    def get(self, request):
+        year_raw = request.query_params.get('year')
+        month_raw = request.query_params.get('month')
+
+        try:
+            year = int(year_raw) if year_raw else None
+            month = int(month_raw) if month_raw else None
+            recap = get_or_create_monthly_recap(request.user, year=year, month=month)
+        except ValueError as error:
+            return error_response(str(error), status.HTTP_400_BAD_REQUEST)
+
+        payload = {
+            **recap.payload,
+            'generatedAt': recap.generated_at,
+            'isFinalized': recap.is_finalized,
+        }
+        return success_response(UserMonthlyRecapResponseSerializer(payload).data, status.HTTP_200_OK)
 
 
 class AvatarUploadConfigView(APIView):

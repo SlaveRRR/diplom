@@ -1,3 +1,5 @@
+import { ContentReactionSummary } from './reaction';
+
 export interface UploadConfigFilePayload {
   filename: string;
   content_type: string;
@@ -51,7 +53,7 @@ export interface ComicUploadConfigResponse {
 export interface ComicConfirmPayload {
   comic_draft_id: string;
   comic_id?: number;
-  submission_mode: 'draft' | 'under_review';
+  submission_mode: 'draft' | 'under_review' | 'published';
 }
 
 export interface ComicConfirmResponse {
@@ -125,6 +127,8 @@ export interface ComicDetailsResponse {
   ratingsCount: number;
   userRating: number | null;
   commentsCount: number;
+  reactions: ContentReactionSummary[];
+  currentEmoji: string | null;
   readersCount: number;
   chaptersCount: number;
   chapters: ComicDetailChapter[];
@@ -218,6 +222,8 @@ export interface ComicReaderResponse {
   navigation: ComicReaderNavigation;
   likesCount: number;
   commentsCount: number;
+  reactions: ContentReactionSummary[];
+  currentEmoji: string | null;
   isLiked: boolean;
   favoritesCount: number;
   isFavorite: boolean;

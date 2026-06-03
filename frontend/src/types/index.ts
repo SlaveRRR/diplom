@@ -7,4 +7,7 @@ export * from './theme';
 export * from './common';
 export * from './activity';
 export * from './analytics';
+export * from './achievement';
 export * from './home';
+export * from './reaction';
+export * from './recap';

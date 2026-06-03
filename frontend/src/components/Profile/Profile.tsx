@@ -189,9 +189,6 @@ export const Profile: FC = () => {
                 <Title level={3} className="!mb-0">
                   Опубликованные комиксы
                 </Title>
-                <Text type="secondary">
-                  На публичной странице показываются только релизы, которые уже доступны читателям.
-                </Text>
               </Flex>
             </Flex>
 

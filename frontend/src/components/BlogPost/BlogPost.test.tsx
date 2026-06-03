@@ -42,6 +42,7 @@ vi.mock('./hooks', () => ({
     isLoading: false,
     mutateAsync: vi.fn(),
   }),
+  useBlogReactionMutation: () => ({}),
 }));
 
 describe('BlogPost', () => {

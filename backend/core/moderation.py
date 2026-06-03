@@ -6,7 +6,8 @@ from django.core.mail import send_mail
 from analytics.models import AnalyticsEvent
 from analytics.services import record_content_event
 from interactions.models import Notification
-from interactions.services import create_notification
+from interactions.services import create_notification, notify_followers
+from users.achievements import sync_creator_stats
 
 
 MODERATION_STATUS_LABELS = {
@@ -92,8 +93,7 @@ def notify_moderation_result(*, user, item_label: str, title: str, status: str, 
     )
 
 
-def record_publication_event(*, user, item_label: str, object_id: int, title: str):
-    content_kind = AnalyticsEvent.ContentKind.COMIC if item_label == 'комикс' else AnalyticsEvent.ContentKind.POST
+def record_publication_event(*, user, item_label: str, object_id: int, title: str, content_kind: str):
     record_content_event(
         owner=user,
         actor=user,
@@ -102,3 +102,20 @@ def record_publication_event(*, user, item_label: str, object_id: int, title: st
         title_snapshot=title,
         event_type=AnalyticsEvent.EventType.PUBLICATION,
     )
+
+    is_comic = content_kind == AnalyticsEvent.ContentKind.COMIC
+    link_path = f'/comics/{object_id}' if is_comic else f'/blog/{object_id}'
+    follower_message = (
+        f'{user.username} опубликовал новый комикс «{title}».'
+        if is_comic
+        else f'{user.username} опубликовал новый пост «{title}».'
+    )
+    notify_followers(
+        author=user,
+        message=follower_message,
+        link=link_path,
+        notification_type=Notification.Type.INFO,
+    )
+
+    if content_kind == AnalyticsEvent.ContentKind.COMIC:
+        sync_creator_stats(user)

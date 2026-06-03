@@ -233,6 +233,7 @@ export const ComicCreate: FC = () => {
   const canPublish = Boolean(currentUser);
   const isUploading = createComicMutation.isLoading;
   const isEditMode = Boolean(editableComic);
+  const isPublishedEdit = editableComic?.status === 'published';
 
   const payload: Partial<CreateComicPayload> = {
     comicId: editableComic?.id,
@@ -392,9 +393,11 @@ export const ComicCreate: FC = () => {
       reset();
       clearUploadLock();
       messageApi.success(
-        response.status === 'under_review'
-          ? `Комикс "${response.title}" ${isEditMode ? 'обновлён и отправлен' : 'отправлен'} на модерацию.`
-          : `Комикс "${response.title}" ${isEditMode ? 'обновлён и сохранён' : 'сохранён'} в черновик.`,
+        response.status === 'published'
+          ? `Комикс "${response.title}" обновлён и остаётся опубликованным.`
+          : response.status === 'under_review'
+            ? `Комикс "${response.title}" ${isEditMode ? 'обновлён и отправлен' : 'отправлен'} на модерацию.`
+            : `Комикс "${response.title}" ${isEditMode ? 'обновлён и сохранён' : 'сохранён'} в черновик.`,
       );
       navigate('/account', {
         state: {
@@ -693,6 +696,15 @@ export const ComicCreate: FC = () => {
           />
         ) : null}
 
+        {isPublishedEdit ? (
+          <Alert
+            type="success"
+            showIcon
+            message="Вы редактируете опубликованный комикс"
+            description="После сохранения комикс останется доступным в приложении. Новые главы и страницы сразу попадут в опубликованную версию."
+          />
+        ) : null}
+
         {currentStep === 0 ? (
           <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
             <FirstStep />
@@ -945,21 +957,34 @@ export const ComicCreate: FC = () => {
               </Button>
             ) : (
               <>
-                <Button
-                  loading={isUploading}
-                  onClick={() => void handleSubmit('draft')}
-                  disabled={!canPublish || isUploading || uploadState.isDraftLocked}
-                >
-                  Сохранить в черновик
-                </Button>
-                <Button
-                  type="primary"
-                  loading={isUploading}
-                  onClick={() => void handleSubmit('under_review')}
-                  disabled={!canPublish || isUploading || uploadState.isDraftLocked}
-                >
-                  Отправить на модерацию
-                </Button>
+                {isPublishedEdit ? (
+                  <Button
+                    type="primary"
+                    loading={isUploading}
+                    onClick={() => void handleSubmit('published')}
+                    disabled={!canPublish || isUploading || uploadState.isDraftLocked}
+                  >
+                    Сохранить изменения
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      loading={isUploading}
+                      onClick={() => void handleSubmit('draft')}
+                      disabled={!canPublish || isUploading || uploadState.isDraftLocked}
+                    >
+                      Сохранить в черновик
+                    </Button>
+                    <Button
+                      type="primary"
+                      loading={isUploading}
+                      onClick={() => void handleSubmit('under_review')}
+                      disabled={!canPublish || isUploading || uploadState.isDraftLocked}
+                    >
+                      Отправить на модерацию
+                    </Button>
+                  </>
+                )}
               </>
             )}
           </Space>

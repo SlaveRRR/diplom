@@ -47,9 +47,6 @@ export const RequiredAuth: FC<RequiredAuthProps> = ({ children }) => {
                 </Flex>
 
                 <Space direction="vertical" size={10} className="w-full">
-                  <Text className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--color-text-secondary)]">
-                    Авторский доступ
-                  </Text>
                   <Title level={2} className="!mb-0 !text-balance" data-testid="title">
                     Этот раздел открывается после входа в аккаунт
                   </Title>

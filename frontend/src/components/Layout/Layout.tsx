@@ -3,6 +3,7 @@ import { FC, PropsWithChildren, useCallback, useEffect, useMemo, useState } from
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   BarChartOutlined,
+  CalendarOutlined,
   CompassOutlined,
   HeartOutlined,
   HistoryOutlined,
@@ -10,6 +11,7 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   ReadOutlined,
+  StarOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import { NotificationInstance } from 'antd/es/notification/interface';
@@ -54,6 +56,7 @@ export const Layout: FC<LayoutProps> = ({ children, notificationApi }) => {
   const [collapsed, setCollapsed] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [isRecapViewerOpen, setIsRecapViewerOpen] = useState(false);
   const {
     token: { borderRadiusLG, colorBgContainer, colorBorderSecondary, colorPrimary, colorTextSecondary },
   } = theme.useToken();
@@ -84,6 +87,7 @@ export const Layout: FC<LayoutProps> = ({ children, notificationApi }) => {
 
   const hasAnalyticsAccess = Boolean(account && ((account.comics?.length ?? 0) || (account.posts?.length ?? 0)));
   const isReaderRoute = /^\/comics\/[^/]+\/chapters\/[^/]+/.test(location.pathname);
+  const isImmersiveMode = isReaderRoute || isRecapViewerOpen;
   const signInHref = buildAuthPath('/signin', {
     redirectTo: getCurrentRelativeUrl(location.pathname, location.search, location.hash),
   });
@@ -106,6 +110,22 @@ export const Layout: FC<LayoutProps> = ({ children, notificationApi }) => {
 
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  useEffect(() => {
+    const handleRecapViewerChange = (event: Event) => {
+      const customEvent = event as CustomEvent<{ isOpen?: boolean }>;
+      setIsRecapViewerOpen(Boolean(customEvent.detail?.isOpen));
+    };
+
+    window.addEventListener('recap-viewer-visibility-change', handleRecapViewerChange as EventListener);
+    return () => window.removeEventListener('recap-viewer-visibility-change', handleRecapViewerChange as EventListener);
+  }, []);
+
+  useEffect(() => {
+    if (isRecapViewerOpen) {
+      setMobileMenuOpen(false);
+    }
+  }, [isRecapViewerOpen]);
 
   const selectedKey = useMemo(() => {
     if (location.pathname === '/') {
@@ -136,6 +156,14 @@ export const Layout: FC<LayoutProps> = ({ children, notificationApi }) => {
       return 'analytics';
     }
 
+    if (location.pathname.startsWith('/achievements')) {
+      return 'achievements';
+    }
+
+    if (location.pathname.startsWith('/recap')) {
+      return 'recap';
+    }
+
     return '';
   }, [location.pathname]);
 
@@ -149,6 +177,8 @@ export const Layout: FC<LayoutProps> = ({ children, notificationApi }) => {
         : []),
       { key: 'history', icon: <HistoryOutlined />, label: <Link to="/history">История</Link> },
       { key: 'favorites', icon: <HeartOutlined />, label: <Link to="/favorites">Избранное</Link> },
+      { key: 'recap', icon: <CalendarOutlined />, label: <Link to="/recap">Итоги месяца</Link> },
+      { key: 'achievements', icon: <StarOutlined />, label: <Link to="/achievements">Достижения</Link> },
     ],
     [hasAnalyticsAccess],
   );
@@ -167,7 +197,7 @@ export const Layout: FC<LayoutProps> = ({ children, notificationApi }) => {
 
   return (
     <RootLayout>
-      {!isReaderRoute && !isMobile ? (
+      {!isImmersiveMode && !isMobile ? (
         <Sidebar
           collapsible
           collapsed={collapsed}
@@ -181,7 +211,7 @@ export const Layout: FC<LayoutProps> = ({ children, notificationApi }) => {
         </Sidebar>
       ) : null}
 
-      {!isReaderRoute ? (
+      {!isImmersiveMode ? (
         <Drawer
           placement="left"
           closable={false}
@@ -197,7 +227,7 @@ export const Layout: FC<LayoutProps> = ({ children, notificationApi }) => {
       ) : null}
 
       <MainLayout $isMobile={isMobile} $collapsed={collapsed} $isReaderMode={isReaderRoute}>
-        {!isReaderRoute ? (
+        {!isImmersiveMode ? (
           <MainHeader $background={colorBgContainer} $borderColor={colorBorderSecondary}>
             <MenuToggleButton
               type="text"
@@ -241,7 +271,7 @@ export const Layout: FC<LayoutProps> = ({ children, notificationApi }) => {
           $isReaderMode={isReaderRoute}
         >
           {children}
-          {!isReaderRoute && (
+          {!isImmersiveMode && (
             <Footer className="mt-10 border-t border-black/8 pt-6 text-sm text-[var(--color-text-secondary)]">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <Space wrap size={[12, 8]}>

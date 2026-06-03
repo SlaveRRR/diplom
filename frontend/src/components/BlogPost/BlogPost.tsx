@@ -8,9 +8,10 @@ import StarterKit from '@tiptap/starter-kit';
 import { useApp, useRequireAuthAction } from '@hooks';
 import { BlogComment } from '@types';
 import { BlogImage } from '@components/BlogCreate/editor/blogImageExtension';
+import { Reactions } from '@components/shared';
 import { OutletContext } from '@pages/LayoutPage/types';
 
-import { useBlogCommentMutation, useBlogPostQuery } from './hooks';
+import { useBlogCommentMutation, useBlogPostQuery, useBlogReactionMutation } from './hooks';
 
 const { TextArea } = Input;
 const { Paragraph, Text, Title } = Typography;
@@ -58,6 +59,7 @@ export const BlogPost: FC = () => {
   const isPreview = searchParams.get('preview') === 'true';
   const { data, isLoading, isError } = useBlogPostQuery(postId, isPreview);
   const commentMutation = useBlogCommentMutation(postId);
+  const reactionMutation = useBlogReactionMutation(postId);
   const [commentText, setCommentText] = useState('');
   const [replyToComment, setReplyToComment] = useState<BlogComment | null>(null);
 
@@ -98,6 +100,19 @@ export const BlogPost: FC = () => {
       messageApi.success(replyToComment ? 'Ответ опубликован.' : 'Комментарий опубликован.');
     } catch (error) {
       messageApi.error(error instanceof Error ? error.message : 'Не удалось отправить комментарий.');
+    }
+  };
+
+  const handleToggleReaction = async (emoji: string) => {
+    if (!isAuth) {
+      redirectToAuth('like');
+      return;
+    }
+
+    try {
+      await reactionMutation.mutateAsync(emoji);
+    } catch (error) {
+      messageApi.error(error instanceof Error ? error.message : 'Не удалось обновить реакцию.');
     }
   };
 
@@ -166,6 +181,13 @@ export const BlogPost: FC = () => {
               <CommentOutlined /> {data.commentsCount}
             </Tag>
           </Flex>
+
+          <Reactions
+            reactions={data.reactions}
+            loading={reactionMutation.isLoading}
+            onSelect={handleToggleReaction}
+            pickerLabel="Реакция"
+          />
         </Flex>
       </section>
 

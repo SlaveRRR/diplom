@@ -1,3 +1,5 @@
+import { ContentReactionSummary } from '../reaction';
+
 export interface BlogTag {
   id: number;
   name: string;
@@ -52,6 +54,8 @@ export interface BlogPostDetail {
   author: BlogAuthor;
   comments: BlogComment[];
   commentsCount: number;
+  reactions: ContentReactionSummary[];
+  currentEmoji: string | null;
   publishedAt: string;
 }
 

@@ -13,6 +13,8 @@ export const LOGOUT_ENDPOINT = '/logout/';
 export const SOCIAL_SESSION_EXCHANGE_ENDPOINT = '/social/exchange/';
 
 export const CURRENT_USER_ENDPOINT = '/users/me/';
+export const USER_ACHIEVEMENTS_ENDPOINT = '/users/me/achievements/';
+export const USER_MONTHLY_RECAP_ENDPOINT = '/users/me/recap/';
 export const ACCOUNT_ENDPOINT = '/account/';
 export const ACCOUNT_AVATAR_UPLOAD_CONFIG_ENDPOINT = '/account/avatar-upload-config/';
 export const ACCOUNT_AVATAR_CONFIRM_ENDPOINT = '/account/avatar-confirm/';
@@ -40,6 +42,7 @@ export const BLOG_CONFIRM_ENDPOINT = '/posts/confirm/';
 export const getBlogPostEndpoint = (postId: string | number) => `/posts/${postId}/`;
 export const getBlogPostEditorEndpoint = (postId: string | number) => `/posts/${postId}/editor/`;
 export const getBlogPostCommentsEndpoint = (postId: string | number) => `/posts/${postId}/comments/`;
+export const getBlogPostReactionEndpoint = (postId: string | number) => `/posts/${postId}/reaction/`;
 
 export const getComicDetailsEndpoint = (comicId: string | number) => `/comics/${comicId}/`;
 export const getComicEditorEndpoint = (comicId: string | number) => `/comics/${comicId}/editor/`;
@@ -49,6 +52,7 @@ export const getComicCommentsEndpoint = (comicId: string | number) => `/comics/$
 export const getComicFavoriteEndpoint = (comicId: string | number) => `/comics/${comicId}/favorite/`;
 
 export const getComicLikeEndpoint = (comicId: string | number) => `/comics/${comicId}/like/`;
+export const getComicReactionEndpoint = (comicId: string | number) => `/comics/${comicId}/reaction/`;
 
 export const getComicRatingEndpoint = (comicId: string | number) => `/comics/${comicId}/rating/`;
 

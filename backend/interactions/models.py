@@ -51,6 +51,37 @@ class Comment(TimeStampedModel):
         return f'Comment #{self.pk}'
 
 
+class ContentReaction(TimeStampedModel):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='content_reactions',
+    )
+    content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.CASCADE,
+        related_name='reactions',
+    )
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey('content_type', 'object_id')
+    emoji = models.CharField(max_length=32)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=('content_type', 'object_id', 'emoji'), name='reaction_target_emoji_idx'),
+            models.Index(fields=('user', 'created_at'), name='reaction_user_created_idx'),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=('user', 'content_type', 'object_id'),
+                name='unique_reaction_per_user_and_object',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.user} reacted {self.emoji}'
+
+
 class ComicFavorite(TimeStampedModel):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,

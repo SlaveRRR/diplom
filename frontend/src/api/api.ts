@@ -18,12 +18,14 @@ import {
   getBlogPostCommentsEndpoint,
   getBlogPostEditorEndpoint,
   getBlogPostEndpoint,
+  getBlogPostReactionEndpoint,
   getComicCommentsEndpoint,
   getComicDetailsEndpoint,
   getComicEditorEndpoint,
   getComicFavoriteEndpoint,
   getComicLikeEndpoint,
   getComicRatingEndpoint,
+  getComicReactionEndpoint,
   getComicReaderEndpoint,
   getComicReadingProgressEndpoint,
   getUserFollowEndpoint,
@@ -40,6 +42,8 @@ import {
   SIGNUP_RESEND_VERIFICATION_ENDPOINT,
   SOCIAL_SESSION_EXCHANGE_ENDPOINT,
   TAXONOMY_PLATFORM_ENDPOINT,
+  USER_ACHIEVEMENTS_ENDPOINT,
+  USER_MONTHLY_RECAP_ENDPOINT,
 } from '@constants';
 import {
   AccesTokenResponse,
@@ -74,6 +78,8 @@ import {
   ComicReadingProgress,
   ComicUploadConfigPayload,
   ComicUploadConfigResponse,
+  ContentReactionState,
+  ContentReactionTogglePayload,
   HomeSelectionsResponse,
   NotificationDeletePayload,
   NotificationDeleteResponse,
@@ -88,7 +94,9 @@ import {
   TaxonomyPlatformData,
   User,
   UserAccount,
+  UserAchievementsResponse,
   UserFollowToggleResponse,
+  UserMonthlyRecapResponse,
   UserProfile,
   UserProfileUpdatePayload,
   VerificationEmailResponse,
@@ -123,6 +131,14 @@ class Api {
 
   async getCurrentUser() {
     return axiosInstance.get<Response<User>>(CURRENT_USER_ENDPOINT);
+  }
+
+  async getUserAchievements() {
+    return axiosInstance.get<Response<UserAchievementsResponse>>(USER_ACHIEVEMENTS_ENDPOINT);
+  }
+
+  async getUserMonthlyRecap(params?: { year?: number; month?: number }) {
+    return axiosInstance.get<Response<UserMonthlyRecapResponse>>(USER_MONTHLY_RECAP_ENDPOINT, { params });
   }
 
   async updateCurrentUser(data: UserProfileUpdatePayload) {
@@ -238,6 +254,10 @@ class Api {
     return axiosInstance.post<Response<BlogComment>>(getBlogPostCommentsEndpoint(postId), data);
   }
 
+  async toggleBlogPostReaction(postId: string | number, data: ContentReactionTogglePayload) {
+    return axiosInstance.post<Response<ContentReactionState>>(getBlogPostReactionEndpoint(postId), data);
+  }
+
   async getComicDetails(comicId: string | number) {
     return axiosInstance.get<Response<ComicDetailsResponse>>(getComicDetailsEndpoint(comicId));
   }
@@ -273,6 +293,10 @@ class Api {
 
   async toggleComicLike(comicId: string | number) {
     return axiosInstance.post<Response<ComicInteractionResponse>>(getComicLikeEndpoint(comicId));
+  }
+
+  async toggleComicReaction(comicId: string | number, data: ContentReactionTogglePayload) {
+    return axiosInstance.post<Response<ContentReactionState>>(getComicReactionEndpoint(comicId), data);
   }
 
   async rateComic(comicId: string | number, value: number) {

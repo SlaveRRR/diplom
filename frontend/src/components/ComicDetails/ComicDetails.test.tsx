@@ -50,6 +50,7 @@ vi.mock('./hooks', () => ({
     isLoading: false,
     mutateAsync: vi.fn(),
   }),
+  useComicReactionMutation: () => ({}),
 }));
 
 describe('ComicDetails', () => {
