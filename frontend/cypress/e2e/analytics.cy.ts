@@ -16,26 +16,20 @@ describe('Analytics page', () => {
       cy.contains('h2', 'Аналитика').should('be.visible');
       cy.contains('Скачать Excel').should('be.visible');
       cy.contains(String(analytics.topItems[0].title)).should('be.visible');
-      cy.contains('12,450').should('be.visible');
+      cy.contains('12 450').should('be.visible');
     });
   });
 
   it('оставляет пользователя на странице при ошибке экспорта отчета', () => {
     mockAuthenticatedShell();
     mockAnalyticsApi();
-    cy.intercept(
-      {
-        method: 'GET',
-        pathname: '/api/v1/analytics/export/',
+    cy.intercept('GET', '**/api/v1/analytics/export/**', {
+      statusCode: 500,
+      body: {
+        data: null,
+        error: { message: 'Не удалось сформировать отчет.' },
       },
-      {
-        statusCode: 500,
-        body: {
-          data: null,
-          error: { message: 'Не удалось сформировать отчет.' },
-        },
-      },
-    ).as('exportAnalyticsFailed');
+    }).as('exportAnalyticsFailed');
 
     cy.visitApp('/analytics', { authenticated: true });
     cy.wait(['@getCurrentUser', '@getAccount', '@getNotifications', '@getAnalytics']);

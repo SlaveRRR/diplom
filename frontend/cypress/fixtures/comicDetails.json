@@ -22,6 +22,10 @@
     "averageRating": 4.8,
     "ratingsCount": 124,
     "userRating": null,
+    "reactions": [
+      { "emoji": "🔥", "count": 8, "isSelected": false },
+      { "emoji": "😍", "count": 5, "isSelected": false }
+    ],
     "commentsCount": 2,
     "readersCount": 5100,
     "chaptersCount": 2,

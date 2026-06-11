@@ -16,7 +16,7 @@
   Upload,
 } from 'antd';
 import clsx from 'clsx';
-import { FC, useEffect, useMemo, useRef } from 'react';
+import { FC, useEffect, useMemo, useRef, useState } from 'react';
 import { Link as RouterLink, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import {
   ArrowDownOutlined,
@@ -125,6 +125,12 @@ const getUploadFile = (file: UploadFile) => {
 
 const UPLOAD_REQUIREMENTS_TEXT = `Поддерживаются PNG, JPG и WEBP до ${MAX_IMAGE_UPLOAD_SIZE_MB} МБ и до ${MAX_IMAGE_DIMENSION_PX}px по большей стороне. PNG и JPG автоматически конвертируются в WEBP.`;
 
+type ChapterImagesProcessingState = {
+  chapterTitle: string;
+  processedFiles: number;
+  totalFiles: number;
+} | null;
+
 export const ComicCreate: FC = () => {
   const { comicId } = useParams();
   const navigate = useNavigate();
@@ -137,6 +143,8 @@ export const ComicCreate: FC = () => {
     isError: isEditableComicError,
   } = useEditableComicQuery(comicId);
   const { mutation: createComicMutation, uploadState, clearUploadLock } = useCreateComicMutation();
+  const [chapterImagesProcessingState, setChapterImagesProcessingState] = useState<ChapterImagesProcessingState>(null);
+  const chapterImageProcessingSessionRef = useRef(0);
   const cleanupRef = useRef({
     banner: null as LocalUploadAsset | null,
     chapters: [] as ChapterDraft[],
@@ -232,6 +240,7 @@ export const ComicCreate: FC = () => {
 
   const canPublish = Boolean(currentUser);
   const isUploading = createComicMutation.isLoading;
+  const isProcessingChapterImages = Boolean(chapterImagesProcessingState);
   const isEditMode = Boolean(editableComic);
   const isPublishedEdit = editableComic?.status === 'published';
 
@@ -304,16 +313,46 @@ export const ComicCreate: FC = () => {
       );
     }
 
-    const normalizedResults = await normalizeUploadImagesSettled(limitedFiles);
-    const nextAssets = normalizedResults.reduce<LocalUploadAsset[]>((assets, result) => {
-      if (result.file) {
-        assets.push(createAssetFromFile(result.file));
-        return assets;
-      }
+    const sessionId = chapterImageProcessingSessionRef.current + 1;
+    chapterImageProcessingSessionRef.current = sessionId;
 
-      messageApi.warning(result.error?.message || 'Не удалось обработать изображение страницы.');
-      return assets;
-    }, []);
+    setChapterImagesProcessingState({
+      chapterTitle: chapter.title || `Глава ${chapter.chapterNumber}`,
+      processedFiles: 0,
+      totalFiles: limitedFiles.length,
+    });
+
+    let nextAssets: LocalUploadAsset[] = [];
+
+    try {
+      const normalizedResults = await normalizeUploadImagesSettled(limitedFiles, {
+        onProgress: (processedFiles, totalFiles) => {
+          setChapterImagesProcessingState((currentState) =>
+            chapterImageProcessingSessionRef.current === sessionId && currentState
+              ? {
+                  ...currentState,
+                  processedFiles: Math.max(currentState.processedFiles, processedFiles),
+                  totalFiles,
+                }
+              : currentState,
+          );
+        },
+      });
+
+      nextAssets = normalizedResults.reduce<LocalUploadAsset[]>((assets, result) => {
+        if (result.file) {
+          assets.push(createAssetFromFile(result.file));
+          return assets;
+        }
+
+        messageApi.warning(result.error?.message || 'Не удалось обработать изображение страницы.');
+        return assets;
+      }, []);
+    } finally {
+      if (chapterImageProcessingSessionRef.current === sessionId) {
+        setChapterImagesProcessingState(null);
+      }
+    }
 
     if (!nextAssets.length) {
       return;
@@ -493,9 +532,7 @@ export const ComicCreate: FC = () => {
             <Title level={3} className="!mb-2">
               Финальная проверка
             </Title>
-            <Text type="secondary">
-              Перед отправкой проверь, что структура комикса выглядит именно так, как ты хочешь увидеть её в черновике.
-            </Text>
+            <Text type="secondary">Проверьте стркуктуру комикса перед отправкой.</Text>
           </Flex>
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -626,7 +663,7 @@ export const ComicCreate: FC = () => {
 
   return (
     <div className="relative">
-      {isUploading ? (
+      {isUploading || isProcessingChapterImages ? (
         <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm">
           <Card className="w-full max-w-2xl rounded-3xl border-0 shadow-2xl">
             <Space direction="vertical" size={18} className="w-full">
@@ -634,27 +671,50 @@ export const ComicCreate: FC = () => {
                 <Spin size="large" />
                 <Flex vertical gap={2}>
                   <Text strong className="text-base">
-                    {uploadState.stage === 'config' ? 'Готовим upload-config' : null}
-                    {uploadState.stage === 'upload' ? 'Загружаем файлы в S3' : null}
-                    {uploadState.stage === 'confirm' ? 'Подтверждаем создание комикса' : null}
-                    {uploadState.stage === 'idle' ? 'Создаём комикс' : null}
+                    {isProcessingChapterImages ? 'Обрабатываем страницы главы' : null}
+                    {!isProcessingChapterImages && uploadState.stage === 'config' ? 'Готовим конфиг' : null}
+                    {!isProcessingChapterImages && uploadState.stage === 'upload' ? 'Загружаем файлы в S3' : null}
+                    {!isProcessingChapterImages && uploadState.stage === 'confirm'
+                      ? 'Подтверждаем создание комикса'
+                      : null}
+                    {!isProcessingChapterImages && uploadState.stage === 'idle' ? 'Создаём комикс' : null}
                   </Text>
                   <Text type="secondary">
-                    {uploadState.stage === 'config'
+                    {isProcessingChapterImages
+                      ? `Подготавливаем изображения для "${chapterImagesProcessingState?.chapterTitle || 'главы'}". Можно немного подождать, прогресс обновляется по мере конвертации.`
+                      : null}
+                    {!isProcessingChapterImages && uploadState.stage === 'config'
                       ? 'Собираем конфиг загрузки для обложки, баннера и страниц глав.'
                       : null}
-                    {uploadState.stage === 'upload'
+                    {!isProcessingChapterImages && uploadState.stage === 'upload'
                       ? 'Не закрывайте страницу: изображения уже отправляются в хранилище.'
                       : null}
-                    {uploadState.stage === 'confirm'
-                      ? 'Файлы уже загружены в S3, завершаем создание комикса на backend.'
+                    {!isProcessingChapterImages && uploadState.stage === 'confirm'
+                      ? 'Файлы уже загружены в S3, завершаем создание комикса.'
                       : null}
-                    {uploadState.stage === 'idle' ? 'Подготавливаем процесс загрузки.' : null}
+                    {!isProcessingChapterImages && uploadState.stage === 'idle'
+                      ? 'Подготавливаем процесс загрузки.'
+                      : null}
                   </Text>
                 </Flex>
               </Flex>
 
-              {uploadState.totalFiles ? (
+              {isProcessingChapterImages && chapterImagesProcessingState?.totalFiles ? (
+                <>
+                  <Progress
+                    percent={Math.round(
+                      (chapterImagesProcessingState.processedFiles / chapterImagesProcessingState.totalFiles) * 100,
+                    )}
+                    status="active"
+                  />
+                  <Text type="secondary">
+                    Подготовлено страниц: {chapterImagesProcessingState.processedFiles} из{' '}
+                    {chapterImagesProcessingState.totalFiles}
+                  </Text>
+                </>
+              ) : null}
+
+              {!isProcessingChapterImages && uploadState.totalFiles ? (
                 <>
                   <Progress
                     percent={Math.round((uploadState.uploadedFiles / uploadState.totalFiles) * 100)}
@@ -670,7 +730,11 @@ export const ComicCreate: FC = () => {
         </div>
       ) : null}
 
-      <Flex vertical gap={24} className={clsx('py-6 md:gap-8 md:py-8', isUploading && 'pointer-events-none')}>
+      <Flex
+        vertical
+        gap={24}
+        className={clsx('py-6 md:gap-8 md:py-8', (isUploading || isProcessingChapterImages) && 'pointer-events-none')}
+      >
         {isLoadingEditableComic ? (
           <Flex justify="center" className="py-12">
             <Spin size="large" />
@@ -764,7 +828,7 @@ export const ComicCreate: FC = () => {
                     <Space direction="vertical" size={20} className="w-full">
                       <Flex justify="space-between" align="center" gap={16} wrap>
                         <Flex vertical gap={8}>
-                          <Tag color="blue" className="mb-2 rounded-full">
+                          <Tag color="blue" className="mb-2 rounded-full w-max">
                             Глава {chapter.chapterNumber}
                           </Tag>
                           <Title level={4} className="!mb-0">
@@ -828,7 +892,7 @@ export const ComicCreate: FC = () => {
                                 accept={getAllowedImageAccept()}
                                 multiple
                                 beforeUpload={() => false}
-                                disabled={isUploading}
+                                disabled={isUploading || isProcessingChapterImages}
                                 showUploadList={false}
                                 className="!border-0 !bg-transparent"
                                 onChange={(change) => void syncChapterAssets(chapter, change)}
@@ -870,14 +934,18 @@ export const ComicCreate: FC = () => {
                                         <Button
                                           size="small"
                                           icon={<ArrowUpOutlined />}
-                                          disabled={isUploading || pageIndex === 0}
+                                          disabled={isUploading || isProcessingChapterImages || pageIndex === 0}
                                           onClick={() => moveChapterPage(chapter.id, pageIndex, 'backward')}
                                         />
 
                                         <Button
                                           size="small"
                                           icon={<ArrowDownOutlined />}
-                                          disabled={isUploading || pageIndex === chapter.pages.length - 1}
+                                          disabled={
+                                            isUploading ||
+                                            isProcessingChapterImages ||
+                                            pageIndex === chapter.pages.length - 1
+                                          }
                                           onClick={() => moveChapterPage(chapter.id, pageIndex, 'forward')}
                                         />
 
@@ -885,7 +953,7 @@ export const ComicCreate: FC = () => {
                                           size="small"
                                           danger
                                           icon={<DeleteOutlined />}
-                                          disabled={isUploading}
+                                          disabled={isUploading || isProcessingChapterImages}
                                           onClick={() => {
                                             revokeAsset(page);
                                             removeChapterPage(chapter.id, pageIndex);
@@ -934,7 +1002,10 @@ export const ComicCreate: FC = () => {
         <Divider className="!my-0" />
 
         <Flex justify="space-between" align="center" gap={16} wrap>
-          <Button disabled={currentStep === 0 || isUploading} onClick={() => setCurrentStep(currentStep - 1)}>
+          <Button
+            disabled={currentStep === 0 || isUploading || isProcessingChapterImages}
+            onClick={() => setCurrentStep(currentStep - 1)}
+          >
             Назад
           </Button>
 
@@ -947,12 +1018,16 @@ export const ComicCreate: FC = () => {
                 clearUploadLock();
                 reset();
               }}
-              disabled={isUploading}
+              disabled={isUploading || isProcessingChapterImages}
             >
               Сбросить
             </Button>
             {currentStep < STEP_ITEMS.length - 1 ? (
-              <Button type="primary" onClick={handleStepForward} disabled={isUploading || !canPublish}>
+              <Button
+                type="primary"
+                onClick={handleStepForward}
+                disabled={isUploading || isProcessingChapterImages || !canPublish}
+              >
                 Далее
               </Button>
             ) : (
@@ -962,7 +1037,7 @@ export const ComicCreate: FC = () => {
                     type="primary"
                     loading={isUploading}
                     onClick={() => void handleSubmit('published')}
-                    disabled={!canPublish || isUploading || uploadState.isDraftLocked}
+                    disabled={!canPublish || isUploading || isProcessingChapterImages || uploadState.isDraftLocked}
                   >
                     Сохранить изменения
                   </Button>
@@ -971,7 +1046,7 @@ export const ComicCreate: FC = () => {
                     <Button
                       loading={isUploading}
                       onClick={() => void handleSubmit('draft')}
-                      disabled={!canPublish || isUploading || uploadState.isDraftLocked}
+                      disabled={!canPublish || isUploading || isProcessingChapterImages || uploadState.isDraftLocked}
                     >
                       Сохранить в черновик
                     </Button>
@@ -979,7 +1054,7 @@ export const ComicCreate: FC = () => {
                       type="primary"
                       loading={isUploading}
                       onClick={() => void handleSubmit('under_review')}
-                      disabled={!canPublish || isUploading || uploadState.isDraftLocked}
+                      disabled={!canPublish || isUploading || isProcessingChapterImages || uploadState.isDraftLocked}
                     >
                       Отправить на модерацию
                     </Button>

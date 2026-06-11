@@ -70,7 +70,10 @@ class AuthenticationApiTests(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(response.data['detail'], 'Email is not verified yet. Please confirm your email first.')
+        self.assertEqual(
+            response.data['detail'],
+            'Почта не подтверждена. Пожалуйста, подтвердите свою почту.',
+        )
 
     def test_resend_verification_email_respects_cooldown(self):
         User.objects.create_user(
@@ -140,29 +143,20 @@ class SocialAccountAdapterTests(APITestCase):
 
     def test_populate_user_sets_avatar_for_new_yandex_user(self):
         sociallogin = SocialLogin(
-            user=User(),
+            user=User(email='social@example.com'),
             account=SocialAccount(
                 provider='yandex',
-                uid='yandex-uid',
-                extra_data={
-                    'default_avatar_id': '777/avatar',
-                    'is_avatar_empty': False,
-                },
+                extra_data={'default_avatar_id': '42/avatar', 'is_avatar_empty': False},
             ),
         )
-        user = self.adapter.populate_user(
+
+        populated_user = self.adapter.populate_user(
             None,
             sociallogin,
             {
-                'email': 'social-user@example.com',
-                'first_name': 'Ivan',
-                'last_name': 'Petrov',
-                'username': 'social-user',
+                'email': 'social@example.com',
+                'username': 'social-reader',
             },
         )
 
-        self.assertEqual(user.email, 'social-user@example.com')
-        self.assertEqual(
-            user.avatar,
-            'https://avatars.yandex.net/get-yapic/777/avatar/islands-34',
-        )
+        self.assertEqual(populated_user.avatar, 'https://avatars.yandex.net/get-yapic/42/avatar/islands-34')

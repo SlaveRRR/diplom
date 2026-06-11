@@ -5,7 +5,7 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
@@ -400,8 +400,13 @@ class ComicsApiTests(APITestCase):
         self.reader.refresh_from_db()
         self.assertEqual(self.reader.role, User.Role.AUTHOR)
 
+    @override_settings(
+        ADMINS_EMAILS=['moderation-1@example.com', 'moderation-2@example.com'],
+        BACKEND_PUBLIC_URL='https://api.comicsera.ru',
+    )
+    @patch('core.moderation.send_email_task.delay')
     @patch('comics.views.services.S3UploadService.object_exists', return_value=True)
-    def test_confirm_creates_comic_and_chapters_from_draft(self, mock_object_exists):
+    def test_confirm_creates_comic_and_chapters_from_draft(self, mock_object_exists, send_email_task_mock):
         comic_draft = ComicUploadDraft.objects.create(
             user=self.author,
             title='Лунная Башня',
@@ -443,6 +448,13 @@ class ComicsApiTests(APITestCase):
         self.assertEqual(Comic.objects.get().age_rating, ComicAgeRating.AGE_16)
         comic_draft.refresh_from_db()
         self.assertEqual(comic_draft.status, UploadDraftStatus.COMPLETED)
+        send_email_task_mock.assert_called_once()
+        self.assertEqual(
+            send_email_task_mock.call_args.kwargs['recipient_list'],
+            ['moderation-1@example.com', 'moderation-2@example.com'],
+        )
+        self.assertIn('/admin/comics/comic/', send_email_task_mock.call_args.kwargs['message'])
+        self.assertIn('/change/', send_email_task_mock.call_args.kwargs['message'])
 
     @patch('comics.views.services.S3UploadService.object_exists', return_value=False)
     def test_confirm_returns_422_when_storage_objects_missing(self, mock_object_exists):

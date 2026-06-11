@@ -5,7 +5,6 @@ import viteConfig from './vite.config';
 
 // Проверяем, запущен ли отдельный файл (например, `yarn test src/.../file.test.tsx`)
 const isTestingSingleFile = process.argv.some((arg) => /.test.tsx?/.test(arg));
-
 const resolveViteConfig = viteConfig as (env: ConfigEnv) => UserConfig;
 
 export default defineConfig((env) =>
@@ -18,11 +17,12 @@ export default defineConfig((env) =>
         setupFiles: 'tests/setup.tsx',
         css: true,
         root: 'src',
+        reporters: ['default', ['allure-vitest/reporter', { resultsDir: '../allure-results' }]],
         coverage: {
           reporter: 'text',
           provider: 'v8',
           exclude: ['__mocks__/**/**', '**/index.ts?(x)', '**/types.ts', '**/*.d.ts', 'types', '**/constants/**'],
-          all: !isTestingSingleFile, // false при тесте одного файла, true при полном запуске
+          all: !isTestingSingleFile,
         },
       },
     }),

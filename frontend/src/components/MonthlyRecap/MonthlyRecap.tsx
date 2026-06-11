@@ -15,11 +15,11 @@ import { MONTHLY_RECAP_QUERY_KEY, recapStatisticCards } from './constants';
 
 const { Paragraph, Text, Title } = Typography;
 
-const getMonthLabel = (year: number, month: number) =>
-  new Date(year, month - 1, 1).toLocaleDateString('ru-RU', {
-    month: 'long',
-    year: 'numeric',
-  });
+const getMonthLabel = (year: number, month: number) => {
+  const date = new Date(year, month - 1, 1);
+  const monthName = date.toLocaleDateString('ru-RU', { month: 'long' });
+  return `${monthName} ${year}`;
+};
 
 const shiftMonth = (year: number, month: number, delta: number) => {
   const nextDate = new Date(year, month - 1 + delta, 1);
@@ -255,7 +255,7 @@ export const MonthlyRecap = () => {
 
         .recap-stat-card .ant-card-body {
           display: flex;
-          min-height: 148px;
+          min-height: 100%;
           flex-direction: column;
           justify-content: space-between;
         }
@@ -424,7 +424,6 @@ export const MonthlyRecap = () => {
           }
 
           .recap-stat-card .ant-card-body {
-            min-height: 116px;
             padding: 18px;
           }
 
@@ -577,10 +576,10 @@ export const MonthlyRecap = () => {
                             Обзор месяца
                           </Tag>
                           <Title level={2} className="!mb-1 !mt-4 max-sm:!text-[28px]">
-                            {recap.period.title}
+                            {monthLabel}
                           </Title>
                           <Paragraph className="!mb-0 text-[16px] leading-7 text-[var(--color-text-secondary)] max-sm:!text-sm max-sm:leading-6">
-                            Базовые итоги по чтению и привычкам за месяц.
+                            Итоги по чтению и привычкам за месяц.
                           </Paragraph>
                         </div>
 

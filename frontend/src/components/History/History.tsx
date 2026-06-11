@@ -78,10 +78,10 @@ const ComicHistoryCard = ({ item }: { item: ComicReadingHistoryItem }) => (
         <img alt={item.title} src={item.coverUrl || item.cover} className="h-32 w-24 rounded-2xl object-cover" />
       ) : null}
 
-      <Flex vertical gap={8} className="min-w-0 flex-1">
+      <Flex vertical gap={12} className="min-w-[200px] flex-1">
         <Flex justify="space-between" align="start" wrap="wrap" gap={12}>
           <div>
-            <Title level={4} className="!mb-1" ellipsis={{ rows: 1, tooltip: item.title }}>
+            <Title level={3} className="!mb-1" ellipsis={{ rows: 1, tooltip: item.title }}>
               {item.title}
             </Title>
             <Text type="secondary">Последнее чтение: {formatDate(item.lastReadAt)}</Text>
@@ -114,7 +114,7 @@ const PostHistoryCard = ({ item }: { item: PostReadingHistoryItem }) => (
       <Flex vertical gap={8} className="min-w-0 flex-1">
         <Flex justify="space-between" align="start" wrap="wrap" gap={12}>
           <div>
-            <Title level={4} className="!mb-1" ellipsis={{ rows: 1, tooltip: item.title }}>
+            <Title level={3} className="!mb-1" ellipsis={{ rows: 1, tooltip: item.title }}>
               {item.title}
             </Title>
             <Text type="secondary">Последнее чтение: {formatDate(item.lastReadAt)}</Text>

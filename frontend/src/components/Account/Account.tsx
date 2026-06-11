@@ -32,6 +32,7 @@ import {
 } from '@ant-design/icons';
 
 import { colors } from '@constants';
+import { useWindowSize } from '@hooks';
 import { UserProfileComic, UserProfilePost, UserProfileUpdatePayload } from '@types';
 import { useUpdateCurrentProfileMutation } from '@components/Profile/hooks/useUpdateCurrentProfileMutation';
 import { OutletContext } from '@pages/LayoutPage/types';
@@ -147,6 +148,9 @@ export const Account: FC = () => {
     return authorPosts.filter((post) => post.status === postFilter);
   }, [authorPosts, postFilter]);
   const isCreator = data?.role === 'author' || Boolean(authorComics.length) || Boolean(authorPosts.length);
+
+  const { size } = useWindowSize();
+  const orientation = size === 'mobile' ? 'vertical' : 'horizontal';
 
   const handleSaveProfile = async (values: UserProfileUpdatePayload) => {
     try {
@@ -413,6 +417,7 @@ export const Account: FC = () => {
               </Flex>
 
               <Segmented<PostFilterValue>
+                orientation={orientation}
                 value={postFilter}
                 onChange={(value) => setPostFilter(value)}
                 options={postFilterOptions}

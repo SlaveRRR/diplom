@@ -17,7 +17,7 @@
   Tag,
   Typography,
 } from 'antd';
-import { FC, ReactNode, useMemo, useState } from 'react';
+import { FC, ReactNode, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { TelegramIcon, TelegramShareButton, VKIcon, VKShareButton } from 'react-share';
 import {
@@ -32,10 +32,11 @@ import {
   StarFilled,
   StarOutlined,
 } from '@ant-design/icons';
+import type { TextAreaRef } from 'antd/es/input/TextArea';
 
 import { colors } from '@constants';
 import { ComicComment, ComicDetailChapter } from '@types';
-import { Reactions } from '@components/shared';
+import { CommentEmojiPickerButton, Reactions } from '@components/shared';
 import { useApp } from '@hooks/useApp';
 import { useRequireAuthAction } from '@hooks/useRequireAuthAction';
 import { OutletContext } from '@pages/LayoutPage/types';
@@ -133,6 +134,7 @@ export const ComicDetails: FC = () => {
   const [commentText, setCommentText] = useState('');
   const [replyToComment, setReplyToComment] = useState<ComicComment | null>(null);
   const [episodeSortOrder, setEpisodeSortOrder] = useState<EpisodeSortOrder>('latest');
+  const commentTextAreaRef = useRef<TextAreaRef>(null);
 
   const isDraft = data?.status === 'draft';
 
@@ -257,6 +259,27 @@ export const ComicDetails: FC = () => {
     } catch (error) {
       messageApi.error(error instanceof Error ? error.message : 'Не удалось обновить реакцию.');
     }
+  };
+
+  const handleInsertCommentEmoji = (emoji: string) => {
+    const textArea = commentTextAreaRef.current?.resizableTextArea?.textArea;
+    const selectionStart = textArea?.selectionStart ?? commentText.length;
+    const selectionEnd = textArea?.selectionEnd ?? commentText.length;
+
+    setCommentText((previous) => {
+      const nextValue = `${previous.slice(0, selectionStart)}${emoji}${previous.slice(selectionEnd)}`;
+
+      requestAnimationFrame(() => {
+        commentTextAreaRef.current?.focus();
+        const nextCaretPosition = selectionStart + emoji.length;
+        commentTextAreaRef.current?.resizableTextArea?.textArea?.setSelectionRange(
+          nextCaretPosition,
+          nextCaretPosition,
+        );
+      });
+
+      return nextValue;
+    });
   };
 
   if (isLoading) {
@@ -646,6 +669,7 @@ export const ComicDetails: FC = () => {
 
                   <Form.Item className="!mb-3" label="Добавить комментарий">
                     <TextArea
+                      ref={commentTextAreaRef}
                       value={commentText}
                       onChange={(event) => setCommentText(event.target.value)}
                       rows={4}
@@ -659,15 +683,18 @@ export const ComicDetails: FC = () => {
                       }
                     />
                   </Form.Item>
-                  <Button
-                    type="primary"
-                    htmlType="submit"
-                    icon={<SendOutlined />}
-                    disabled={isDraft || !commentText.trim()}
-                    loading={commentMutation.isLoading}
-                  >
-                    {replyToComment ? 'Отправить ответ' : 'Отправить комментарий'}
-                  </Button>
+                  <Flex gap={12} wrap="wrap">
+                    <CommentEmojiPickerButton disabled={isDraft} onSelect={handleInsertCommentEmoji} />
+                    <Button
+                      type="primary"
+                      htmlType="submit"
+                      icon={<SendOutlined />}
+                      disabled={isDraft || !commentText.trim()}
+                      loading={commentMutation.isLoading}
+                    >
+                      {replyToComment ? 'Отправить ответ' : 'Отправить комментарий'}
+                    </Button>
+                  </Flex>
                 </Form>
 
                 <List
@@ -718,9 +745,11 @@ const ComicCommentItem: FC<ComicCommentItemProps> = ({ comment, onReply }) => (
     <Flex vertical gap={12} className="w-full">
       <Flex gap={12} align="start" className="w-full">
         <Link to={`/profile/${comment.author.id}`}>
-          <Avatar src={comment.author.avatar} size={44}>
-            {comment.author.username[0]?.toUpperCase()}
-          </Avatar>
+          {!comment.author.avatar ? (
+            <Avatar size={44}>{comment.author.username[0]?.toUpperCase()}</Avatar>
+          ) : (
+            <Avatar src={comment.author.avatar} size={44} alt="avatar" />
+          )}
         </Link>
         <Flex vertical gap={8} className="flex-1">
           <Flex justify="space-between" align="start" gap={12} wrap="wrap">

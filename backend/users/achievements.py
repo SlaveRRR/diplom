@@ -6,7 +6,7 @@ from django.utils import timezone
 
 from comics.models import Chapter, Comic
 from interactions.models import ComicFavorite, Comment, Notification
-from interactions.services import create_notification
+from interactions.services import enqueue_notification
 from users.models import UserAchievement, UserFinishedComic, UserReadChapter, UserReadingActivityDay, UserStats
 
 
@@ -125,7 +125,7 @@ def ensure_user_stats(user):
 
 def _schedule_achievement_notification(*, user, definition: AchievementDefinition):
     transaction.on_commit(
-        lambda: create_notification(
+        lambda: enqueue_notification(
             user=user,
             message=f'Открыто достижение «{definition.title}».',
             notification_type=Notification.Type.SUCCESS,

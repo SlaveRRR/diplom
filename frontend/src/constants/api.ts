@@ -1,5 +1,5 @@
-export const API_ENDPOINT = import.meta.env.VITE_API;
-export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+export const API_ENDPOINT = import.meta.env.VITE_API || 'http://localhost:8000/api/v1';
+export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
 export const SIGNIN_ENDPOINT = `${API_ENDPOINT}/signin/`;
 

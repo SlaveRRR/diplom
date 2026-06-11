@@ -1,4 +1,19 @@
-﻿import './commands';
+import 'allure-cypress';
+import 'cypress-lighthouse-plugin/commands';
+
+import * as allure from 'allure-js-commons';
+
+import './commands';
+
+beforeEach(() => {
+  if (Cypress.spec.relative.endsWith('lighthouse.cy.ts')) {
+    allure.parentSuite('Аудит клиентских страниц');
+    allure.suite('Lighthouse');
+    return;
+  }
+
+  allure.parentSuite('Сквозное тестирование');
+});
 
 Cypress.on('window:before:load', (win) => {
   class MockWebSocket {

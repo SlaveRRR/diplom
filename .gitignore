@@ -1,1 +1,5 @@
 .env
+allure-*
+node_modules
+load-tests/reports
+lighthouse-json

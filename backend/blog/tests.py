@@ -1,4 +1,4 @@
-﻿import json
+import json
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -121,8 +121,13 @@ class BlogApiTests(APITestCase):
         self.assertEqual(payload['data']['items'][0]['id'], first_post.id)
         self.assertEqual(payload['data']['items'][0]['title'], first_post.title)
 
+    @override_settings(
+        ADMINS_EMAILS=['moderation-1@example.com', 'moderation-2@example.com'],
+        BACKEND_PUBLIC_URL='https://api.comicsera.ru',
+    )
+    @patch('core.moderation.send_email_task.delay')
     @patch('blog.views.S3UploadService.object_exists', return_value=True)
-    def test_confirm_creates_post_with_under_review_status(self, object_exists_mock):
+    def test_confirm_creates_post_with_under_review_status(self, object_exists_mock, send_email_task_mock):
         self.client.force_authenticate(user=self.author)
         config_response = self.client.post(
             '/api/v1/posts/upload-config/',
@@ -181,9 +186,17 @@ class BlogApiTests(APITestCase):
         self.assertIsNone(post.published_at)
         self.assertEqual(payload['data']['status'], Post.Status.UNDER_REVIEW)
         self.assertTrue(object_exists_mock.called)
+        send_email_task_mock.assert_called_once()
+        self.assertEqual(
+            send_email_task_mock.call_args.kwargs['recipient_list'],
+            ['moderation-1@example.com', 'moderation-2@example.com'],
+        )
+        self.assertIn('/admin/blog/post/', send_email_task_mock.call_args.kwargs['message'])
+        self.assertIn('/change/', send_email_task_mock.call_args.kwargs['message'])
 
+    @patch('core.moderation.send_email_task.delay')
     @patch('blog.views.S3UploadService.object_exists', return_value=True)
-    def test_confirm_creates_post_as_draft_without_cover(self, object_exists_mock):
+    def test_confirm_creates_post_as_draft_without_cover(self, object_exists_mock, send_email_task_mock):
         self.client.force_authenticate(user=self.author)
         config_response = self.client.post(
             '/api/v1/posts/upload-config/',
@@ -225,6 +238,7 @@ class BlogApiTests(APITestCase):
         self.assertEqual(payload['data']['status'], Post.Status.DRAFT)
         self.assertTrue(Post.objects.filter(title='Пост без обложки', author=self.author, cover='', status=Post.Status.DRAFT).exists())
         self.assertFalse(object_exists_mock.called)
+        send_email_task_mock.assert_not_called()
 
     def test_editor_returns_draft_payload_for_author(self):
         post = Post.objects.create(
@@ -374,8 +388,8 @@ class BlogApiTests(APITestCase):
         hidden_response = self.client.get(f'/api/v1/posts/{published_post.id + 1}/')
 
         self.assertEqual(list_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(list_payload['data']), 1)
-        self.assertEqual(list_payload['data'][0]['id'], published_post.id)
+        self.assertEqual(len(list_payload['data']['items']), 1)
+        self.assertEqual(list_payload['data']['items'][0]['id'], published_post.id)
         self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
         self.assertEqual(detail_payload['data']['author']['id'], self.author.id)
         self.assertEqual(self.author.analytics_events.filter(event_type='view', content_kind='post', object_id=published_post.id).count(), 1)

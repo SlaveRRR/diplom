@@ -1,4 +1,4 @@
-import {
+﻿import {
   Button,
   Card,
   Carousel,
@@ -24,6 +24,7 @@ import { useCatalogQuery } from './hooks';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
+const isAdultContent = (ageRating: string) => ageRating === '18+';
 
 type SortKey = 'popular' | 'new' | 'reviews';
 type SelectValue = string | number;
@@ -37,7 +38,7 @@ export const Catalog = () => {
   } = theme.useToken();
 
   const { data: taxonomy, isLoading: isLoadingTaxonomy } = usePlatformTaxonomy();
-  const { guardNavigation, adultContentModal } = useAdultContentGate();
+  const { guardNavigation, adultContentModal, isAdultContentConfirmed } = useAdultContentGate();
   const [searchParams] = useSearchParams();
 
   const [searchValue, setSearchValue] = useState('');
@@ -93,7 +94,7 @@ export const Catalog = () => {
   });
 
   const items = catalogQuery.data?.items ?? [];
-  const total = catalogQuery.data?.pagination.total ?? 0;
+  const total = catalogQuery.data?.pagination?.total ?? 0;
   const highlightedSource = highlightsQuery.data?.items ?? [];
   const highlighted = useMemo(
     () => highlightedSource.filter((item) => item.isTrending || item.isNew).slice(0, 6),
@@ -234,76 +235,104 @@ export const Catalog = () => {
                 />
               </Card>
             ) : (
-              <Carousel autoplay dots draggable style={{ borderRadius: borderRadiusLG, overflow: 'hidden' }}>
-                {highlighted.map((item) => (
-                  <div key={item.id}>
-                    <div
-                      style={{
-                        position: 'relative',
-                        minHeight: 260,
-                        backgroundImage: `linear-gradient(120deg, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.15) 55%), url(${item.coverUrl || item.cover})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                        color: '#fff',
-                        padding: 24,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <Space direction="vertical" size={12}>
-                        <Space wrap>
-                          {item.isNew ? (
-                            <span className="rounded-full bg-[var(--color-brand-secondary)] px-3 py-1 text-xs font-semibold">
-                              Новинка
-                            </span>
-                          ) : null}
-                          {item.isTrending ? (
-                            <span className="rounded-full bg-[var(--color-brand-accent)] px-3 py-1 text-xs font-semibold">
-                              В тренде
-                            </span>
-                          ) : null}
-                          {item.genre ? (
-                            <span className="rounded-full bg-[var(--color-brand-primary)] px-3 py-1 text-xs font-semibold">
-                              {item.genre}
-                            </span>
-                          ) : null}
-                        </Space>
+              <Carousel
+                autoplay
+                dots
+                draggable
+                adaptiveHeight
+                style={{ borderRadius: borderRadiusLG, overflow: 'hidden' }}
+              >
+                {highlighted.map((item) => {
+                  const isAdultRestricted = isAdultContent(item.ageRating) && !isAdultContentConfirmed;
 
-                        <Title level={3} style={{ color: '#fff', margin: 0 }}>
-                          {item.title}
-                        </Title>
-
-                        <Text style={{ color: 'rgba(255,255,255,0.85)' }}>
-                          {item.description.length > 150 ? `${item.description.slice(0, 150)}…` : item.description}
-                        </Text>
-                      </Space>
-
-                      <Space
-                        align="center"
-                        size={16}
-                        style={{ marginTop: 16, justifyContent: 'space-between', width: '100%' }}
+                  return (
+                    <div key={item.id}>
+                      <div
+                        style={{
+                          position: 'relative',
+                          minHeight: 260,
+                          backgroundImage: `linear-gradient(120deg, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.15) 55%), url(${item.coverUrl || item.cover})`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          color: '#fff',
+                          padding: 24,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                        }}
                       >
-                        <Space direction="vertical" size={4}>
-                          <Text strong style={{ color: '#fff' }}>
-                            {item.rating.toFixed(1)}
-                          </Text>
-                          <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12 }}>
-                            {item.reviews.toLocaleString('ru-RU')} отзывов
+                        {isAdultRestricted ? (
+                          <div className="absolute inset-0 z-[1] flex items-center justify-center bg-[linear-gradient(180deg,rgba(255,255,255,0.08)_0%,rgba(32,20,82,0.62)_100%)] backdrop-blur-[10px]">
+                            <div className="flex max-w-[220px] flex-col items-center gap-2.5 px-5 text-center text-white">
+                              <div className="rounded-[16px] bg-white/14 px-3 py-1.5 text-sm font-semibold tracking-[0.08em] shadow-[0_8px_18px_rgba(32,20,82,0.18)] backdrop-blur-sm">
+                                18+
+                              </div>
+                              <div className="text-sm font-medium leading-5 text-white/88">
+                                Откроется после подтверждения возраста
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
+
+                        <Space orientation="vertical" size={12} className="relative">
+                          <Space wrap>
+                            {item.isNew ? (
+                              <span className="rounded-full bg-[var(--color-brand-secondary)] px-3 py-1 text-xs font-semibold">
+                                Новинка
+                              </span>
+                            ) : null}
+                            {item.isTrending ? (
+                              <span className="rounded-full bg-[var(--color-brand-accent)] px-3 py-1 text-xs font-semibold">
+                                В тренде
+                              </span>
+                            ) : null}
+                            {item.genre ? (
+                              <span className="rounded-full bg-[var(--color-brand-primary)] px-3 py-1 text-xs font-semibold">
+                                {item.genre}
+                              </span>
+                            ) : null}
+                          </Space>
+
+                          <Title level={3} style={{ color: '#fff', margin: 0 }}>
+                            {item.title}
+                          </Title>
+
+                          <Text style={{ color: 'rgba(255,255,255,0.85)' }}>
+                            {item.description.length > 150 ? `${item.description.slice(0, 150)}…` : item.description}
                           </Text>
                         </Space>
-                        <Link
-                          to={`/comics/${item.id}`}
-                          onClick={(event) =>
-                            guardNavigation({ href: `/comics/${item.id}`, ageRating: item.ageRating }, event)
-                          }
+
+                        <Space
+                          align="center"
+                          size={16}
+                          className="relative z-10"
+                          style={{
+                            marginTop: 16,
+                            justifyContent: 'space-between',
+                            width: '100%',
+                          }}
                         >
-                          <Button type="primary">Открыть страницу</Button>
-                        </Link>
-                      </Space>
+                          <Space orientation="vertical" size={4}>
+                            <Text strong style={{ color: '#fff' }}>
+                              {item.rating.toFixed(1)}
+                            </Text>
+                            <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12 }}>
+                              {item.reviews.toLocaleString('ru-RU')} отзывов
+                            </Text>
+                          </Space>
+                          <Link
+                            to={`/comics/${item.id}`}
+                            onClick={(event) =>
+                              guardNavigation({ href: `/comics/${item.id}`, ageRating: item.ageRating }, event)
+                            }
+                          >
+                            <Button type="primary">Открыть страницу</Button>
+                          </Link>
+                        </Space>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </Carousel>
             )}
           </Col>

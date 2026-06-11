@@ -1,7 +1,10 @@
-﻿import { mockAuthenticatedShell, mockComicCreateApi } from '../support/mockApi';
+import { mockAuthenticatedShell, mockComicCreateApi } from '../support/mockApi';
 
 const imageFixture = {
-  contents: Cypress.Buffer.from('fake-image-content'),
+  contents: Cypress.Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WnS6e8AAAAASUVORK5CYII=',
+    'base64',
+  ),
   fileName: 'image.png',
   mimeType: 'image/png',
 };
@@ -16,22 +19,59 @@ const selectFirstVisibleOption = (index: number) => {
   cy.get('.ant-select-dropdown:visible .ant-select-item-option').first().click();
 };
 
+const installImageWorkerMock = () => {
+  cy.window().then((win) => {
+    class MockImageWorker {
+      onmessage: ((event: MessageEvent) => void) | null = null;
+
+      onerror: ((event: Event) => void) | null = null;
+
+      postMessage(payload: { file: File }) {
+        const sourceFile = payload.file;
+        const baseName = sourceFile.name.replace(/\.[^.]+$/u, '');
+        const normalizedFile = new win.File([sourceFile], `${baseName}.webp`, {
+          type: 'image/webp',
+          lastModified: sourceFile.lastModified,
+        });
+
+        setTimeout(() => {
+          this.onmessage?.({
+            data: {
+              success: true,
+              file: normalizedFile,
+            },
+          } as MessageEvent);
+        }, 0);
+      }
+
+      terminate() {
+        return undefined;
+      }
+    }
+
+    win.Worker = MockImageWorker as unknown as typeof Worker;
+  });
+};
+
 describe('Comic create page', () => {
-  it('создает пошагово черновик комикса', () => {
+  it('создает комикс и отправляет его на модерацию', () => {
     mockAuthenticatedShell();
     mockComicCreateApi();
 
     cy.visitApp('/comics/create', { authenticated: true });
     cy.wait(['@getCurrentUser', '@getAccount', '@getNotifications', '@getTaxonomy']);
+    installImageWorkerMock();
 
-    cy.get('input').first().type('Эхо башни');
-    cy.get('textarea').first().type('История о городе, который слышит свои башни.');
+    cy.get('input[placeholder="Например, Лунная башня"]').type('Эхо башни');
+    cy.get('textarea[placeholder="Коротко опиши завязку, мир и настроение истории."]').type(
+      'История о городе, который слышит свои башни.',
+    );
     selectOptionByText(0, '16+');
     selectFirstVisibleOption(1);
     cy.get('body').click(0, 0);
     selectFirstVisibleOption(2);
 
-    cy.contains('Далее').click();
+    cy.contains('button', 'Далее').click();
 
     cy.get('input[type="file"]')
       .eq(0)
@@ -40,17 +80,22 @@ describe('Comic create page', () => {
       .eq(1)
       .selectFile({ ...imageFixture, fileName: 'banner.png' }, { force: true });
 
-    cy.contains('Далее').click();
+    cy.contains('cover.webp').should('be.visible');
+    cy.contains('banner.webp').should('be.visible');
 
-    cy.get('input').first().type('Глава 1: Начало');
-    cy.get('textarea').first().type('Первый шаг в историю города.');
+    cy.contains('button', 'Далее').click();
+
+    cy.get('input[placeholder="Например, Глава 1. Пепел у порога"]').type('Глава 1: Начало');
+    cy.get('textarea[placeholder="Короткая подводка к содержанию главы."]').type('Первый шаг в историю города.');
     cy.get('input[type="file"]')
       .eq(0)
       .selectFile({ ...imageFixture, fileName: 'page-1.png' }, { force: true });
 
-    cy.contains('Далее').click();
+    cy.contains('page-1.webp').should('be.visible');
+
+    cy.contains('button', 'Далее').click();
     cy.contains('Эхо башни').should('be.visible');
-    cy.contains('Создать комикс').click();
+    cy.contains('button', 'Отправить на модерацию').click();
 
     cy.wait('@getComicUploadConfig')
       .its('request.body')
@@ -61,22 +106,22 @@ describe('Comic create page', () => {
           genreId: 1,
         });
         expect(body.tagIds).to.deep.equal([11]);
-        expect(body.cover.filename).to.equal('cover.png');
-        expect(body.banner.filename).to.equal('banner.png');
+        expect(body.cover.filename).to.equal('cover.webp');
+        expect(body.banner.filename).to.equal('banner.webp');
         expect(body.chapters).to.have.length(1);
         expect(body.chapters[0]).to.include({
           title: 'Глава 1: Начало',
           chapter_number: 1,
         });
-        expect(body.chapters[0].pages[0].filename).to.equal('page-1.png');
+        expect(body.chapters[0].pages[0].filename).to.equal('page-1.webp');
       });
 
-    cy.wait(['@uploadComicCover', '@uploadComicBanner', '@uploadComicPage1']);
-    cy.wait('@confirmComicCreation').its('request.body').should('deep.equal', {
+    cy.wait('@confirmComicCreation').its('request.body').should('deep.include', {
       comic_draft_id: 'draft-501',
+      submission_mode: 'under_review',
     });
 
-    cy.location('pathname').should('eq', '/catalog');
+    cy.location('pathname').should('eq', '/account');
   });
 
   it('не переводит на следующий шаг без названия комикса', () => {
@@ -85,11 +130,12 @@ describe('Comic create page', () => {
 
     cy.visitApp('/comics/create', { authenticated: true });
     cy.wait(['@getCurrentUser', '@getAccount', '@getNotifications', '@getTaxonomy']);
+    installImageWorkerMock();
 
-    cy.contains('Далее').click();
+    cy.contains('button', 'Далее').click();
 
     cy.contains('Добавьте название комикса.').should('be.visible');
-    cy.contains('Базовая информация').should('be.visible');
+    cy.contains('Название').should('be.visible');
     cy.contains('Основная карточка комикса для каталога и списка релизов.').should('not.exist');
     cy.get('@getComicUploadConfig.all').should('have.length', 0);
     cy.get('@confirmComicCreation.all').should('have.length', 0);

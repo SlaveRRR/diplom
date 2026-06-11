@@ -15,7 +15,7 @@ from comics import services
 from comics.models import Comic
 from core.api import error_response, success_response
 from interactions.models import Notification
-from interactions.services import create_notification
+from interactions.services import enqueue_notification
 from users.achievements import build_achievement_progress_payload
 from users.recap import get_or_create_monthly_recap
 from users.models import AvatarUploadDraft, UserFollow
@@ -288,7 +288,7 @@ class UserFollowToggleView(APIView):
             is_active = False
         else:
             is_active = True
-            create_notification(
+            enqueue_notification(
                 user=target_user,
                 message=f'{request.user.username} подписался на вас.',
                 notification_type=Notification.Type.SUCCESS,

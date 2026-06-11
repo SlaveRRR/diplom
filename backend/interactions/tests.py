@@ -1,11 +1,14 @@
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APITestCase
+from unittest.mock import patch
 
 from comics.models import Comic
 from interactions.models import Comment, Notification
+from interactions.services import create_notification, notify_followers
+from users.models import UserFollow
 
 User = get_user_model()
 
@@ -89,3 +92,36 @@ class NotificationApiTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['data']['deletedCount'], 2)
         self.assertEqual(Notification.objects.filter(user=self.user).count(), 0)
+
+
+class NotificationServiceTests(TestCase):
+    def setUp(self):
+        self.author = User.objects.create_user(
+            username='author-user',
+            email='author@example.com',
+            password='strongpass123',
+        )
+        self.follower = User.objects.create_user(
+            username='follower-user',
+            email='follower@example.com',
+            password='strongpass123',
+        )
+
+    @patch('interactions.services.safe_group_send', return_value=False)
+    def test_create_notification_ignores_realtime_broadcast_timeout(self, mocked_safe_group_send):
+        notification = create_notification(user=self.author, message='Тестовое уведомление')
+
+        self.assertIsNotNone(notification)
+        self.assertEqual(Notification.objects.filter(user=self.author).count(), 1)
+        mocked_safe_group_send.assert_called_once()
+
+    @override_settings(NOTIFICATION_REALTIME_FANOUT_LIMIT=0)
+    @patch('interactions.services.broadcast_notification')
+    def test_notify_followers_skips_realtime_fanout_when_limit_exceeded(self, mocked_broadcast_notification):
+        UserFollow.objects.create(follower=self.follower, following=self.author)
+
+        created_count = notify_followers(author=self.author, message='Новый пост опубликован')
+
+        self.assertEqual(created_count, 1)
+        self.assertEqual(Notification.objects.filter(user=self.follower).count(), 1)
+        mocked_broadcast_notification.assert_not_called()

@@ -1,5 +1,4 @@
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'] as const;
-const IMAGE_PROCESSING_CONCURRENCY = 2;
 
 const parseNumericEnv = (value: string | undefined, fallback: number) => {
   const parsedValue = Number(value);
@@ -7,11 +6,24 @@ const parseNumericEnv = (value: string | undefined, fallback: number) => {
   return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : fallback;
 };
 
+const getDefaultImageProcessingConcurrency = () => {
+  const hardwareConcurrency =
+    typeof navigator !== 'undefined' && Number.isFinite(navigator.hardwareConcurrency)
+      ? navigator.hardwareConcurrency
+      : 4;
+
+  return Math.min(4, Math.max(2, Math.floor(hardwareConcurrency / 2)));
+};
+
 export const MAX_IMAGE_UPLOAD_SIZE_MB = parseNumericEnv(import.meta.env.VITE_MAX_IMAGE_UPLOAD_SIZE_MB, 5);
 export const MAX_IMAGE_UPLOAD_SIZE_BYTES = MAX_IMAGE_UPLOAD_SIZE_MB * 1024 * 1024;
 export const MAX_IMAGE_DIMENSION_PX = parseNumericEnv(import.meta.env.VITE_MAX_IMAGE_DIMENSION_PX, 4000);
 export const MAX_COMIC_CHAPTERS = parseNumericEnv(import.meta.env.VITE_MAX_COMIC_CHAPTERS, 50);
 export const MAX_COMIC_PAGES_PER_CHAPTER = parseNumericEnv(import.meta.env.VITE_MAX_COMIC_PAGES_PER_CHAPTER, 50);
+const IMAGE_PROCESSING_CONCURRENCY = parseNumericEnv(
+  import.meta.env.VITE_IMAGE_PROCESSING_CONCURRENCY,
+  getDefaultImageProcessingConcurrency(),
+);
 
 const fileTypeLabelMap: Record<string, string> = {
   'image/jpeg': 'JPG',
@@ -30,36 +42,93 @@ type ImageProcessingWorkerResponse =
       error: string;
     };
 
+type WorkerTask = {
+  file: File;
+  reject: (reason?: unknown) => void;
+  resolve: (file: File) => void;
+};
+
+type WorkerSlot = {
+  isBusy: boolean;
+  worker: Worker;
+};
+
+type NormalizeProgressHandler = (processedCount: number, totalCount: number) => void;
+
+type NormalizeOptions = {
+  onProgress?: NormalizeProgressHandler;
+};
+
+const WORKER_ERROR_MESSAGE = 'Не удалось обработать изображение. Попробуйте другой файл.';
+
 const createImageProcessingWorker = () =>
   new Worker(new URL('./imageProcessing.worker.ts', import.meta.url), {
     type: 'module',
   });
 
-const processImageInWorker = (file: File) =>
-  new Promise<File>((resolve, reject) => {
-    const worker = createImageProcessingWorker();
+const workerPool: WorkerSlot[] = Array.from({ length: IMAGE_PROCESSING_CONCURRENCY }, () => ({
+  worker: createImageProcessingWorker(),
+  isBusy: false,
+}));
+const workerTaskQueue: WorkerTask[] = [];
 
-    worker.onmessage = (event: MessageEvent<ImageProcessingWorkerResponse>) => {
-      const payload = event.data;
-      worker.terminate();
+const runNextWorkerTask = (slot: WorkerSlot) => {
+  if (slot.isBusy) {
+    return;
+  }
 
+  const nextTask = workerTaskQueue.shift();
+  if (!nextTask) {
+    return;
+  }
+
+  slot.isBusy = true;
+
+  const completeTask = (callback: () => void) => {
+    slot.worker.onmessage = null;
+    slot.worker.onerror = null;
+    slot.isBusy = false;
+    callback();
+    runNextWorkerTask(slot);
+  };
+
+  slot.worker.onmessage = (event: MessageEvent<ImageProcessingWorkerResponse>) => {
+    const payload = event.data;
+
+    completeTask(() => {
       if (payload.success) {
-        resolve(payload.file);
+        nextTask.resolve(payload.file);
         return;
       }
 
-      reject(new Error((payload as Extract<ImageProcessingWorkerResponse, { success: false }>).error));
-    };
-
-    worker.onerror = () => {
-      worker.terminate();
-      reject(new Error('Не удалось обработать изображение. Попробуйте другой файл.'));
-    };
-
-    worker.postMessage({
-      file,
-      maxDimensionPx: MAX_IMAGE_DIMENSION_PX,
+      nextTask.reject(new Error((payload as Extract<ImageProcessingWorkerResponse, { success: false }>).error));
     });
+  };
+
+  slot.worker.onerror = () => {
+    completeTask(() => {
+      nextTask.reject(new Error(WORKER_ERROR_MESSAGE));
+    });
+  };
+
+  slot.worker.postMessage({
+    file: nextTask.file,
+    maxDimensionPx: MAX_IMAGE_DIMENSION_PX,
+  });
+};
+
+const processImageInWorker = (file: File) =>
+  new Promise<File>((resolve, reject) => {
+    workerTaskQueue.push({
+      file,
+      reject,
+      resolve,
+    });
+
+    const availableSlot = workerPool.find((slot) => !slot.isBusy);
+    if (availableSlot) {
+      runNextWorkerTask(availableSlot);
+    }
   });
 
 const assertValidImage = (file: File) => {
@@ -88,15 +157,18 @@ export const normalizeUploadImage = async (file: File) => {
   return normalizedFile;
 };
 
-export const normalizeUploadImages = async (files: File[]) => {
+export const normalizeUploadImages = async (files: File[], options: NormalizeOptions = {}) => {
   const normalizedFiles = new Array<File>(files.length);
   let nextIndex = 0;
+  let processedCount = 0;
 
   const runQueue = async () => {
     while (nextIndex < files.length) {
       const currentIndex = nextIndex;
       nextIndex += 1;
       normalizedFiles[currentIndex] = await normalizeUploadImage(files[currentIndex]);
+      processedCount += 1;
+      options.onProgress?.(processedCount, files.length);
     }
   };
 
@@ -106,9 +178,10 @@ export const normalizeUploadImages = async (files: File[]) => {
   return normalizedFiles;
 };
 
-export const normalizeUploadImagesSettled = async (files: File[]) => {
+export const normalizeUploadImagesSettled = async (files: File[], options: NormalizeOptions = {}) => {
   const results = new Array<{ file?: File; error?: Error }>(files.length);
   let nextIndex = 0;
+  let processedCount = 0;
 
   const runQueue = async () => {
     while (nextIndex < files.length) {
@@ -123,6 +196,9 @@ export const normalizeUploadImagesSettled = async (files: File[]) => {
         results[currentIndex] = {
           error: error instanceof Error ? error : new Error('Не удалось обработать изображение.'),
         };
+      } finally {
+        processedCount += 1;
+        options.onProgress?.(processedCount, files.length);
       }
     }
   };

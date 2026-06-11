@@ -42,12 +42,13 @@ from comics.serializers import (
     TaxonomyResponseSerializer,
 )
 from core.api import error_response, success_response
+from core.moderation import notify_admins_about_moderation_submission
 from interactions.models import Comment, ComicFavorite, ComicLike, Notification
 from interactions.services import (
     broadcast_comic_comment,
     build_reactions_payload,
-    create_notification,
-    notify_followers,
+    enqueue_followers_notification,
+    enqueue_notification,
     toggle_reaction,
 )
 from users.achievements import register_chapter_read, sync_creator_stats
@@ -637,6 +638,14 @@ class ComicConfirmView(ComicsAccessMixin, APIView):
         comic_draft.status = UploadDraftStatus.COMPLETED
         comic_draft.save(update_fields=['status', 'updated_at'])
 
+        if comic.status == Comic.Status.UNDER_REVIEW:
+            notify_admins_about_moderation_submission(
+                item_label='комикс',
+                title=comic.title,
+                author_username=request.user.username,
+                admin_link_path=f'/admin/comics/comic/{comic.id}/change/',
+            )
+
         if editable_comic and preserve_publication:
             current_tag_ids = set(tag.id for tag in tags)
             chapter_snapshot = {
@@ -669,7 +678,7 @@ class ComicConfirmView(ComicsAccessMixin, APIView):
                     parts.append(f'новых глав: {added_chapters_count}')
                 if added_pages_count:
                     parts.append(f'новых страниц: {added_pages_count}')
-                notify_followers(
+                enqueue_followers_notification(
                     author=comic.author,
                     message=(
                         f'{comic.author.username} обновил комикс «{comic.title}»: '
@@ -937,14 +946,14 @@ class ComicCommentCreateView(ComicsAccessMixin, APIView):
         comic_stats.save(update_fields=['comments_count'])
 
         if comic.author_id != request.user.id:
-            create_notification(
+            enqueue_notification(
                 user=comic.author,
                 message=f'{request.user.username} оставил комментарий к вашему комиксу «{comic.title}».',
                 notification_type=Notification.Type.INFO,
             )
 
         if reply_to and reply_to.user_id not in {request.user.id, comic.author_id}:
-            create_notification(
+            enqueue_notification(
                 user=reply_to.user,
                 message=f'{request.user.username} ответил на ваш комментарий под комиксом «{comic.title}».',
                 notification_type=Notification.Type.INFO,

@@ -74,7 +74,7 @@ export const ComicCard = ({
                 position: 'relative',
                 borderRadius,
                 overflow: 'hidden',
-                height: 220,
+                height: 280,
                 backgroundImage: `url(${item.coverUrl || item.cover})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
@@ -105,17 +105,13 @@ export const ComicCard = ({
         <Space direction="vertical" size={10} style={{ width: '100%' }}>
           <Space align="baseline" style={{ justifyContent: 'space-between', width: '100%' }}>
             <Space direction="vertical" size={4}>
-              <Text
+              <Paragraph
                 strong
-                ellipsis={{ tooltip: item.title }}
-                style={{
-                  fontSize: 'var(--font-card-title)',
-                  lineHeight: 1.3,
-                  letterSpacing: '-0.015em',
-                }}
+                className="!mb-0 !text-[1.15rem] !font-semibold !leading-[1.25] tracking-[-0.02em] sm:!text-[1.3rem]"
+                ellipsis={{ rows: 2, tooltip: item.title }}
               >
                 {item.title}
-              </Text>
+              </Paragraph>
 
               {showAuthor ? (
                 <Text type="secondary" style={{ fontSize: 'var(--font-body-sm)', lineHeight: 1.45 }}>

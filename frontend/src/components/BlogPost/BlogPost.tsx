@@ -1,14 +1,15 @@
 ﻿import { Avatar, Button, Card, Empty, Flex, Form, Input, List, Skeleton, Tag, Typography } from 'antd';
-import { FC, useEffect, useMemo, useState } from 'react';
+import { FC, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
 import { CalendarOutlined, CommentOutlined, SendOutlined } from '@ant-design/icons';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import type { TextAreaRef } from 'antd/es/input/TextArea';
 
 import { useApp, useRequireAuthAction } from '@hooks';
 import { BlogComment } from '@types';
 import { BlogImage } from '@components/BlogCreate/editor/blogImageExtension';
-import { Reactions } from '@components/shared';
+import { CommentEmojiPickerButton, Reactions } from '@components/shared';
 import { OutletContext } from '@pages/LayoutPage/types';
 
 import { useBlogCommentMutation, useBlogPostQuery, useBlogReactionMutation } from './hooks';
@@ -62,6 +63,7 @@ export const BlogPost: FC = () => {
   const reactionMutation = useBlogReactionMutation(postId);
   const [commentText, setCommentText] = useState('');
   const [replyToComment, setReplyToComment] = useState<BlogComment | null>(null);
+  const commentTextAreaRef = useRef<TextAreaRef>(null);
 
   const editor = useEditor({
     editable: false,
@@ -114,6 +116,27 @@ export const BlogPost: FC = () => {
     } catch (error) {
       messageApi.error(error instanceof Error ? error.message : 'Не удалось обновить реакцию.');
     }
+  };
+
+  const handleInsertCommentEmoji = (emoji: string) => {
+    const textArea = commentTextAreaRef.current?.resizableTextArea?.textArea;
+    const selectionStart = textArea?.selectionStart ?? commentText.length;
+    const selectionEnd = textArea?.selectionEnd ?? commentText.length;
+
+    setCommentText((previous) => {
+      const nextValue = `${previous.slice(0, selectionStart)}${emoji}${previous.slice(selectionEnd)}`;
+
+      requestAnimationFrame(() => {
+        commentTextAreaRef.current?.focus();
+        const nextCaretPosition = selectionStart + emoji.length;
+        commentTextAreaRef.current?.resizableTextArea?.textArea?.setSelectionRange(
+          nextCaretPosition,
+          nextCaretPosition,
+        );
+      });
+
+      return nextValue;
+    });
   };
 
   if (isLoading) {
@@ -213,17 +236,25 @@ export const BlogPost: FC = () => {
 
           <Form layout="vertical" onFinish={handleSubmitComment}>
             <Form.Item label="Добавить комментарий" className="!mb-3">
-              <TextArea rows={4} value={commentText} onChange={(event) => setCommentText(event.target.value)} />
+              <TextArea
+                ref={commentTextAreaRef}
+                rows={4}
+                value={commentText}
+                onChange={(event) => setCommentText(event.target.value)}
+              />
             </Form.Item>
-            <Button
-              type="primary"
-              htmlType="submit"
-              icon={<SendOutlined />}
-              loading={commentMutation.isLoading}
-              disabled={!commentText.trim()}
-            >
-              {replyToComment ? 'Отправить ответ' : 'Отправить комментарий'}
-            </Button>
+            <Flex gap={12} wrap="wrap">
+              <CommentEmojiPickerButton onSelect={handleInsertCommentEmoji} />
+              <Button
+                type="primary"
+                htmlType="submit"
+                icon={<SendOutlined />}
+                loading={commentMutation.isLoading}
+                disabled={!commentText.trim()}
+              >
+                {replyToComment ? 'Отправить ответ' : 'Отправить комментарий'}
+              </Button>
+            </Flex>
           </Form>
 
           <List
@@ -247,9 +278,11 @@ const BlogCommentItem: FC<BlogCommentItemProps> = ({ comment, onReply }) => (
     <Flex vertical gap={12} className="w-full">
       <Flex gap={12} align="start" className="w-full">
         <Link to={`/profile/${comment.author.id}`}>
-          <Avatar src={comment.author.avatar} size={44}>
-            {comment.author.username[0]?.toUpperCase()}
-          </Avatar>
+          {!comment.author.avatar ? (
+            <Avatar size={44}>{comment.author.username[0]?.toUpperCase()}</Avatar>
+          ) : (
+            <Avatar src={comment.author.avatar} size={44} alt="avatar" />
+          )}
         </Link>
         <Flex vertical gap={8} className="flex-1">
           <Flex justify="space-between" align="start" gap={12} wrap="wrap">

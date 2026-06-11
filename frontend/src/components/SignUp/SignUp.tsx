@@ -38,9 +38,9 @@ export const SignUp: FC = () => {
   const auth = async (type: SocialProvider) => {
     await trigger();
 
-    const values = getValues();
+    const value = getValues('policy');
 
-    if (values?.userAgreement && values?.privacyPolicy && values?.personalDataPolicy) {
+    if (value) {
       startHeadlessSocialAuth(type, redirectTo);
     }
   };
@@ -95,12 +95,14 @@ export const SignUp: FC = () => {
 
           <Flex justify="center" gap={9} align="center" vertical className="pt-3">
             <Controller
-              name="userAgreement"
+              name="policy"
               control={control}
               render={({ field: { value, onChange, ...field } }) => (
                 <Flex gap={12} vertical={false} align="start" className="w-full max-w-[420px]" wrap="nowrap">
                   <Text className="flex-1 leading-6">
-                    Я ознакомлен с <Link href="/user-agreement">пользовательским соглашением</Link>
+                    Я ознакомлен с <Link href="/user-agreement">пользовательским соглашением</Link>,{' '}
+                    <Link href="/privacy-policy">политикой конфиденциальности</Link>,{' '}
+                    <Link href="/personal-data">политикой обработки персональных данных</Link>
                   </Text>
                   <Checkbox
                     {...field}
@@ -111,45 +113,7 @@ export const SignUp: FC = () => {
                 </Flex>
               )}
             />
-            {!!errors?.userAgreement?.message && <Text type="danger">{errors.userAgreement.message}</Text>}
-
-            <Controller
-              name="privacyPolicy"
-              control={control}
-              render={({ field: { value, onChange, ...field } }) => (
-                <Flex gap={12} vertical={false} align="start" className="w-full max-w-[420px]" wrap="nowrap">
-                  <Text className="flex-1 leading-6">
-                    Я ознакомлен с <Link href="/privacy-policy">политикой конфиденциальности</Link>
-                  </Text>
-                  <Checkbox
-                    {...field}
-                    checked={value}
-                    onChange={(e) => onChange(e.target.checked)}
-                    className="mt-1 shrink-0"
-                  />
-                </Flex>
-              )}
-            />
-            {!!errors?.privacyPolicy?.message && <Text type="danger">{errors.privacyPolicy.message}</Text>}
-            <Controller
-              name="personalDataPolicy"
-              control={control}
-              render={({ field: { value, onChange, ...field } }) => (
-                <Flex gap={12} vertical={false} align="start" className="w-full max-w-[420px]" wrap="nowrap">
-                  <Text className="flex-1 leading-6">
-                    Я ознакомлен с <Link href="/personal-data">политикой обработки персональных данных</Link>
-                  </Text>
-                  <Checkbox
-                    {...field}
-                    checked={value}
-                    onChange={(e) => onChange(e.target.checked)}
-                    className="mt-1 shrink-0"
-                  />
-                </Flex>
-              )}
-            />
-            {!!errors?.personalDataPolicy?.message && <Text type="danger">{errors.personalDataPolicy.message}</Text>}
-
+            {!!errors?.policy?.message && <Text type="danger">{errors.policy.message}</Text>}
             <Button className="w-full sm:w-auto" loading={isLoading} size="large" type="primary" htmlType="submit">
               Зарегистрироваться
             </Button>

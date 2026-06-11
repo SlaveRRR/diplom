@@ -1,32 +1,40 @@
 {
-  "data": [
-    {
-      "id": 11,
-      "title": "Как мы рисовали пролог",
-      "excerpt": "Разбираем пайплайн от сценария до первой опубликованной главы.",
-      "cover": "https://placehold.co/800x480?text=Blog+1",
-      "coverUrl": "https://placehold.co/800x480?text=Blog+1",
-      "ageRating": "16+",
-      "tags": [
-        { "id": 201, "name": "Редакция", "slug": "editorial", "description": "Материалы редакции." },
-        { "id": 202, "name": "Процесс", "slug": "process", "description": "Заметки о создании." }
-      ],
-      "author": { "id": 7, "username": "editor", "avatar": null, "role": "author" },
-      "commentsCount": 14,
-      "publishedAt": "2026-04-21T12:00:00Z"
-    },
-    {
-      "id": 12,
-      "title": "Темы взрослого контента в авторских историях",
-      "excerpt": "Материал о том, как маркировать и подавать 18+ публикации на платформе.",
-      "cover": "https://placehold.co/800x480?text=Blog+2",
-      "coverUrl": "https://placehold.co/800x480?text=Blog+2",
-      "ageRating": "18+",
-      "tags": [{ "id": 201, "name": "Редакция", "slug": "editorial", "description": "Материалы редакции." }],
-      "author": { "id": 8, "username": "curator", "avatar": null, "role": "author" },
-      "commentsCount": 6,
-      "publishedAt": "2026-04-20T12:00:00Z"
+  "data": {
+    "items": [
+      {
+        "id": 11,
+        "title": "Как мы рисовали пролог",
+        "excerpt": "Разбираем пайплайн от сценария до первой опубликованной главы.",
+        "cover": "https://placehold.co/800x480?text=Blog+1",
+        "coverUrl": "https://placehold.co/800x480?text=Blog+1",
+        "ageRating": "16+",
+        "tags": [
+          { "id": 201, "name": "Редакция", "slug": "editorial", "description": "Материалы редакции." },
+          { "id": 202, "name": "Процесс", "slug": "process", "description": "Заметки о создании." }
+        ],
+        "author": { "id": 7, "username": "editor", "avatar": null, "role": "author" },
+        "commentsCount": 14,
+        "publishedAt": "2026-04-21T12:00:00Z"
+      },
+      {
+        "id": 12,
+        "title": "Темы взрослого контента в авторских историях",
+        "excerpt": "Материал о том, как маркировать и подавать 18+ публикации на платформе.",
+        "cover": "https://placehold.co/800x480?text=Blog+2",
+        "coverUrl": "https://placehold.co/800x480?text=Blog+2",
+        "ageRating": "18+",
+        "tags": [{ "id": 201, "name": "Редакция", "slug": "editorial", "description": "Материалы редакции." }],
+        "author": { "id": 8, "username": "curator", "avatar": null, "role": "author" },
+        "commentsCount": 6,
+        "publishedAt": "2026-04-20T12:00:00Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "pageSize": 9,
+      "total": 12,
+      "totalPages": 2
     }
-  ],
+  },
   "error": null
 }

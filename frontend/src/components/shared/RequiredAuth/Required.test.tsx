@@ -1,4 +1,4 @@
-﻿import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import { render, screen } from '@testing-library/react';
 
 import { RequiredAuth } from './RequiredAuth';
@@ -28,8 +28,9 @@ describe('RequiredAuth', () => {
     });
 
     expect(screen.queryByTestId('auth-required')).not.toBeInTheDocument();
-    expect(screen.getAllByTestId('card')).toHaveLength(2);
+    expect(screen.getAllByTestId('card')).toHaveLength(1);
     expect(screen.getByTestId('title')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Войти' })).toBeInTheDocument();
     expect(screen.getAllByTestId('link')).toHaveLength(3);
     expect(screen.getByTestId('icon-lock')).toBeInTheDocument();
   });

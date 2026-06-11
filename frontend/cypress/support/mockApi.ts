@@ -1,8 +1,19 @@
 export const mockPublicApi = () => {
-  cy.intercept('GET', '**/api/v1/comics/', { fixture: 'catalogComics.json' }).as('getCatalogComics');
+  cy.intercept({ method: 'GET', pathname: '/api/v1/comics/' }, { fixture: 'catalogComics.json' }).as(
+    'getCatalogComics',
+  );
   cy.intercept('GET', '**/api/v1/taxonomy*', { fixture: 'taxonomy.json' }).as('getTaxonomy');
-  cy.intercept('GET', '**/api/v1/posts/', { fixture: 'blogPosts.json' }).as('getBlogPosts');
-  cy.intercept('GET', '**/api/v1/posts/tags/', { fixture: 'blogTags.json' }).as('getBlogTags');
+  cy.intercept({ method: 'GET', pathname: '/api/v1/posts/' }, { fixture: 'blogPosts.json' }).as('getBlogPosts');
+  cy.intercept({ method: 'GET', pathname: '/api/v1/posts/tags/' }, { fixture: 'blogTags.json' }).as('getBlogTags');
+};
+
+export const mockBlogPageApi = () => {
+  cy.intercept({ method: 'GET', pathname: '/api/v1/posts/' }, { fixture: 'blogPosts.json' }).as('getBlogPosts');
+  cy.intercept({ method: 'GET', pathname: '/api/v1/posts/tags/' }, { fixture: 'blogTags.json' }).as('getBlogTags');
+};
+
+export const mockHomeApi = () => {
+  cy.intercept('GET', '**/api/v1/home/', { fixture: 'homeSelections.json' }).as('getHomeSelections');
 };
 
 export const mockAuthenticatedShell = () => {
@@ -30,27 +41,15 @@ export const mockComicDetailsApi = () => {
 };
 
 export const mockAnalyticsApi = () => {
-  cy.intercept(
-    {
-      method: 'GET',
-      pathname: '/api/v1/analytics/',
-    },
-    { fixture: 'analytics.json' },
-  ).as('getAnalytics');
+  cy.intercept('GET', '**/api/v1/analytics/**', { fixture: 'analytics.json' }).as('getAnalytics');
 
-  cy.intercept(
-    {
-      method: 'GET',
-      pathname: '/api/v1/analytics/export/',
+  cy.intercept('GET', '**/api/v1/analytics/export/**', {
+    statusCode: 200,
+    headers: {
+      'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     },
-    {
-      statusCode: 200,
-      headers: {
-        'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      },
-      body: 'mock-binary',
-    },
-  ).as('exportAnalytics');
+    body: 'mock-binary',
+  }).as('exportAnalytics');
 };
 
 export const mockBlogCreateApi = () => {
@@ -68,15 +67,15 @@ export const mockComicCreateApi = () => {
     'getComicUploadConfig',
   );
   cy.intercept('POST', '**/api/v1/comics/confirm/', { fixture: 'comicCreateConfirm.json' }).as('confirmComicCreation');
-  cy.intercept('PUT', 'https://upload.example.com/comics/cover', {
+  cy.intercept('PUT', '**/comics/cover*', {
     statusCode: 200,
     body: '',
   }).as('uploadComicCover');
-  cy.intercept('PUT', 'https://upload.example.com/comics/banner', {
+  cy.intercept('PUT', '**/comics/banner*', {
     statusCode: 200,
     body: '',
   }).as('uploadComicBanner');
-  cy.intercept('PUT', 'https://upload.example.com/comics/page-1', {
+  cy.intercept('PUT', '**/comics/page-1*', {
     statusCode: 200,
     body: '',
   }).as('uploadComicPage1');

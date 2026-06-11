@@ -43,8 +43,9 @@ from analytics.models import AnalyticsEvent
 from analytics.services import record_content_event, register_unique_content_view
 from comics.services import build_public_media_url
 from core.api import error_response, success_response
+from core.moderation import notify_admins_about_moderation_submission
 from interactions.models import Comment, Notification, PostReadingHistory
-from interactions.services import build_reactions_payload, create_notification, toggle_reaction
+from interactions.services import build_reactions_payload, enqueue_notification, toggle_reaction
 
 
 class BlogAccessMixin:
@@ -312,6 +313,14 @@ class BlogPostConfirmView(BlogAccessMixin, APIView):
         draft.status = PostUploadDraft.Status.COMPLETED
         draft.save(update_fields=['status', 'updated_at'])
 
+        if post.status == Post.Status.UNDER_REVIEW:
+            notify_admins_about_moderation_submission(
+                item_label='пост',
+                title=post.title,
+                author_username=request.user.username,
+                admin_link_path=f'/admin/blog/post/{post.id}/change/',
+            )
+
         return success_response(
             BlogPostCreateResponseSerializer(
                 {
@@ -361,14 +370,14 @@ class BlogCommentCreateView(BlogAccessMixin, APIView):
         )
 
         if post.author_id != request.user.id:
-            create_notification(
+            enqueue_notification(
                 user=post.author,
                 message=f'{request.user.username} оставил комментарий к вашей статье «{post.title}».',
                 notification_type=Notification.Type.INFO,
             )
 
         if reply_to and reply_to.user_id not in {request.user.id, post.author_id}:
-            create_notification(
+            enqueue_notification(
                 user=reply_to.user,
                 message=f'{request.user.username} ответил на ваш комментарий под статьёй «{post.title}».',
                 notification_type=Notification.Type.INFO,

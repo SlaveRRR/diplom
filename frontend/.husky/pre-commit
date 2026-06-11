@@ -17,6 +17,7 @@ if has_frontend_changes; then
   yarn type-check
   yarn lint
   yarn test
+  yarn build --logLevel error
   yarn pretty-quick --staged
   cd ..
 fi

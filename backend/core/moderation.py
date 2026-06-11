@@ -1,13 +1,16 @@
 import os
+import logging
 
 from django.conf import settings
-from django.core.mail import send_mail
 
 from analytics.models import AnalyticsEvent
 from analytics.services import record_content_event
 from interactions.models import Notification
-from interactions.services import create_notification, notify_followers
+from interactions.services import enqueue_followers_notification, enqueue_notification
+from core.tasks import send_email_task
 from users.achievements import sync_creator_stats
+
+logger = logging.getLogger('core')
 
 
 MODERATION_STATUS_LABELS = {
@@ -22,6 +25,11 @@ MODERATION_STATUS_LABELS = {
 def build_frontend_absolute_url(path: str) -> str:
     frontend_url = getattr(settings, 'FRONTEND_URL', None) or os.getenv('FRONTEND_URL', 'http://localhost:5173')
     return f"{frontend_url.rstrip('/')}/{path.lstrip('/')}"
+
+
+def build_backend_absolute_url(path: str) -> str:
+    backend_url = getattr(settings, 'BACKEND_PUBLIC_URL', None) or os.getenv('BACKEND_PUBLIC_URL', 'http://localhost:8000')
+    return f"{backend_url.rstrip('/')}/{path.lstrip('/')}"
 
 
 def build_moderation_copy(*, item_label: str, title: str, status: str, moderation_message: str = ''):
@@ -63,7 +71,7 @@ def notify_moderation_result(*, user, item_label: str, title: str, status: str, 
 
     absolute_url = build_frontend_absolute_url(link_path)
 
-    create_notification(
+    enqueue_notification(
         user=user,
         message=payload['message'],
         notification_type=payload['notification_type'],
@@ -84,13 +92,36 @@ def notify_moderation_result(*, user, item_label: str, title: str, status: str, 
 
     email_message += f'\nСсылка: {absolute_url}\n'
 
-    send_mail(
-        payload['subject'],
-        email_message,
-        settings.DEFAULT_FROM_EMAIL,
-        [user.email],
-        fail_silently=False,
+    send_email_task.delay(
+        subject=payload['subject'],
+        message=email_message,
+        recipient_list=[user.email],
     )
+
+
+def notify_admins_about_moderation_submission(*, item_label: str, title: str, author_username: str, admin_link_path: str):
+    admin_emails = getattr(settings, 'ADMINS_EMAILS', [])
+    if not admin_emails:
+        return
+
+    admin_url = build_backend_absolute_url(admin_link_path)
+    subject = f'Новый материал на модерации: {title}'
+    message = (
+        f'Автор {author_username} отправил {item_label} «{title}» на модерацию.\n\n'
+        f'Ссылка в админку: {admin_url}\n'
+    )
+
+    try:
+        send_email_task.delay(
+            subject=subject,
+            message=message,
+            recipient_list=admin_emails,
+        )
+    except Exception as error:
+        logger.warning(
+            'Failed to enqueue moderation submission email for admins: %s',
+            error,
+        )
 
 
 def record_publication_event(*, user, item_label: str, object_id: int, title: str, content_kind: str):
@@ -110,7 +141,7 @@ def record_publication_event(*, user, item_label: str, object_id: int, title: st
         if is_comic
         else f'{user.username} опубликовал новый пост «{title}».'
     )
-    notify_followers(
+    enqueue_followers_notification(
         author=user,
         message=follower_message,
         link=link_path,

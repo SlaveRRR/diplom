@@ -62,9 +62,9 @@ export const SignIn: FC = () => {
     : null;
 
   const auth = async (type: SocialProvider) => {
-    await trigger(['privacyPolicy', 'personalDataPolicy']);
+    await trigger('poilcy');
 
-    if (getValues('privacyPolicy') && getValues('personalDataPolicy')) {
+    if (getValues('poilcy')) {
       startHeadlessSocialAuth(type, redirectTo);
     }
   };
@@ -238,12 +238,13 @@ export const SignIn: FC = () => {
 
           <Flex justify="center" gap={9} align="center" vertical className="pt-2">
             <Controller
-              name="privacyPolicy"
+              name="poilcy"
               control={control}
               render={({ field: { value, onChange, ...field } }) => (
                 <Flex gap={12} vertical={false} align="start" className="w-full max-w-[420px]" wrap="nowrap">
                   <Text className="flex-1 leading-6">
-                    Я ознакомлен с <Link href="/privacy-policy">политикой конфиденциальности</Link>
+                    Я ознакомлен с <Link href="/privacy-policy">политикой конфиденциальности</Link>,{' '}
+                    <Link href="/personal-data">политикой обработки персональных данных</Link>
                   </Text>
                   <Checkbox
                     {...field}
@@ -254,25 +255,7 @@ export const SignIn: FC = () => {
                 </Flex>
               )}
             />
-            {!!errors?.privacyPolicy?.message && <Text type="danger">{errors.privacyPolicy.message}</Text>}
-            <Controller
-              name="personalDataPolicy"
-              control={control}
-              render={({ field: { value, onChange, ...field } }) => (
-                <Flex gap={12} vertical={false} align="start" className="w-full max-w-[420px]" wrap="nowrap">
-                  <Text className="flex-1 leading-6">
-                    Я ознакомлен с <Link href="/personal-data">политикой обработки персональных данных</Link>
-                  </Text>
-                  <Checkbox
-                    {...field}
-                    checked={value}
-                    onChange={(event) => onChange(event.target.checked)}
-                    className="mt-1 shrink-0"
-                  />
-                </Flex>
-              )}
-            />
-            {!!errors?.personalDataPolicy?.message && <Text type="danger">{errors.personalDataPolicy.message}</Text>}
+            {!!errors?.poilcy?.message && <Text type="danger">{errors.poilcy.message}</Text>}
             <Button
               className="w-full sm:w-auto"
               loading={isLoading || isSocialExchangeLoading}

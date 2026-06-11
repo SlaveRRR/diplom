@@ -1,0 +1,21 @@
+{
+  "name": "diplom-tooling",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "allure:clean": "powershell -Command \"if (Test-Path allure-results) { Remove-Item -Recurse -Force allure-results }; if (Test-Path allure-report) { Remove-Item -Recurse -Force allure-report }\"",
+    "test:backend:allure": "backend\\venv\\Scripts\\python.exe -m pytest backend\\analytics backend\\authentication backend\\blog backend\\comics backend\\interactions backend\\users --alluredir allure-results",
+    "test:frontend:unit:allure": "yarn --cwd frontend test:allure",
+    "test:frontend:e2e:allure": "yarn --cwd frontend test:server",
+    "lighthouse:import": "node scripts/import-lighthouse-json.mjs",
+    "test:allure": "yarn allure:clean && yarn test:backend:allure && yarn test:frontend:unit:allure && yarn test:frontend:e2e:allure && yarn lighthouse:import",
+    "allure:report": "allure generate allure-results --clean -o allure-report",
+    "allure:open": "allure open allure-report",
+    "load:public:api": "powershell -ExecutionPolicy Bypass -File scripts/run-k6-public.ps1 -Target api",
+    "load:public:pages": "powershell -ExecutionPolicy Bypass -File scripts/run-k6-public.ps1 -Target pages"
+  },
+  "devDependencies": {
+    "allure-commandline": "^2.34.1",
+    "allure-js-commons": "^3.4.1"
+  }
+}

@@ -4,22 +4,23 @@
     "expires_at": "2026-05-07T12:00:00Z",
     "cover": {
       "method": "PUT",
-      "key": "comics/covers/echo-tower-cover.png",
+      "key": "comics/covers/echo-tower-cover.webp",
       "upload_url": "https://upload.example.com/comics/cover"
     },
     "banner": {
       "method": "PUT",
-      "key": "comics/banners/echo-tower-banner.png",
+      "key": "comics/banners/echo-tower-banner.webp",
       "upload_url": "https://upload.example.com/comics/banner"
     },
     "chapters": [
       {
-        "draft_id": "chapter-draft-1",
+        "chapter_draft_id": "chapter-draft-1",
         "chapter_number": 1,
         "pages": [
           {
+            "page_index": 0,
             "method": "PUT",
-            "key": "comics/chapters/1/page-1.png",
+            "key": "comics/chapters/1/page-1.webp",
             "upload_url": "https://upload.example.com/comics/page-1"
           }
         ]
