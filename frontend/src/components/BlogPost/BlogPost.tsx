@@ -6,9 +6,10 @@ import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import type { TextAreaRef } from 'antd/es/input/TextArea';
 
-import { useApp, useRequireAuthAction } from '@hooks';
+import { useApp, useContentProtection, useRequireAuthAction } from '@hooks';
 import { BlogComment } from '@types';
 import { BlogImage } from '@components/BlogCreate/editor/blogImageExtension';
+import { Highlight, TextAlign } from '@components/BlogCreate/editor/textFormattingExtensions';
 import { CommentEmojiPickerButton, Reactions } from '@components/shared';
 import { OutletContext } from '@pages/LayoutPage/types';
 
@@ -67,14 +68,17 @@ export const BlogPost: FC = () => {
 
   const editor = useEditor({
     editable: false,
-    extensions: [StarterKit, BlogImage],
+    extensions: [StarterKit.configure({ heading: { levels: [1, 2, 3, 4] } }), TextAlign, Highlight, BlogImage],
     content: data?.content ?? { type: 'doc', content: [] },
     editorProps: {
       attributes: {
-        class: 'prose prose-lg max-w-none rounded-3xl border border-black/6 bg-white px-5 py-5 leading-8 outline-none',
+        class:
+          'prose prose-lg max-w-none rounded-3xl border border-black/6 bg-white px-5 py-5 leading-8 outline-none [&_p]:my-3 [&_h1]:my-6 [&_h1]:text-4xl [&_h1]:font-semibold [&_h1]:leading-tight [&_h2]:my-5 [&_h2]:text-3xl [&_h2]:font-semibold [&_h2]:leading-tight [&_h3]:my-4 [&_h3]:text-2xl [&_h3]:font-semibold [&_h3]:leading-tight [&_h4]:my-3 [&_h4]:text-xl [&_h4]:font-semibold [&_h4]:leading-tight [&_mark]:rounded [&_mark]:bg-yellow-200 [&_mark]:px-0.5 [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_blockquote]:my-4 [&_blockquote]:border-l-4 [&_blockquote]:border-[var(--color-primary)] [&_blockquote]:bg-black/[0.03] [&_blockquote]:py-2 [&_blockquote]:pl-4 [&_blockquote]:italic [&_img]:my-4 [&_img]:rounded-2xl',
       },
     },
   });
+
+  useContentProtection();
 
   useEffect(() => {
     if (editor && data?.content) {

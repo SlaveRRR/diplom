@@ -28,6 +28,7 @@ import {
 } from '@ant-design/icons';
 import type { UploadChangeParam, UploadFile } from 'antd/es/upload';
 
+import { IMAGE_WATERMARK_TEXT } from '@constants';
 import { useCurrentUser, usePlatformTaxonomy } from '@hooks';
 import { OutletContext } from '@pages';
 import {
@@ -39,6 +40,7 @@ import {
   normalizeUploadImage,
   normalizeUploadImagesSettled,
 } from '@utils';
+import { useAccountQuery } from '@components/Account/hooks';
 
 import { FirstStep } from './components';
 import { useComicCreateStore, useCreateComicMutation, useEditableComicQuery } from './hooks';
@@ -136,6 +138,7 @@ export const ComicCreate: FC = () => {
   const navigate = useNavigate();
   const { messageApi } = useOutletContext<OutletContext>();
   const { data: currentUser } = useCurrentUser();
+  const { data: account } = useAccountQuery(Boolean(currentUser) && !comicId);
   const { data: taxonomy, isLoading: isTaxonomyLoading } = usePlatformTaxonomy();
   const {
     data: editableComic,
@@ -243,6 +246,7 @@ export const ComicCreate: FC = () => {
   const isProcessingChapterImages = Boolean(chapterImagesProcessingState);
   const isEditMode = Boolean(editableComic);
   const isPublishedEdit = editableComic?.status === 'published';
+  const existingDraftComic = !comicId ? account?.comics.find((comic) => comic.status === 'draft') : undefined;
 
   const payload: Partial<CreateComicPayload> = {
     comicId: editableComic?.id,
@@ -271,7 +275,7 @@ export const ComicCreate: FC = () => {
     }
 
     try {
-      const normalizedFile = await normalizeUploadImage(rawFile);
+      const normalizedFile = await normalizeUploadImage(rawFile, IMAGE_WATERMARK_TEXT);
 
       revokeAsset(currentAsset);
       setter(createAssetFromFile(normalizedFile));
@@ -326,6 +330,7 @@ export const ComicCreate: FC = () => {
 
     try {
       const normalizedResults = await normalizeUploadImagesSettled(limitedFiles, {
+        watermarkText: IMAGE_WATERMARK_TEXT,
         onProgress: (processedFiles, totalFiles) => {
           setChapterImagesProcessingState((currentState) =>
             chapterImageProcessingSessionRef.current === sessionId && currentState
@@ -391,6 +396,19 @@ export const ComicCreate: FC = () => {
     setCurrentStep(Math.min(currentStep + 1, STEP_ITEMS.length - 1));
   };
 
+  const validateFullSubmission = () => {
+    for (let step = 0; step <= 2; step += 1) {
+      const validation = validateStep(step, payload);
+
+      if (!validation.valid) {
+        messageApi.warning(validation.message || 'Форма заполнена не полностью.', 5);
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   const handleAddChapter = () => {
     if (chapters.length >= MAX_COMIC_CHAPTERS) {
       messageApi.warning(`Можно добавить не более ${MAX_COMIC_CHAPTERS} глав.`);
@@ -401,14 +419,7 @@ export const ComicCreate: FC = () => {
   };
 
   const handleSubmit = async (submissionMode: ComicSubmissionMode) => {
-    const validation = validateStep(2, payload);
-
-    if (!validation.valid) {
-      messageApi.warning(validation.message || 'Форма заполнена не полностью.');
-      return;
-    }
-
-    if (!cover || !banner || !ageRating || !genreId) {
+    if (submissionMode !== 'draft' && !validateFullSubmission()) {
       return;
     }
 
@@ -745,6 +756,24 @@ export const ComicCreate: FC = () => {
 
         {MODERATION_ALERT}
 
+        {existingDraftComic ? (
+          <Alert
+            type="warning"
+            showIcon
+            message="У вас уже есть черновик комикса"
+            description={
+              <Flex vertical gap={12} align="flex-start">
+                <span>
+                  Можно продолжить работу с черновиком «{existingDraftComic.title}» вместо создания нового комикса.
+                </span>
+                <RouterLink to={`/comics/${existingDraftComic.id}/edit`}>
+                  <Button type="primary">Открыть черновик</Button>
+                </RouterLink>
+              </Flex>
+            }
+          />
+        ) : null}
+
         <Card className="rounded-3xl border-slate-200 shadow-sm">
           <Steps current={currentStep} items={STEP_ITEMS} responsive />
         </Card>
@@ -1022,6 +1051,15 @@ export const ComicCreate: FC = () => {
             >
               Сбросить
             </Button>
+            {!isPublishedEdit ? (
+              <Button
+                loading={isUploading}
+                onClick={() => void handleSubmit('draft')}
+                disabled={!canPublish || isUploading || isProcessingChapterImages}
+              >
+                Сохранить в черновик
+              </Button>
+            ) : null}
             {currentStep < STEP_ITEMS.length - 1 ? (
               <Button
                 type="primary"
@@ -1037,28 +1075,19 @@ export const ComicCreate: FC = () => {
                     type="primary"
                     loading={isUploading}
                     onClick={() => void handleSubmit('published')}
-                    disabled={!canPublish || isUploading || isProcessingChapterImages || uploadState.isDraftLocked}
+                    disabled={!canPublish || isUploading || isProcessingChapterImages}
                   >
                     Сохранить изменения
                   </Button>
                 ) : (
-                  <>
-                    <Button
-                      loading={isUploading}
-                      onClick={() => void handleSubmit('draft')}
-                      disabled={!canPublish || isUploading || isProcessingChapterImages || uploadState.isDraftLocked}
-                    >
-                      Сохранить в черновик
-                    </Button>
-                    <Button
-                      type="primary"
-                      loading={isUploading}
-                      onClick={() => void handleSubmit('under_review')}
-                      disabled={!canPublish || isUploading || isProcessingChapterImages || uploadState.isDraftLocked}
-                    >
-                      Отправить на модерацию
-                    </Button>
-                  </>
+                  <Button
+                    type="primary"
+                    loading={isUploading}
+                    onClick={() => void handleSubmit('under_review')}
+                    disabled={!canPublish || isUploading || isProcessingChapterImages}
+                  >
+                    Отправить на модерацию
+                  </Button>
                 )}
               </>
             )}

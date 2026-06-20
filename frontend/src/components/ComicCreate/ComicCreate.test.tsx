@@ -29,6 +29,12 @@ vi.mock('@hooks', () => ({
   }),
 }));
 
+vi.mock('@components/Account/hooks', () => ({
+  useAccountQuery: () => ({
+    data: undefined,
+  }),
+}));
+
 vi.mock('./components', () => ({
   FirstStep: () => <div data-testid="first-step">first-step</div>,
 }));

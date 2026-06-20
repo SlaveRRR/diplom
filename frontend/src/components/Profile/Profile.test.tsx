@@ -47,6 +47,8 @@ vi.mock('./hooks', () => ({
           id: 10,
           title: 'Северный ветер',
           description: 'История о городе на краю зимы.',
+          status: 'published',
+          isHidden: false,
           ageRating: '16+',
           genre: 'Драма',
           tags: ['зима'],

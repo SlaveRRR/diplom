@@ -44,3 +44,9 @@ export const UnorderedListOutlined = () => <span data-testid="unordered-list-ico
 export const UpOutlined = () => <span data-testid="up-icon" />;
 export const UserAddOutlined = () => <span data-testid="user-add-icon" />;
 export const UserOutlined = () => <span data-testid="user-icon" />;
+export const CopyrightOutlined = () => <span data-testid="copyright-icon" />;
+export const CameraOutlined = () => <span data-testid="icon-camera" />;
+export const EyeInvisibleOutlined = () => <span data-testid="icon-eye-invisible" />;
+export const FileTextOutlined = () => <span data-testid="icon-file-text" />;
+export const LinkOutlined = () => <span data-testid="icon-link" />;
+export const LogoutOutlined = () => <span data-testid="icon-logout" />;

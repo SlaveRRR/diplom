@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '@api';
-import { BlogPostConfirmPayload, BlogPostUploadConfigPayload } from '@types';
+import { BlogPostConfirmPayload, BlogPostUploadConfigPayload, BlogPostUploadConfigResponse } from '@types';
 import { ACCOUNT_QUERY_KEY } from '@components/Account/hooks/useAccountQuery';
 import { BLOG_POSTS_QUERY_KEY } from '@components/Blog/hooks';
 
@@ -34,6 +34,12 @@ type BlogUploadState = {
   errorMessage: string | null;
 };
 
+type PendingBlogUpload = {
+  signature: string;
+  uploadConfig: BlogPostUploadConfigResponse;
+  uploadedKeys: Set<string>;
+};
+
 const initialUploadState: BlogUploadState = {
   stage: 'idle',
   uploadedFiles: 0,
@@ -42,6 +48,24 @@ const initialUploadState: BlogUploadState = {
   lockedDraftId: null,
   errorMessage: null,
 };
+
+const getFileSignature = (file: File | null | undefined) =>
+  file ? `${file.name}:${file.size}:${file.type}:${file.lastModified}` : null;
+
+const buildUploadSignature = (
+  payload: Pick<CreateBlogPostMutationPayload, 'coverFile' | 'inlineImages' | 'postId'>,
+  usedInlineImageIds: Set<string>,
+) =>
+  JSON.stringify({
+    postId: payload.postId ?? null,
+    cover: getFileSignature(payload.coverFile),
+    inlineImages: Array.from(usedInlineImageIds)
+      .sort()
+      .map((uploadId) => ({
+        uploadId,
+        file: getFileSignature(payload.inlineImages[uploadId]),
+      })),
+  });
 
 const replaceImageSources = (value: unknown, replacements: ReplaceMap): unknown => {
   if (Array.isArray(value)) {
@@ -95,9 +119,11 @@ export const useCreateBlogPostMutation = () => {
   const queryClient = useQueryClient();
   const [uploadState, setUploadState] = useState<BlogUploadState>(initialUploadState);
   const lockedDraftIdRef = useRef<number | null>(null);
+  const pendingUploadRef = useRef<PendingBlogUpload | null>(null);
 
   const clearUploadLock = () => {
     lockedDraftIdRef.current = null;
+    pendingUploadRef.current = null;
     setUploadState(initialUploadState);
   };
 
@@ -112,6 +138,8 @@ export const useCreateBlogPostMutation = () => {
       tagIds,
       title,
     }: CreateBlogPostMutationPayload) => {
+      lockedDraftIdRef.current = null;
+
       if (lockedDraftIdRef.current) {
         throw new Error(
           'Предыдущая загрузка завершилась ошибкой после создания upload-config. Сбросьте форму, чтобы начать заново.',
@@ -156,15 +184,30 @@ export const useCreateBlogPostMutation = () => {
       });
 
       let createdDraftId: number | null = null;
+      const uploadSignature = buildUploadSignature({ coverFile, inlineImages, postId }, usedInlineImageIds);
 
       try {
-        const uploadConfigResponse = await api.getBlogPostUploadConfig(uploadConfigPayload);
-        const uploadConfig = uploadConfigResponse.data.data;
+        const reusableUpload =
+          pendingUploadRef.current?.signature === uploadSignature ? pendingUploadRef.current : null;
+        const uploadConfig = reusableUpload
+          ? reusableUpload.uploadConfig
+          : (await api.getBlogPostUploadConfig(uploadConfigPayload)).data.data;
+
+        if (!reusableUpload) {
+          pendingUploadRef.current = {
+            signature: uploadSignature,
+            uploadConfig,
+            uploadedKeys: new Set(),
+          };
+        }
+
         createdDraftId = uploadConfig.postDraftId;
         lockedDraftIdRef.current = createdDraftId;
 
         const uploadEntries = [
-          ...(coverFile && uploadConfig.cover ? [{ file: coverFile, uploadUrl: uploadConfig.cover.upload_url }] : []),
+          ...(coverFile && uploadConfig.cover
+            ? [{ file: coverFile, key: uploadConfig.cover.key, uploadUrl: uploadConfig.cover.upload_url }]
+            : []),
           ...uploadConfig.inlineImages.map((uploadTarget) => {
             const file = inlineImages[uploadTarget.uploadId];
 
@@ -174,23 +217,36 @@ export const useCreateBlogPostMutation = () => {
 
             return {
               file,
+              key: uploadTarget.key,
               uploadUrl: uploadTarget.upload_url,
             };
           }),
         ];
 
+        const uploadedKeys = pendingUploadRef.current?.uploadedKeys ?? new Set<string>();
+        const alreadyUploadedFiles = uploadEntries.filter((entry) => uploadedKeys.has(entry.key)).length;
+
         setUploadState((prevState) => ({
           ...prevState,
           stage: 'upload',
+          uploadedFiles: alreadyUploadedFiles,
+          totalFiles: uploadEntries.length,
           lockedDraftId: createdDraftId,
+          isDraftLocked: false,
+          errorMessage: null,
         }));
 
-        for (const [index, uploadEntry] of uploadEntries.entries()) {
+        for (const uploadEntry of uploadEntries) {
+          if (uploadedKeys.has(uploadEntry.key)) {
+            continue;
+          }
+
           await api.uploadFile(uploadEntry.uploadUrl, uploadEntry.file);
+          uploadedKeys.add(uploadEntry.key);
 
           setUploadState((prevState) => ({
             ...prevState,
-            uploadedFiles: index + 1,
+            uploadedFiles: prevState.uploadedFiles + 1,
           }));
         }
 
@@ -220,9 +276,9 @@ export const useCreateBlogPostMutation = () => {
         if (createdDraftId) {
           setUploadState({
             stage: 'idle',
-            uploadedFiles: 0,
-            totalFiles: 0,
-            isDraftLocked: true,
+            uploadedFiles: pendingUploadRef.current?.uploadedKeys.size ?? 0,
+            totalFiles: usedInlineImageIds.size + (coverFile ? 1 : 0),
+            isDraftLocked: false,
             lockedDraftId: createdDraftId,
             errorMessage: message,
           });
@@ -236,6 +292,7 @@ export const useCreateBlogPostMutation = () => {
     },
     onSuccess: () => {
       lockedDraftIdRef.current = null;
+      pendingUploadRef.current = null;
       setUploadState(initialUploadState);
       queryClient.invalidateQueries([BLOG_POSTS_QUERY_KEY]);
       queryClient.invalidateQueries([ACCOUNT_QUERY_KEY]);

@@ -1,4 +1,5 @@
 import json
+import math
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -8,10 +9,73 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from blog.models import BlogTag, Post
+from blog.models import BlogTag, Post, PostUploadDraft
+from blog.services import PostContentValidationError, validate_post_content_document
 from interactions.models import Comment
 
 User = get_user_model()
+
+
+class BlogContentValidationTests(APITestCase):
+    def test_accepts_tiptap_image_dimensions(self):
+        content = {
+            'type': 'doc',
+            'content': [
+                {
+                    'type': 'image',
+                    'attrs': {
+                        'src': 'drafts/1/posts/27/inline/image.webp',
+                        'alt': None,
+                        'title': None,
+                        'width': None,
+                        'height': '240px',
+                        'uploadId': 'image',
+                        'storageKey': 'drafts/1/posts/27/inline/image.webp',
+                    },
+                },
+                {
+                    'type': 'image',
+                    'attrs': {
+                        'src': 'https://example.com/image.webp',
+                        'width': '80%',
+                        'height': 320,
+                    },
+                },
+            ],
+        }
+
+        self.assertEqual(validate_post_content_document(content), content)
+
+    def test_rejects_unsafe_image_dimensions(self):
+        base_content = {
+            'type': 'doc',
+            'content': [{'type': 'image', 'attrs': {'src': 'https://example.com/image.webp'}}],
+        }
+
+        for value in ('Infinitypx', '120%', 0, True):
+            with self.subTest(value=value):
+                content = json.loads(json.dumps(base_content))
+                content['content'][0]['attrs']['width'] = value
+
+                with self.assertRaises(PostContentValidationError):
+                    validate_post_content_document(content)
+
+    def test_rejects_non_finite_json_numbers(self):
+        content = {
+            'type': 'doc',
+            'content': [
+                {
+                    'type': 'image',
+                    'attrs': {
+                        'src': 'https://example.com/image.webp',
+                        'width': math.nan,
+                    },
+                }
+            ],
+        }
+
+        with self.assertRaises(PostContentValidationError):
+            validate_post_content_document(content)
 
 
 @override_settings(S3_PUBLIC_BASE_URL='https://cdn.example.com', S3_PRESIGNED_EXPIRATION=1800)
@@ -86,6 +150,23 @@ class BlogApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIsNone(payload['data']['cover'])
 
+    def test_post_upload_config_rejects_non_image_file(self):
+        self.client.force_authenticate(user=self.author)
+
+        response = self.client.post(
+            '/api/v1/posts/upload-config/',
+            {
+                'cover': {
+                    'filename': 'payload.exe',
+                    'content_type': 'image/png',
+                },
+                'inlineImages': [],
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_posts_list_returns_paginated_payload(self):
         first_post = Post.objects.create(
             title='Пост о релизе',
@@ -121,13 +202,123 @@ class BlogApiTests(APITestCase):
         self.assertEqual(payload['data']['items'][0]['id'], first_post.id)
         self.assertEqual(payload['data']['items'][0]['title'], first_post.title)
 
+    def test_hidden_published_post_is_excluded_from_public_blog_and_guest_detail(self):
+        visible_post = Post.objects.create(
+            title='Visible post',
+            content={'type': 'doc', 'content': []},
+            age_rating='12+',
+            author=self.author,
+            status=Post.Status.PUBLISHED,
+            published_at=timezone.now(),
+        )
+        hidden_post = Post.objects.create(
+            title='Hidden post',
+            content={'type': 'doc', 'content': []},
+            age_rating='12+',
+            author=self.author,
+            status=Post.Status.PUBLISHED,
+            is_hidden=True,
+            published_at=timezone.now(),
+        )
+
+        list_response = self.client.get('/api/v1/posts/')
+        list_response.render()
+        list_payload = json.loads(list_response.content)
+
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(list_payload['data']['pagination']['total'], 1)
+        self.assertEqual(list_payload['data']['items'][0]['id'], visible_post.id)
+        self.assertEqual(self.client.get(f'/api/v1/posts/{hidden_post.id}/').status_code, status.HTTP_404_NOT_FOUND)
+
+        self.client.force_authenticate(user=self.author)
+        self.assertEqual(self.client.get(f'/api/v1/posts/{hidden_post.id}/').status_code, status.HTTP_200_OK)
+
+    def test_author_can_toggle_published_post_visibility(self):
+        post = Post.objects.create(
+            title='Toggle post',
+            content={'type': 'doc', 'content': []},
+            age_rating='12+',
+            author=self.author,
+            status=Post.Status.PUBLISHED,
+            published_at=timezone.now(),
+        )
+
+        self.client.force_authenticate(user=self.author)
+        response = self.client.post(f'/api/v1/posts/{post.id}/visibility/')
+        response.render()
+        payload = json.loads(response.content)
+        post.refresh_from_db()
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(payload['data']['isHidden'])
+        self.assertTrue(post.is_hidden)
+
+    @patch('blog.views.S3UploadService.delete_objects', return_value=3)
+    def test_author_can_delete_own_draft_post_with_media(self, mock_delete_objects):
+        post = Post.objects.create(
+            title='Draft post',
+            content={
+                'type': 'doc',
+                'content': [
+                    {
+                        'type': 'image',
+                        'attrs': {
+                            'src': 'drafts/1/posts/1/inline/image-1.webp',
+                        },
+                    },
+                    {
+                        'type': 'image',
+                        'attrs': {
+                            'src': 'drafts/1/posts/1/inline/image-2.webp',
+                        },
+                    },
+                ],
+            },
+            cover='drafts/1/posts/1/cover.webp',
+            age_rating='12+',
+            author=self.author,
+            status=Post.Status.DRAFT,
+        )
+
+        self.client.force_authenticate(user=self.author)
+        response = self.client.delete(f'/api/v1/posts/{post.id}/draft/')
+        response.render()
+        payload = json.loads(response.content)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(payload['data']['deletedMediaCount'], 3)
+        self.assertFalse(Post.objects.filter(id=post.id).exists())
+        mock_delete_objects.assert_called_once_with(
+            [
+                'drafts/1/posts/1/cover.webp',
+                'drafts/1/posts/1/inline/image-1.webp',
+                'drafts/1/posts/1/inline/image-2.webp',
+            ]
+        )
+
+    def test_author_cannot_delete_published_post_as_draft(self):
+        post = Post.objects.create(
+            title='Published post',
+            content={'type': 'doc', 'content': []},
+            author=self.author,
+            status=Post.Status.PUBLISHED,
+            published_at=timezone.now(),
+        )
+
+        self.client.force_authenticate(user=self.author)
+        response = self.client.delete(f'/api/v1/posts/{post.id}/draft/')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(Post.objects.filter(id=post.id).exists())
+
     @override_settings(
         ADMINS_EMAILS=['moderation-1@example.com', 'moderation-2@example.com'],
         BACKEND_PUBLIC_URL='https://api.comicsera.ru',
     )
     @patch('core.moderation.send_email_task.delay')
+    @patch('blog.views.S3UploadService.validate_image_object', return_value=True)
     @patch('blog.views.S3UploadService.object_exists', return_value=True)
-    def test_confirm_creates_post_with_under_review_status(self, object_exists_mock, send_email_task_mock):
+    def test_confirm_creates_post_with_under_review_status(self, object_exists_mock, validate_image_object_mock, send_email_task_mock):
         self.client.force_authenticate(user=self.author)
         config_response = self.client.post(
             '/api/v1/posts/upload-config/',
@@ -195,8 +386,9 @@ class BlogApiTests(APITestCase):
         self.assertIn('/change/', send_email_task_mock.call_args.kwargs['message'])
 
     @patch('core.moderation.send_email_task.delay')
+    @patch('blog.views.S3UploadService.validate_image_object', return_value=True)
     @patch('blog.views.S3UploadService.object_exists', return_value=True)
-    def test_confirm_creates_post_as_draft_without_cover(self, object_exists_mock, send_email_task_mock):
+    def test_confirm_creates_post_as_draft_without_cover(self, object_exists_mock, validate_image_object_mock, send_email_task_mock):
         self.client.force_authenticate(user=self.author)
         config_response = self.client.post(
             '/api/v1/posts/upload-config/',
@@ -240,6 +432,145 @@ class BlogApiTests(APITestCase):
         self.assertFalse(object_exists_mock.called)
         send_email_task_mock.assert_not_called()
 
+    def test_confirm_accepts_valid_rich_text_json(self):
+        draft = PostUploadDraft.objects.create(
+            user=self.author,
+            expires_at=timezone.now() + timedelta(minutes=30),
+        )
+        self.client.force_authenticate(user=self.author)
+
+        response = self.client.post(
+            '/api/v1/posts/confirm/',
+            {
+                'postDraftId': draft.id,
+                'title': 'Rich text post',
+                'ageRating': '16+',
+                'tagIds': [self.tag.id],
+                'status': Post.Status.DRAFT,
+                'content': {
+                    'type': 'doc',
+                    'content': [
+                        {
+                            'type': 'heading',
+                            'attrs': {'level': 1, 'textAlign': 'center'},
+                            'content': [
+                                {
+                                    'type': 'text',
+                                    'text': 'Title',
+                                    'marks': [{'type': 'highlight'}],
+                                }
+                            ],
+                        },
+                        {
+                            'type': 'paragraph',
+                            'attrs': {'textAlign': 'justify'},
+                            'content': [{'type': 'text', 'text': 'Body'}],
+                        },
+                        {
+                            'type': 'image',
+                            'attrs': {
+                                'src': 'https://example.com/image.webp',
+                                'alt': None,
+                                'title': None,
+                                'width': None,
+                                'height': '240px',
+                            },
+                        },
+                    ],
+                },
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        post = Post.objects.get(title='Rich text post')
+        self.assertEqual(post.content['content'][0]['attrs']['level'], 1)
+        self.assertEqual(post.content['content'][0]['content'][0]['marks'][0]['type'], 'highlight')
+        self.assertEqual(post.content['content'][2]['attrs']['height'], '240px')
+
+    def test_confirm_rejects_unknown_rich_text_node(self):
+        draft = PostUploadDraft.objects.create(
+            user=self.author,
+            expires_at=timezone.now() + timedelta(minutes=30),
+        )
+        self.client.force_authenticate(user=self.author)
+
+        response = self.client.post(
+            '/api/v1/posts/confirm/',
+            {
+                'postDraftId': draft.id,
+                'title': 'Invalid node',
+                'ageRating': '16+',
+                'tagIds': [],
+                'status': Post.Status.DRAFT,
+                'content': {
+                    'type': 'doc',
+                    'content': [{'type': 'script', 'attrs': {'src': 'https://example.com/x.js'}}],
+                },
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(Post.objects.filter(title='Invalid node').exists())
+
+    def test_confirm_rejects_unsafe_image_source(self):
+        draft = PostUploadDraft.objects.create(
+            user=self.author,
+            expires_at=timezone.now() + timedelta(minutes=30),
+        )
+        self.client.force_authenticate(user=self.author)
+
+        response = self.client.post(
+            '/api/v1/posts/confirm/',
+            {
+                'postDraftId': draft.id,
+                'title': 'Unsafe image',
+                'ageRating': '16+',
+                'tagIds': [],
+                'status': Post.Status.DRAFT,
+                'content': {
+                    'type': 'doc',
+                    'content': [
+                        {
+                            'type': 'image',
+                            'attrs': {'src': 'javascript:alert(1)'},
+                        }
+                    ],
+                },
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(Post.objects.filter(title='Unsafe image').exists())
+
+    @patch('blog.views.S3UploadService.validate_image_object', return_value=False)
+    @patch('blog.views.S3UploadService.object_exists', return_value=True)
+    def test_confirm_rejects_uploaded_non_image_object(self, object_exists_mock, validate_image_object_mock):
+        draft = PostUploadDraft.objects.create(
+            user=self.author,
+            cover='drafts/1/posts/1/cover.png',
+            expires_at=timezone.now() + timedelta(minutes=30),
+        )
+        self.client.force_authenticate(user=self.author)
+
+        response = self.client.post(
+            '/api/v1/posts/confirm/',
+            {
+                'postDraftId': draft.id,
+                'title': 'Invalid binary',
+                'ageRating': '16+',
+                'tagIds': [],
+                'status': Post.Status.DRAFT,
+                'content': {'type': 'doc', 'content': []},
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertFalse(Post.objects.filter(title='Invalid binary').exists())
+
     def test_editor_returns_draft_payload_for_author(self):
         post = Post.objects.create(
             title='Черновик поста',
@@ -273,8 +604,9 @@ class BlogApiTests(APITestCase):
         image_attrs = payload['data']['content']['content'][0]['attrs']
         self.assertEqual(image_attrs['storageKey'], 'drafts/1/posts/existing/inline/cover.png')
 
+    @patch('blog.views.S3UploadService.validate_image_object', return_value=True)
     @patch('blog.views.S3UploadService.object_exists', return_value=True)
-    def test_confirm_updates_existing_draft_post(self, object_exists_mock):
+    def test_confirm_updates_existing_draft_post(self, object_exists_mock, validate_image_object_mock):
         post = Post.objects.create(
             title='Старый черновик',
             content={

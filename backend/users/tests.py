@@ -86,6 +86,13 @@ class UsersApiTests(APITestCase):
             author=author,
             status=Comic.Status.DRAFT,
         )
+        Comic.objects.create(
+            title='Hidden published comic',
+            description='Visible only in cabinet until shown',
+            author=author,
+            status=Comic.Status.PUBLISHED,
+            is_hidden=True,
+        )
         Post.objects.create(
             title='Published post',
             content={'type': 'doc', 'content': []},
@@ -98,6 +105,13 @@ class UsersApiTests(APITestCase):
             author=author,
             status=Post.Status.UNDER_REVIEW,
         )
+        Post.objects.create(
+            title='Hidden published post',
+            content={'type': 'doc', 'content': []},
+            author=author,
+            status=Post.Status.PUBLISHED,
+            is_hidden=True,
+        )
 
         self.client.force_authenticate(user=author)
         response = self.client.get('/api/v1/account/')
@@ -107,8 +121,10 @@ class UsersApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(payload['data']['publicProfilePath'], f'/profile/{author.id}')
         self.assertEqual(payload['data']['avatar'], 'https://cdn.example.com/users/1/avatars/current.png')
-        self.assertEqual(len(payload['data']['comics']), 2)
-        self.assertEqual(len(payload['data']['posts']), 2)
+        self.assertEqual(len(payload['data']['comics']), 3)
+        self.assertEqual(len(payload['data']['posts']), 3)
+        self.assertTrue(next(comic for comic in payload['data']['comics'] if comic['title'] == 'Hidden published comic')['isHidden'])
+        self.assertTrue(next(post for post in payload['data']['posts'] if post['title'] == 'Hidden published post')['isHidden'])
         self.assertEqual({post['status'] for post in payload['data']['posts']}, {Post.Status.PUBLISHED, Post.Status.UNDER_REVIEW})
 
     def test_public_profile_returns_only_published_comics_for_guest(self):
@@ -132,6 +148,13 @@ class UsersApiTests(APITestCase):
             description='Visible only for author',
             author=author,
             status=Comic.Status.DRAFT,
+        )
+        Comic.objects.create(
+            title='Hidden published comic',
+            description='Hidden from public profile',
+            author=author,
+            status=Comic.Status.PUBLISHED,
+            is_hidden=True,
         )
 
         response = self.client.get(f'/api/v1/profiles/{author.id}/')
@@ -177,8 +200,29 @@ class UsersApiTests(APITestCase):
         self.assertEqual(payload['data']['file']['upload_url'], 'https://storage.example.com/upload-avatar')
         self.assertTrue(AvatarUploadDraft.objects.filter(id=payload['data']['avatarDraftId'], user=user).exists())
 
+    def test_avatar_upload_config_rejects_non_image_file(self):
+        user = User.objects.create_user(
+            username='avatar-invalid',
+            email='avatar-invalid@example.com',
+            password='strongpass123',
+        )
+        self.client.force_authenticate(user=user)
+
+        response = self.client.post(
+            '/api/v1/account/avatar-upload-config/',
+            {
+                'filename': 'avatar.exe',
+                'content_type': 'image/png',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(AvatarUploadDraft.objects.filter(user=user).exists())
+
+    @patch('users.views.services.S3UploadService.validate_image_object', return_value=True)
     @patch('users.views.services.S3UploadService.object_exists', return_value=True)
-    def test_avatar_confirm_updates_user_avatar(self, object_exists_mock):
+    def test_avatar_confirm_updates_user_avatar(self, object_exists_mock, validate_image_object_mock):
         user = User.objects.create_user(
             username='confirm-owner',
             email='confirm-owner@example.com',
@@ -205,6 +249,34 @@ class UsersApiTests(APITestCase):
         self.assertEqual(payload['data']['avatar'], 'https://cdn.example.com/users/12/avatars/33.png')
         self.assertEqual(avatar_draft.status, AvatarUploadDraft.Status.CONFIRMED)
         object_exists_mock.assert_called_once_with('users/12/avatars/33.png')
+
+    @patch('users.views.services.S3UploadService.validate_image_object', return_value=False)
+    @patch('users.views.services.S3UploadService.object_exists', return_value=True)
+    def test_avatar_confirm_rejects_uploaded_non_image_object(self, object_exists_mock, validate_image_object_mock):
+        user = User.objects.create_user(
+            username='invalid-avatar-confirm',
+            email='invalid-avatar-confirm@example.com',
+            password='strongpass123',
+        )
+        avatar_draft = AvatarUploadDraft.objects.create(
+            user=user,
+            file_key='users/12/avatars/44.png',
+        )
+        self.client.force_authenticate(user=user)
+
+        response = self.client.post(
+            '/api/v1/account/avatar-confirm/',
+            {'avatarDraftId': avatar_draft.id},
+            format='json',
+        )
+        avatar_draft.refresh_from_db()
+        user.refresh_from_db()
+
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertEqual(user.avatar, '')
+        self.assertEqual(avatar_draft.status, AvatarUploadDraft.Status.PENDING)
+        object_exists_mock.assert_called_once_with('users/12/avatars/44.png')
+        validate_image_object_mock.assert_called_once_with('users/12/avatars/44.png')
 
     def test_user_can_follow_author_profile(self):
         author = User.objects.create_user(

@@ -1,10 +1,13 @@
 /// <reference lib="webworker" />
 
+import { drawWatermark } from './drawWaterMark';
+
 const WEBP_TYPE = 'image/webp';
 
 type ImageProcessingWorkerRequest = {
   file: File;
   maxDimensionPx: number;
+  watermarkText?: string;
 };
 
 type ImageProcessingWorkerResponse =
@@ -20,7 +23,7 @@ type ImageProcessingWorkerResponse =
 const replaceFileExtension = (filename: string, extension: string) =>
   filename.replace(/\.[^.]+$/u, extension).concat(/\.[^.]+$/u.test(filename) ? '' : extension);
 
-const processImage = async ({ file, maxDimensionPx }: ImageProcessingWorkerRequest): Promise<File> => {
+const processImage = async ({ file, maxDimensionPx, watermarkText }: ImageProcessingWorkerRequest): Promise<File> => {
   const image = await createImageBitmap(file);
 
   try {
@@ -28,10 +31,6 @@ const processImage = async ({ file, maxDimensionPx }: ImageProcessingWorkerReque
 
     const width = Math.round(image.width * scale);
     const height = Math.round(image.height * scale);
-
-    if (file.type === WEBP_TYPE && scale === 1) {
-      return file;
-    }
 
     const canvas = new OffscreenCanvas(width, height);
     const context = canvas.getContext('2d');
@@ -41,6 +40,10 @@ const processImage = async ({ file, maxDimensionPx }: ImageProcessingWorkerReque
     }
 
     context.drawImage(image, 0, 0, width, height);
+
+    if (watermarkText) {
+      drawWatermark(context, width, height, watermarkText);
+    }
 
     const blob = await canvas.convertToBlob({
       type: WEBP_TYPE,

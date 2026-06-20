@@ -22,6 +22,7 @@ export interface UserProfileComic {
   coverUrl: string;
   ageRating: string;
   status: 'draft' | 'under_review' | 'published' | 'blocked' | 'revision';
+  isHidden: boolean;
   genre: string | null;
   tags: string[];
   likesCount: number;
@@ -40,6 +41,7 @@ export interface UserProfilePost {
   coverUrl: string;
   ageRating: string;
   status: 'draft' | 'under_review' | 'published' | 'blocked' | 'revision';
+  isHidden: boolean;
   tags: string[];
   commentsCount: number;
   updatedAt: string;

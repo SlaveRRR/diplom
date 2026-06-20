@@ -283,7 +283,7 @@ describe('useCreateBlogPostMutation', () => {
       }
     });
 
-    await waitFor(() => expect(result.current.uploadState.isDraftLocked).toBe(true));
+    await waitFor(() => expect(result.current.uploadState.isDraftLocked).toBe(false));
     expect(result.current.uploadState.lockedDraftId).toBe(77);
 
     await act(async () => {
@@ -303,6 +303,7 @@ describe('useCreateBlogPostMutation', () => {
     });
 
     expect(mockApi.getBlogPostUploadConfig).toHaveBeenCalledTimes(1);
+    expect(mockApi.uploadFile).toHaveBeenCalledTimes(2);
 
     act(() => {
       result.current.clearUploadLock();

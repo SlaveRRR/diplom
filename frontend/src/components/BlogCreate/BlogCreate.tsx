@@ -3,8 +3,12 @@ import mammoth from 'mammoth';
 import { FC, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Link as RouterLink, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import {
+  AlignCenterOutlined,
+  AlignLeftOutlined,
+  AlignRightOutlined,
   BoldOutlined,
   FileWordOutlined,
+  HighlightOutlined,
   ItalicOutlined,
   OrderedListOutlined,
   PictureOutlined,
@@ -31,6 +35,7 @@ import { Select } from '@components/shared';
 import { OutletContext } from '@pages/LayoutPage/types';
 
 import { BlogImage } from './editor/blogImageExtension';
+import { Highlight, TextAlign } from './editor/textFormattingExtensions';
 import { useBlogCreateStore, useCreateBlogPostMutation, useEditableBlogPostQuery } from './hooks';
 
 const { Text } = Typography;
@@ -45,7 +50,24 @@ type ToolbarButton = {
   action: () => void;
 };
 
-type BlockTypeValue = 'paragraph' | 'heading-2' | 'heading-3' | 'blockquote';
+type BlockTypeValue = 'paragraph' | 'heading-1' | 'heading-2' | 'heading-3' | 'heading-4' | 'blockquote';
+type TextAlignValue = 'left' | 'center' | 'right' | 'justify';
+
+const extendedBlockTypeOptions = [
+  { value: 'paragraph', label: 'Обычный текст' },
+  { value: 'heading-1', label: 'Заголовок H1' },
+  { value: 'heading-2', label: 'Заголовок H2' },
+  { value: 'heading-3', label: 'Заголовок H3' },
+  { value: 'heading-4', label: 'Заголовок H4' },
+  { value: 'blockquote', label: 'Цитата' },
+] satisfies Array<{ value: BlockTypeValue; label: string }>;
+
+const textAlignOptions = [
+  { value: 'left', label: 'По левому краю', icon: <AlignLeftOutlined /> },
+  { value: 'center', label: 'По центру', icon: <AlignCenterOutlined /> },
+  { value: 'right', label: 'По правому краю', icon: <AlignRightOutlined /> },
+  { value: 'justify', label: 'По ширине', icon: <span className="font-semibold leading-none">J</span> },
+] satisfies Array<{ value: TextAlignValue; label: string; icon: ReactNode }>;
 
 const blockTypeOptions = [
   { value: 'paragraph', label: 'Параграф' },
@@ -53,6 +75,9 @@ const blockTypeOptions = [
   { value: 'heading-3', label: 'Заголовок H3' },
   { value: 'blockquote', label: 'Цитата' },
 ] satisfies Array<{ value: BlockTypeValue; label: string }>;
+
+const legacyBlockTypeOptionsCount = blockTypeOptions.length;
+void legacyBlockTypeOptionsCount;
 
 const MODERATION_ALERT = (
   <Alert
@@ -115,12 +140,12 @@ export const BlogCreate: FC = () => {
   const [editorJson, setEditorJson] = useState<Record<string, unknown>>({ type: 'doc', content: [] });
 
   const editor = useEditor({
-    extensions: [StarterKit, BlogImage],
+    extensions: [StarterKit.configure({ heading: { levels: [1, 2, 3, 4] } }), TextAlign, Highlight, BlogImage],
     content: editorJson,
     editorProps: {
       attributes: {
         class:
-          'min-h-[360px] rounded-[24px] border border-black/8 bg-white px-4 py-4 text-[15px] leading-7 outline-none [&_p]:my-3 [&_h2]:my-4 [&_h2]:text-3xl [&_h2]:font-semibold [&_h2]:leading-tight [&_h3]:my-3 [&_h3]:text-2xl [&_h3]:font-semibold [&_h3]:leading-tight [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_blockquote]:my-4 [&_blockquote]:border-l-4 [&_blockquote]:border-[var(--color-primary)] [&_blockquote]:bg-black/[0.03] [&_blockquote]:py-2 [&_blockquote]:pl-4 [&_blockquote]:italic [&_img]:my-4 [&_img]:rounded-2xl',
+          'min-h-[360px] rounded-[24px] border border-black/8 bg-white px-4 py-4 text-[15px] leading-7 outline-none [&_p]:my-3 [&_h1]:my-5 [&_h1]:text-4xl [&_h1]:font-semibold [&_h1]:leading-tight [&_h2]:my-4 [&_h2]:text-3xl [&_h2]:font-semibold [&_h2]:leading-tight [&_h3]:my-3 [&_h3]:text-2xl [&_h3]:font-semibold [&_h3]:leading-tight [&_h4]:my-3 [&_h4]:text-xl [&_h4]:font-semibold [&_h4]:leading-tight [&_mark]:rounded [&_mark]:bg-yellow-200 [&_mark]:px-0.5 [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_blockquote]:my-4 [&_blockquote]:border-l-4 [&_blockquote]:border-[var(--color-primary)] [&_blockquote]:bg-black/[0.03] [&_blockquote]:py-2 [&_blockquote]:pl-4 [&_blockquote]:italic [&_img]:my-4 [&_img]:rounded-2xl',
       },
     },
     onUpdate: ({ editor: currentEditor }) => {
@@ -133,11 +158,18 @@ export const BlogCreate: FC = () => {
     selector: ({ editor: currentEditor }) => ({
       isBold: currentEditor.isActive('bold'),
       isItalic: currentEditor.isActive('italic'),
+      isHighlight: currentEditor.isActive('highlight'),
       isBulletList: currentEditor.isActive('bulletList'),
       isOrderedList: currentEditor.isActive('orderedList'),
       isBlockquote: currentEditor.isActive('blockquote'),
+      isHeading1: currentEditor.isActive('heading', { level: 1 }),
       isHeading2: currentEditor.isActive('heading', { level: 2 }),
       isHeading3: currentEditor.isActive('heading', { level: 3 }),
+      isHeading4: currentEditor.isActive('heading', { level: 4 }),
+      textAlign:
+        currentEditor.getAttributes('heading').textAlign ||
+        currentEditor.getAttributes('paragraph').textAlign ||
+        'left',
     }),
   });
 
@@ -163,12 +195,20 @@ export const BlogCreate: FC = () => {
       return 'blockquote';
     }
 
+    if (editorState?.isHeading1) {
+      return 'heading-1';
+    }
+
     if (editorState?.isHeading2) {
       return 'heading-2';
     }
 
     if (editorState?.isHeading3) {
       return 'heading-3';
+    }
+
+    if (editorState?.isHeading4) {
+      return 'heading-4';
     }
 
     return 'paragraph';
@@ -189,6 +229,13 @@ export const BlogCreate: FC = () => {
         icon: <ItalicOutlined />,
         active: editorState?.isItalic,
         action: () => runEditorAction(editor, (instance) => instance.chain().focus().toggleItalic().run()),
+      },
+      {
+        key: 'highlight',
+        label: 'Выделение',
+        icon: <HighlightOutlined />,
+        active: editorState?.isHighlight,
+        action: () => runEditorAction(editor, (instance) => instance.chain().focus().toggleHighlight().run()),
       },
       {
         key: 'bullet',
@@ -220,6 +267,18 @@ export const BlogCreate: FC = () => {
     [editor, editorState],
   );
 
+  const alignmentButtons = useMemo<ToolbarButton[]>(
+    () =>
+      textAlignOptions.map((option) => ({
+        key: `align-${option.value}`,
+        label: option.label,
+        icon: option.icon,
+        active: editorState?.textAlign === option.value,
+        action: () => runEditorAction(editor, (instance) => instance.chain().focus().setTextAlign(option.value).run()),
+      })),
+    [editor, editorState?.textAlign],
+  );
+
   const handleSelectCover = async (file: File) => {
     try {
       const normalizedFile = await normalizeUploadImage(file);
@@ -241,11 +300,17 @@ export const BlogCreate: FC = () => {
     const normalizedValue = value as BlockTypeValue;
 
     switch (normalizedValue) {
+      case 'heading-1':
+        editor.chain().focus().setHeading({ level: 1 }).run();
+        break;
       case 'heading-2':
         editor.chain().focus().setHeading({ level: 2 }).run();
         break;
       case 'heading-3':
         editor.chain().focus().setHeading({ level: 3 }).run();
+        break;
+      case 'heading-4':
+        editor.chain().focus().setHeading({ level: 4 }).run();
         break;
       case 'blockquote':
         if (!editor.isActive('blockquote')) {
@@ -430,7 +495,6 @@ export const BlogCreate: FC = () => {
         <Button
           icon={<SaveOutlined />}
           loading={mutation.isLoading || isLoadingEditablePost}
-          disabled={uploadState.isDraftLocked}
           onClick={() => handleSubmit('draft')}
         >
           Сохранить как черновик
@@ -440,7 +504,6 @@ export const BlogCreate: FC = () => {
           size="large"
           icon={<SaveOutlined />}
           loading={mutation.isLoading || isLoadingEditablePost}
-          disabled={uploadState.isDraftLocked}
           onClick={() => handleSubmit('under_review')}
         >
           Отправить на модерацию
@@ -540,13 +603,32 @@ export const BlogCreate: FC = () => {
                     <Select
                       value={currentBlockType}
                       disabled={isLoadingEditablePost}
-                      options={blockTypeOptions}
+                      options={extendedBlockTypeOptions}
                       onChange={handleBlockTypeChange}
                       placeholder="Тип блока"
                     />
                   </div>
 
                   {formattingButtons.map((item) => (
+                    <Tooltip key={item.key} title={item.label}>
+                      <Button
+                        type={item.active ? 'primary' : 'default'}
+                        size="small"
+                        shape="round"
+                        icon={item.icon}
+                        disabled={isLoadingEditablePost}
+                        aria-label={item.label}
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          item.action();
+                        }}
+                      />
+                    </Tooltip>
+                  ))}
+
+                  <span className="mx-0.5 h-7 w-px self-center bg-black/10" />
+
+                  {alignmentButtons.map((item) => (
                     <Tooltip key={item.key} title={item.label}>
                       <Button
                         type={item.active ? 'primary' : 'default'}

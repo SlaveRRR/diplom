@@ -48,6 +48,15 @@ def record_content_event(*, owner, content_kind: str, object_id: int, event_type
     )
 
 
+def delete_content_analytics(*, content_kind: str, object_id: int):
+    filters = {
+        'content_kind': content_kind,
+        'object_id': object_id,
+    }
+    AnalyticsEvent.objects.filter(**filters).delete()
+    UniqueContentView.objects.filter(**filters).delete()
+
+
 def parse_date_range(date_from_raw: str | None, date_to_raw: str | None):
     today = timezone.localdate()
     default_from = today - timedelta(days=29)
@@ -120,9 +129,18 @@ def validate_item_filter(*, user, content_type: str, item_id: int | None):
 
 def build_event_queryset(*, user, content_type: str, item_id: int | None, start, end):
     queryset = AnalyticsEvent.objects.filter(owner=user, created_at__gte=start, created_at__lte=end)
+    comic_ids = Comic.objects.filter(author=user).values_list('id', flat=True)
+    post_ids = Post.objects.filter(author=user).values_list('id', flat=True)
 
-    if content_type in {AnalyticsEvent.ContentKind.COMIC, AnalyticsEvent.ContentKind.POST}:
-        queryset = queryset.filter(content_kind=content_type)
+    if content_type == AnalyticsEvent.ContentKind.COMIC:
+        queryset = queryset.filter(content_kind=content_type, object_id__in=comic_ids)
+    elif content_type == AnalyticsEvent.ContentKind.POST:
+        queryset = queryset.filter(content_kind=content_type, object_id__in=post_ids)
+    else:
+        queryset = queryset.filter(
+            Q(content_kind=AnalyticsEvent.ContentKind.COMIC, object_id__in=comic_ids)
+            | Q(content_kind=AnalyticsEvent.ContentKind.POST, object_id__in=post_ids)
+        )
 
     if item_id:
         queryset = queryset.filter(object_id=item_id)
@@ -222,7 +240,7 @@ def build_timeline(*, queryset, interval: str):
     ]
 
 
-def build_top_items(queryset):
+def build_top_items(queryset, *, user):
     rows = (
         queryset.values('content_kind', 'object_id', 'title_snapshot')
         .annotate(
@@ -235,6 +253,12 @@ def build_top_items(queryset):
         )
         .order_by('-views', '-comments', '-likes', '-favorites')[:10]
     )
+
+    rows = list(rows)
+    comic_ids = [row['object_id'] for row in rows if row['content_kind'] == AnalyticsEvent.ContentKind.COMIC]
+    post_ids = [row['object_id'] for row in rows if row['content_kind'] == AnalyticsEvent.ContentKind.POST]
+    existing_comic_ids = set(Comic.objects.filter(author=user, id__in=comic_ids).values_list('id', flat=True))
+    existing_post_ids = set(Post.objects.filter(author=user, id__in=post_ids).values_list('id', flat=True))
 
     return [
         {
@@ -250,6 +274,14 @@ def build_top_items(queryset):
             'engagement': row['comments'] + row['likes'] + row['favorites'],
         }
         for row in rows
+        if (
+            row['content_kind'] == AnalyticsEvent.ContentKind.COMIC
+            and row['object_id'] in existing_comic_ids
+        )
+        or (
+            row['content_kind'] == AnalyticsEvent.ContentKind.POST
+            and row['object_id'] in existing_post_ids
+        )
     ]
 
 
@@ -281,7 +313,7 @@ def build_analytics_payload(*, user, content_type: str, item_id: int | None, dat
         'summary': build_summary(current_queryset=current_queryset, previous_queryset=previous_queryset),
         'totalsByContentType': build_totals_by_content_type(user=user, start=current_start, end=current_end),
         'timeline': build_timeline(queryset=current_queryset, interval=interval),
-        'topItems': build_top_items(current_queryset),
+        'topItems': build_top_items(current_queryset, user=user),
         'availableItems': get_available_items(user),
     }
 

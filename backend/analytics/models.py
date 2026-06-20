@@ -33,6 +33,8 @@ class AnalyticsEvent(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        verbose_name = 'событие аналитики'
+        verbose_name_plural = 'события аналитики'
         ordering = ('-created_at',)
         indexes = [
             models.Index(fields=('owner', 'created_at')),
@@ -66,6 +68,8 @@ class UniqueContentView(models.Model):
     last_viewed_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        verbose_name = 'уникальный просмотр контента'
+        verbose_name_plural = 'уникальные просмотры контента'
         ordering = ('-last_viewed_at', '-first_viewed_at')
         constraints = [
             models.UniqueConstraint(

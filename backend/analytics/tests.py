@@ -4,6 +4,8 @@ from rest_framework.test import APITestCase
 
 from analytics.models import AnalyticsEvent, UniqueContentView
 from analytics.services import register_unique_content_view
+from blog.models import Post
+from comics.models import Comic
 
 User = get_user_model()
 
@@ -84,6 +86,83 @@ class AnalyticsApiTests(APITestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn('summary', response.data['data'])
+
+    def test_dashboard_top_items_excludes_deleted_content_events(self):
+        comic = Comic.objects.create(
+            title='Existing comic',
+            description='Visible in analytics',
+            author=self.user,
+            status=Comic.Status.PUBLISHED,
+        )
+        AnalyticsEvent.objects.create(
+            owner=self.user,
+            content_kind=AnalyticsEvent.ContentKind.COMIC,
+            object_id=comic.id,
+            title_snapshot=comic.title,
+            event_type=AnalyticsEvent.EventType.VIEW,
+        )
+        AnalyticsEvent.objects.create(
+            owner=self.user,
+            content_kind=AnalyticsEvent.ContentKind.COMIC,
+            object_id=99999,
+            title_snapshot='Deleted comic',
+            event_type=AnalyticsEvent.EventType.VIEW,
+        )
+
+        response = self.client.get('/api/v1/analytics/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [item['objectId'] for item in response.data['data']['topItems']],
+            [comic.id],
+        )
+
+    def test_deleting_comic_removes_related_analytics_records(self):
+        comic = Comic.objects.create(
+            title='Comic to delete',
+            description='Analytics must be removed',
+            author=self.user,
+            status=Comic.Status.DRAFT,
+        )
+        post = Post.objects.create(
+            title='Post stays',
+            content={'type': 'doc', 'content': []},
+            author=self.user,
+            status=Post.Status.DRAFT,
+        )
+        AnalyticsEvent.objects.create(
+            owner=self.user,
+            content_kind=AnalyticsEvent.ContentKind.COMIC,
+            object_id=comic.id,
+            title_snapshot=comic.title,
+            event_type=AnalyticsEvent.EventType.VIEW,
+        )
+        UniqueContentView.objects.create(
+            owner=self.user,
+            content_kind=AnalyticsEvent.ContentKind.COMIC,
+            object_id=comic.id,
+            viewer_key='user:1',
+            title_snapshot=comic.title,
+        )
+        AnalyticsEvent.objects.create(
+            owner=self.user,
+            content_kind=AnalyticsEvent.ContentKind.POST,
+            object_id=post.id,
+            title_snapshot=post.title,
+            event_type=AnalyticsEvent.EventType.VIEW,
+        )
+
+        comic.delete()
+
+        self.assertFalse(
+            AnalyticsEvent.objects.filter(content_kind=AnalyticsEvent.ContentKind.COMIC, object_id=comic.id).exists()
+        )
+        self.assertFalse(
+            UniqueContentView.objects.filter(content_kind=AnalyticsEvent.ContentKind.COMIC, object_id=comic.id).exists()
+        )
+        self.assertTrue(
+            AnalyticsEvent.objects.filter(content_kind=AnalyticsEvent.ContentKind.POST, object_id=post.id).exists()
+        )
 
     def test_export_returns_excel_file(self):
         response = self.client.get('/api/v1/analytics/export/')

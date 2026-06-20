@@ -8,6 +8,7 @@ from django.utils import timezone
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from blog.models import Post
@@ -51,7 +52,7 @@ def get_user_comics_queryset(user, include_unpublished=False):
     )
 
     if not include_unpublished:
-        comics = comics.filter(status=Comic.Status.PUBLISHED)
+        comics = comics.filter(status=Comic.Status.PUBLISHED, is_hidden=False)
 
     return comics
 
@@ -64,7 +65,7 @@ def get_user_posts_queryset(user, include_unpublished=False):
     )
 
     if not include_unpublished:
-        posts = posts.filter(status=Post.Status.PUBLISHED)
+        posts = posts.filter(status=Post.Status.PUBLISHED, is_hidden=False)
 
     return posts
 
@@ -165,6 +166,9 @@ class UserMonthlyRecapView(APIView):
 
 
 class AvatarUploadConfigView(APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'upload_config'
+
     @extend_schema(
         tags=['Users'],
         request=AvatarUploadConfigRequestSerializer,
@@ -193,6 +197,9 @@ class AvatarUploadConfigView(APIView):
 
 
 class AvatarConfirmView(APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'upload_confirm'
+
     @extend_schema(
         tags=['Users'],
         request=AvatarUploadConfirmRequestSerializer,
@@ -219,6 +226,12 @@ class AvatarConfirmView(APIView):
                 'Uploaded avatar file was not found in storage.',
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
                 {'missing_key': avatar_draft.file_key},
+            )
+        if not upload_service.validate_image_object(avatar_draft.file_key):
+            return error_response(
+                'Uploaded avatar file is not a valid image.',
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                {'invalid_key': avatar_draft.file_key},
             )
 
         request.user.avatar = avatar_draft.file_key
@@ -267,6 +280,9 @@ class PublicProfileView(APIView):
 
 
 class UserFollowToggleView(APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'interaction'
+
     @extend_schema(
         tags=['Users'],
         responses={200: UserFollowToggleSerializer},

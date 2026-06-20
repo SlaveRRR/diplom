@@ -21,6 +21,8 @@ class BlogTag(TimeStampedModel):
     description = models.CharField(max_length=255, blank=True)
 
     class Meta:
+        verbose_name = 'тег блога'
+        verbose_name_plural = 'теги блога'
         ordering = ('name',)
 
     def save(self, *args, **kwargs):
@@ -47,12 +49,15 @@ class Post(TimeStampedModel):
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='posts')
     tags = models.ManyToManyField(BlogTag, related_name='posts', blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
+    is_hidden = models.BooleanField(default=False)
     moderation_message = models.TextField(blank=True)
     published_at = models.DateTimeField(null=True, blank=True)
     comments = GenericRelation('interactions.Comment', related_query_name='post')
     reactions = GenericRelation('interactions.ContentReaction', related_query_name='post')
 
     class Meta:
+        verbose_name = 'пост блога'
+        verbose_name_plural = 'посты блога'
         ordering = ('-updated_at', '-created_at')
         indexes = [
             models.Index(fields=('status', 'published_at', 'updated_at', 'created_at'), name='post_status_pub_idx'),
@@ -81,6 +86,8 @@ class PostUploadDraft(TimeStampedModel):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
 
     class Meta:
+        verbose_name = 'черновик загрузки поста'
+        verbose_name_plural = 'черновики загрузки постов'
         ordering = ('-created_at',)
 
     def __str__(self):

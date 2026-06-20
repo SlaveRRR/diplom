@@ -1,12 +1,20 @@
 ﻿from rest_framework import serializers
 
 from blog.serializers import BlogPostListItemSerializer
+from comics import services
 from comics.models import Chapter, Comic, ComicAgeRating
 
 
 class UploadFileConfigRequestSerializer(serializers.Serializer):
     filename = serializers.CharField(max_length=255)
     content_type = serializers.CharField(max_length=255)
+
+    def validate(self, attrs):
+        try:
+            services.validate_image_upload_metadata(attrs['filename'], attrs['content_type'])
+        except services.ImageUploadValidationError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
+        return attrs
 
 
 class UploadAssetRequestSerializer(serializers.Serializer):
@@ -21,29 +29,35 @@ class UploadAssetRequestSerializer(serializers.Serializer):
         if has_existing == has_new_upload:
             raise serializers.ValidationError('Exactly one upload source must be provided.')
 
+        if has_new_upload:
+            try:
+                services.validate_image_upload_metadata(attrs['filename'], attrs['content_type'])
+            except services.ImageUploadValidationError as exc:
+                raise serializers.ValidationError(str(exc)) from exc
+
         return attrs
 
 
 class ChapterUploadConfigRequestSerializer(serializers.Serializer):
-    title = serializers.CharField(max_length=255)
+    title = serializers.CharField(max_length=255, allow_blank=True)
     description = serializers.CharField(required=False, allow_blank=True, default='')
     chapter_number = serializers.IntegerField(min_value=1)
-    pages = UploadAssetRequestSerializer(many=True, allow_empty=False)
+    pages = UploadAssetRequestSerializer(many=True, allow_empty=True)
 
 
 class ComicUploadConfigRequestSerializer(serializers.Serializer):
     comicId = serializers.IntegerField(required=False, allow_null=True, min_value=1)
-    title = serializers.CharField(max_length=255)
+    title = serializers.CharField(max_length=255, allow_blank=True)
     description = serializers.CharField(required=False, allow_blank=True, default='')
-    ageRating = serializers.ChoiceField(choices=ComicAgeRating.choices)
-    genreId = serializers.IntegerField(min_value=1)
+    ageRating = serializers.ChoiceField(choices=ComicAgeRating.choices, required=False, default=ComicAgeRating.AGE_16)
+    genreId = serializers.IntegerField(required=False, allow_null=True, min_value=1)
     tagIds = serializers.ListField(
         child=serializers.IntegerField(min_value=1),
         allow_empty=True,
         default=list,
     )
-    cover = UploadAssetRequestSerializer()
-    banner = UploadAssetRequestSerializer()
+    cover = UploadAssetRequestSerializer(required=False, allow_null=True)
+    banner = UploadAssetRequestSerializer(required=False, allow_null=True)
     chapters = ChapterUploadConfigRequestSerializer(many=True, allow_empty=True, default=list)
 
     def validate_tagIds(self, value):
@@ -103,6 +117,15 @@ class ComicConfirmResponseSerializer(serializers.Serializer):
 class ComicInteractionResponseSerializer(serializers.Serializer):
     isActive = serializers.BooleanField()
     count = serializers.IntegerField()
+
+
+class ComicVisibilityResponseSerializer(serializers.Serializer):
+    isHidden = serializers.BooleanField()
+
+
+class DraftDeleteResponseSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    deletedMediaCount = serializers.IntegerField()
 
 
 class ComicRatingRequestSerializer(serializers.Serializer):

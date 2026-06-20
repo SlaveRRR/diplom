@@ -19,38 +19,36 @@ const selectFirstVisibleOption = (index: number) => {
   cy.get('.ant-select-dropdown:visible .ant-select-item-option').first().click();
 };
 
-const installImageWorkerMock = () => {
-  cy.window().then((win) => {
-    class MockImageWorker {
-      onmessage: ((event: MessageEvent) => void) | null = null;
+const installImageWorkerMock = (win: Cypress.AUTWindow) => {
+  class MockImageWorker {
+    onmessage: ((event: MessageEvent) => void) | null = null;
 
-      onerror: ((event: Event) => void) | null = null;
+    onerror: ((event: Event) => void) | null = null;
 
-      postMessage(payload: { file: File }) {
-        const sourceFile = payload.file;
-        const baseName = sourceFile.name.replace(/\.[^.]+$/u, '');
-        const normalizedFile = new win.File([sourceFile], `${baseName}.webp`, {
-          type: 'image/webp',
-          lastModified: sourceFile.lastModified,
-        });
+    postMessage(payload: { file: File }) {
+      const sourceFile = payload.file;
+      const baseName = sourceFile.name.replace(/\.[^.]+$/u, '');
+      const normalizedFile = new win.File([sourceFile], `${baseName}.webp`, {
+        type: 'image/webp',
+        lastModified: sourceFile.lastModified,
+      });
 
-        setTimeout(() => {
-          this.onmessage?.({
-            data: {
-              success: true,
-              file: normalizedFile,
-            },
-          } as MessageEvent);
-        }, 0);
-      }
-
-      terminate() {
-        return undefined;
-      }
+      setTimeout(() => {
+        this.onmessage?.({
+          data: {
+            success: true,
+            file: normalizedFile,
+          },
+        } as MessageEvent);
+      }, 0);
     }
 
-    win.Worker = MockImageWorker as unknown as typeof Worker;
-  });
+    terminate() {
+      return undefined;
+    }
+  }
+
+  win.Worker = MockImageWorker as unknown as typeof Worker;
 };
 
 describe('Comic create page', () => {
@@ -58,9 +56,8 @@ describe('Comic create page', () => {
     mockAuthenticatedShell();
     mockComicCreateApi();
 
-    cy.visitApp('/comics/create', { authenticated: true });
+    cy.visitApp('/comics/create', { authenticated: true, onBeforeLoad: installImageWorkerMock });
     cy.wait(['@getCurrentUser', '@getAccount', '@getNotifications', '@getTaxonomy']);
-    installImageWorkerMock();
 
     cy.get('input[placeholder="Например, Лунная башня"]').type('Эхо башни');
     cy.get('textarea[placeholder="Коротко опиши завязку, мир и настроение истории."]').type(
@@ -128,9 +125,8 @@ describe('Comic create page', () => {
     mockAuthenticatedShell();
     mockComicCreateApi();
 
-    cy.visitApp('/comics/create', { authenticated: true });
+    cy.visitApp('/comics/create', { authenticated: true, onBeforeLoad: installImageWorkerMock });
     cy.wait(['@getCurrentUser', '@getAccount', '@getNotifications', '@getTaxonomy']);
-    installImageWorkerMock();
 
     cy.contains('button', 'Далее').click();
 

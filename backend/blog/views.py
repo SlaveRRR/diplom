@@ -4,11 +4,13 @@ from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.core.paginator import Paginator
 from django.db.models import Count, Q
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from blog.models import BlogTag, Post, PostUploadDraft
@@ -23,6 +25,8 @@ from blog.serializers import (
     BlogTagSerializer,
     ContentReactionResponseSerializer,
     ContentReactionToggleSerializer,
+    DraftDeleteResponseSerializer,
+    PostVisibilityResponseSerializer,
     PostConfirmRequestSerializer,
     PostUploadConfigRequestSerializer,
     PostUploadConfigResponseSerializer,
@@ -84,7 +88,7 @@ class BlogPostListView(APIView):
         page_size = get_positive_int(request.query_params.get('page_size'), 9)
 
         posts = (
-            Post.objects.filter(status=Post.Status.PUBLISHED)
+            Post.objects.filter(status=Post.Status.PUBLISHED, is_hidden=False)
             .select_related('author')
             .prefetch_related('tags')
             .annotate(comments_total=Count('comments', distinct=True))
@@ -131,6 +135,10 @@ class BlogPostDetailView(APIView):
             post = get_object_or_404(queryset, id=post_id)
         else:
             post = get_object_or_404(queryset, id=post_id, status=Post.Status.PUBLISHED)
+            if post.is_hidden and not (
+                request.user.is_authenticated and (request.user.is_staff or post.author_id == request.user.id)
+            ):
+                raise Http404('Post not found')
 
         if request.user.is_authenticated and not is_preview:
             PostReadingHistory.objects.update_or_create(
@@ -173,6 +181,9 @@ class BlogPostEditorView(BlogAccessMixin, APIView):
 
 
 class BlogPostUploadConfigView(BlogAccessMixin, APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'upload_config'
+
     @extend_schema(tags=['Blog'], request=PostUploadConfigRequestSerializer, responses={201: PostUploadConfigResponseSerializer}, summary='Create S3 upload config for a blog post cover and inline images')
     def post(self, request):
         access_error = self.ensure_authenticated(request.user)
@@ -183,6 +194,24 @@ class BlogPostUploadConfigView(BlogAccessMixin, APIView):
         serializer.is_valid(raise_exception=True)
         validated = serializer.validated_data
 
+        upload_service = S3UploadService()
+        stale_drafts = list(
+            PostUploadDraft.objects.filter(
+                user=request.user,
+                status__in=[
+                    PostUploadDraft.Status.PENDING,
+                    PostUploadDraft.Status.EXPIRED,
+                ],
+            )
+        )
+        stale_keys = []
+        for stale_draft in stale_drafts:
+            stale_keys.append(stale_draft.cover)
+            stale_keys.extend(item.get('key') for item in stale_draft.inline_images if isinstance(item, dict))
+        upload_service.delete_objects(stale_keys)
+        if stale_drafts:
+            PostUploadDraft.objects.filter(id__in=[stale_draft.id for stale_draft in stale_drafts]).delete()
+
         draft = PostUploadDraft.objects.create(
             user=request.user,
             expires_at=timezone.now() + timedelta(seconds=settings.S3_PRESIGNED_EXPIRATION),
@@ -191,7 +220,6 @@ class BlogPostUploadConfigView(BlogAccessMixin, APIView):
         cover_key = build_post_cover_key(request.user.id, draft.id, cover_payload['filename']) if cover_payload else ''
 
         inline_images = []
-        upload_service = S3UploadService()
         for image in validated.get('inlineImages', []):
             key = build_post_inline_image_key(request.user.id, draft.id, image['uploadId'], image['filename'])
             inline_images.append(
@@ -222,6 +250,9 @@ class BlogPostUploadConfigView(BlogAccessMixin, APIView):
 
 
 class BlogPostConfirmView(BlogAccessMixin, APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'upload_confirm'
+
     @extend_schema(tags=['Blog'], request=PostConfirmRequestSerializer, responses={201: BlogPostCreateResponseSerializer}, summary='Create or update blog post from uploaded media')
     def post(self, request):
         access_error = self.ensure_authenticated(request.user)
@@ -242,19 +273,30 @@ class BlogPostConfirmView(BlogAccessMixin, APIView):
 
         upload_service = S3UploadService()
         missing_keys = []
+        invalid_keys = []
         if draft.cover and not upload_service.object_exists(draft.cover):
             missing_keys.append(draft.cover)
+        elif draft.cover and not upload_service.validate_image_object(draft.cover):
+            invalid_keys.append(draft.cover)
 
         available_inline_keys = {item['key'] for item in draft.inline_images}
         for inline_key in available_inline_keys:
             if not upload_service.object_exists(inline_key):
                 missing_keys.append(inline_key)
+            elif not upload_service.validate_image_object(inline_key):
+                invalid_keys.append(inline_key)
 
         if missing_keys:
             return error_response(
                 'Some uploaded files were not found in storage.',
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
                 {'missingKeys': missing_keys},
+            )
+        if invalid_keys:
+            return error_response(
+                'Some uploaded files are not valid images.',
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                {'invalidKeys': invalid_keys},
             )
 
         editable_post = None
@@ -335,14 +377,70 @@ class BlogPostConfirmView(BlogAccessMixin, APIView):
         )
 
 
+class BlogPostVisibilityToggleView(BlogAccessMixin, APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'interaction'
+
+    @extend_schema(
+        tags=['Blog'],
+        responses={200: PostVisibilityResponseSerializer},
+        summary='Toggle public visibility for an owned published blog post',
+    )
+    def post(self, request, post_id):
+        access_error = self.ensure_authenticated(request.user)
+        if access_error:
+            return access_error
+
+        post = get_object_or_404(Post, id=post_id, author=request.user)
+        if post.status != Post.Status.PUBLISHED:
+            return error_response('Only published posts can be hidden or shown.', status.HTTP_400_BAD_REQUEST)
+
+        post.is_hidden = not post.is_hidden
+        post.save(update_fields=['is_hidden', 'updated_at'])
+
+        return success_response({'isHidden': post.is_hidden}, status.HTTP_200_OK)
+
+
+class BlogPostDraftDeleteView(BlogAccessMixin, APIView):
+    @extend_schema(
+        tags=['Blog'],
+        responses={200: DraftDeleteResponseSerializer},
+        summary='Delete an owned draft blog post and its uploaded media',
+    )
+    def delete(self, request, post_id):
+        access_error = self.ensure_authenticated(request.user)
+        if access_error:
+            return access_error
+
+        post = get_object_or_404(Post, id=post_id, author=request.user)
+        if post.status != Post.Status.DRAFT:
+            return error_response('Only draft posts can be deleted by the author.', status.HTTP_400_BAD_REQUEST)
+
+        object_keys = [post.cover, *collect_post_image_sources(post.content)]
+        deleted_media_count = S3UploadService().delete_objects(object_keys)
+        deleted_id = post.id
+        post.delete()
+
+        return success_response(
+            {
+                'id': deleted_id,
+                'deletedMediaCount': deleted_media_count,
+            },
+            status.HTTP_200_OK,
+        )
+
+
 class BlogCommentCreateView(BlogAccessMixin, APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'comment'
+
     @extend_schema(tags=['Blog'], request=BlogCommentCreateSerializer, responses={201: BlogCommentSerializer}, summary='Create comment for blog post')
     def post(self, request, post_id):
         access_error = self.ensure_authenticated(request.user)
         if access_error:
             return access_error
 
-        post = get_object_or_404(Post, id=post_id, status=Post.Status.PUBLISHED)
+        post = get_object_or_404(Post, id=post_id, status=Post.Status.PUBLISHED, is_hidden=False)
         serializer = BlogCommentCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -394,6 +492,9 @@ class BlogCommentCreateView(BlogAccessMixin, APIView):
 
 
 class BlogPostReactionToggleView(BlogAccessMixin, APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'interaction'
+
     @extend_schema(
         tags=['Blog'],
         request=ContentReactionToggleSerializer,
@@ -405,7 +506,7 @@ class BlogPostReactionToggleView(BlogAccessMixin, APIView):
         if access_error:
             return access_error
 
-        post = get_object_or_404(Post, id=post_id, status=Post.Status.PUBLISHED)
+        post = get_object_or_404(Post, id=post_id, status=Post.Status.PUBLISHED, is_hidden=False)
         serializer = ContentReactionToggleSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 

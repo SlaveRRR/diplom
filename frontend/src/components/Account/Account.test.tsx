@@ -2,19 +2,6 @@ import { render, screen } from '@testing-library/react';
 
 import { Account } from './Account';
 
-vi.mock('@ant-design/icons', () => ({
-  BookOutlined: () => <span data-testid="icon-book" />,
-  CameraOutlined: () => <span data-testid="icon-camera" />,
-  CommentOutlined: () => <span data-testid="icon-comment" />,
-  EditOutlined: () => <span data-testid="icon-edit" />,
-  EyeOutlined: () => <span data-testid="icon-eye" />,
-  FileTextOutlined: () => <span data-testid="icon-file-text" />,
-  HeartOutlined: () => <span data-testid="icon-heart" />,
-  LinkOutlined: () => <span data-testid="icon-link" />,
-  LogoutOutlined: () => <span data-testid="icon-logout" />,
-  SaveOutlined: () => <span data-testid="icon-save" />,
-}));
-
 vi.mock('react-router-dom', () => ({
   Link: ({ children, to }: { children: React.ReactNode; to: string }) => <a href={to}>{children}</a>,
   useOutletContext: () => ({
@@ -51,6 +38,7 @@ vi.mock('./hooks', () => ({
           title: 'Лунная башня',
           description: 'Описание комикса',
           status: 'published',
+          isHidden: false,
           ageRating: '16+',
           genre: 'Фэнтези',
           tags: ['магия'],
@@ -63,6 +51,42 @@ vi.mock('./hooks', () => ({
           cover: '',
           coverUrl: '',
         },
+        {
+          id: 12,
+          title: 'Черновик башни',
+          description: 'Пока в работе',
+          status: 'draft',
+          isHidden: false,
+          ageRating: '12+',
+          genre: 'Драма',
+          tags: ['черновик'],
+          likesCount: 0,
+          commentsCount: 0,
+          readersCount: 0,
+          chaptersCount: 1,
+          publishedAt: null,
+          updatedAt: '2026-05-03T10:00:00Z',
+          cover: '',
+          coverUrl: '',
+        },
+        {
+          id: 13,
+          title: 'Башня на доработке',
+          description: 'Нужно поправить главы',
+          status: 'revision',
+          isHidden: false,
+          ageRating: '12+',
+          genre: 'Драма',
+          tags: ['доработка'],
+          likesCount: 1,
+          commentsCount: 0,
+          readersCount: 2,
+          chaptersCount: 1,
+          publishedAt: null,
+          updatedAt: '2026-05-04T10:00:00Z',
+          cover: '',
+          coverUrl: '',
+        },
       ],
       posts: [
         {
@@ -70,6 +94,7 @@ vi.mock('./hooks', () => ({
           title: 'Разбор главы',
           excerpt: 'Короткий текст',
           status: 'published',
+          isHidden: false,
           tags: ['редактура'],
           commentsCount: 2,
           publishedAt: '2026-05-02T10:00:00Z',
@@ -84,6 +109,16 @@ vi.mock('./hooks', () => ({
   }),
   useAccountAvatarUploadMutation: () => ({
     isLoading: false,
+    mutateAsync: vi.fn(),
+  }),
+  useAccountContentVisibilityMutation: () => ({
+    isLoading: false,
+    variables: undefined,
+    mutateAsync: vi.fn(),
+  }),
+  useAccountDraftDeleteMutation: () => ({
+    isLoading: false,
+    variables: undefined,
     mutateAsync: vi.fn(),
   }),
   useLogoutMutation: () => ({
@@ -102,5 +137,13 @@ describe('Account', () => {
     expect(screen.getByText('Лунная башня')).toBeInTheDocument();
     expect(screen.getByText('Мои посты')).toBeInTheDocument();
     expect(screen.getByText('Разбор главы')).toBeInTheDocument();
+  });
+
+  test('показывает ссылки на редактирование черновика комикса и комикса на доработке', () => {
+    render(<Account />);
+
+    const editLinks = screen.getAllByRole('link', { name: 'Продолжить редактирование' });
+
+    expect(editLinks.map((link) => link.getAttribute('href'))).toEqual(['/comics/12/edit', '/comics/13/edit']);
   });
 });

@@ -55,11 +55,11 @@ export interface CreateComicPayload {
   comicId?: number;
   title: string;
   description: string;
-  ageRating: string;
+  ageRating?: string | null;
   tagIds: number[];
-  genreId: number;
-  cover: LocalUploadAsset;
-  banner: LocalUploadAsset;
+  genreId?: number | null;
+  cover: LocalUploadAsset | null;
+  banner: LocalUploadAsset | null;
   chapters: ChapterDraft[];
   submissionMode: ComicSubmissionMode;
 }

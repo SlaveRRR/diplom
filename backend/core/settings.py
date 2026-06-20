@@ -1,4 +1,5 @@
 ﻿import os
+import importlib.util
 from datetime import timedelta
 from pathlib import Path
 
@@ -170,6 +171,30 @@ CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = int(os.getenv('CELERY_TASK_TIME_LIMIT', '300'))
 CELERY_TASK_SOFT_TIME_LIMIT = int(os.getenv('CELERY_TASK_SOFT_TIME_LIMIT', '240'))
 
+REDIS_CACHE_URL = os.getenv(
+    'REDIS_CACHE_URL',
+    f"redis://{os.getenv('REDIS_HOST', 'redis')}:{os.getenv('REDIS_PORT', '6379')}/2",
+)
+
+if importlib.util.find_spec('django_redis'):
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': REDIS_CACHE_URL,
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            },
+            'KEY_PREFIX': os.getenv('CACHE_KEY_PREFIX', 'comicsera'),
+        },
+    }
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'comicsera-local-cache',
+        },
+    }
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -245,6 +270,25 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': os.getenv('DRF_THROTTLE_ANON', '120/min'),
+        'user': os.getenv('DRF_THROTTLE_USER', '600/min'),
+        'auth': os.getenv('DRF_THROTTLE_AUTH', '10/min'),
+        'signup': os.getenv('DRF_THROTTLE_SIGNUP', '5/hour'),
+        'verification_email': os.getenv('DRF_THROTTLE_VERIFICATION_EMAIL', '3/hour'),
+        'social_auth': os.getenv('DRF_THROTTLE_SOCIAL_AUTH', '20/min'),
+        'upload_config': os.getenv('DRF_THROTTLE_UPLOAD_CONFIG', '30/hour'),
+        'upload_confirm': os.getenv('DRF_THROTTLE_UPLOAD_CONFIRM', '60/hour'),
+        'comment': os.getenv('DRF_THROTTLE_COMMENT', '30/hour'),
+        'interaction': os.getenv('DRF_THROTTLE_INTERACTION', '120/hour'),
+        'rating': os.getenv('DRF_THROTTLE_RATING', '60/hour'),
+        'reading_progress': os.getenv('DRF_THROTTLE_READING_PROGRESS', '600/hour'),
+        'analytics_export': os.getenv('DRF_THROTTLE_ANALYTICS_EXPORT', '10/hour'),
+    },
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_RENDERER_CLASSES': [
         'core.renderers.ApiEnvelopeJSONRenderer',

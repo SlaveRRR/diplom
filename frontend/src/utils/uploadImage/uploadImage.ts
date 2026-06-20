@@ -7,12 +7,20 @@ const parseNumericEnv = (value: string | undefined, fallback: number) => {
 };
 
 const getDefaultImageProcessingConcurrency = () => {
-  const hardwareConcurrency =
+  const cores =
     typeof navigator !== 'undefined' && Number.isFinite(navigator.hardwareConcurrency)
       ? navigator.hardwareConcurrency
       : 4;
 
-  return Math.min(4, Math.max(2, Math.floor(hardwareConcurrency / 2)));
+  const isSmallDevice =
+    typeof navigator !== 'undefined' &&
+    'deviceMemory' in navigator &&
+    typeof navigator.deviceMemory === 'number' &&
+    navigator.deviceMemory <= 4;
+
+  const maxConcurrency = isSmallDevice ? 3 : 8;
+
+  return Math.min(maxConcurrency, Math.max(2, Math.floor(cores * 0.75)));
 };
 
 export const MAX_IMAGE_UPLOAD_SIZE_MB = parseNumericEnv(import.meta.env.VITE_MAX_IMAGE_UPLOAD_SIZE_MB, 5);
@@ -20,10 +28,7 @@ export const MAX_IMAGE_UPLOAD_SIZE_BYTES = MAX_IMAGE_UPLOAD_SIZE_MB * 1024 * 102
 export const MAX_IMAGE_DIMENSION_PX = parseNumericEnv(import.meta.env.VITE_MAX_IMAGE_DIMENSION_PX, 4000);
 export const MAX_COMIC_CHAPTERS = parseNumericEnv(import.meta.env.VITE_MAX_COMIC_CHAPTERS, 50);
 export const MAX_COMIC_PAGES_PER_CHAPTER = parseNumericEnv(import.meta.env.VITE_MAX_COMIC_PAGES_PER_CHAPTER, 50);
-const IMAGE_PROCESSING_CONCURRENCY = parseNumericEnv(
-  import.meta.env.VITE_IMAGE_PROCESSING_CONCURRENCY,
-  getDefaultImageProcessingConcurrency(),
-);
+const IMAGE_PROCESSING_CONCURRENCY = getDefaultImageProcessingConcurrency();
 
 const fileTypeLabelMap: Record<string, string> = {
   'image/jpeg': 'JPG',
@@ -46,6 +51,7 @@ type WorkerTask = {
   file: File;
   reject: (reason?: unknown) => void;
   resolve: (file: File) => void;
+  watermarkText?: string;
 };
 
 type WorkerSlot = {
@@ -57,6 +63,7 @@ type NormalizeProgressHandler = (processedCount: number, totalCount: number) => 
 
 type NormalizeOptions = {
   onProgress?: NormalizeProgressHandler;
+  watermarkText?: string;
 };
 
 const WORKER_ERROR_MESSAGE = 'Не удалось обработать изображение. Попробуйте другой файл.';
@@ -114,15 +121,17 @@ const runNextWorkerTask = (slot: WorkerSlot) => {
   slot.worker.postMessage({
     file: nextTask.file,
     maxDimensionPx: MAX_IMAGE_DIMENSION_PX,
+    watermarkText: nextTask?.watermarkText,
   });
 };
 
-const processImageInWorker = (file: File) =>
+const processImageInWorker = (file: File, watermarkText?: string) =>
   new Promise<File>((resolve, reject) => {
     workerTaskQueue.push({
       file,
       reject,
       resolve,
+      watermarkText,
     });
 
     const availableSlot = workerPool.find((slot) => !slot.isBusy);
@@ -143,10 +152,10 @@ const assertValidImage = (file: File) => {
   }
 };
 
-export const normalizeUploadImage = async (file: File) => {
+export const normalizeUploadImage = async (file: File, watermarkText?: string) => {
   assertValidImage(file);
 
-  const normalizedFile = await processImageInWorker(file);
+  const normalizedFile = await processImageInWorker(file, watermarkText);
 
   if (normalizedFile.size > MAX_IMAGE_UPLOAD_SIZE_BYTES) {
     throw new Error(
@@ -166,7 +175,7 @@ export const normalizeUploadImages = async (files: File[], options: NormalizeOpt
     while (nextIndex < files.length) {
       const currentIndex = nextIndex;
       nextIndex += 1;
-      normalizedFiles[currentIndex] = await normalizeUploadImage(files[currentIndex]);
+      normalizedFiles[currentIndex] = await normalizeUploadImage(files[currentIndex], options?.watermarkText);
       processedCount += 1;
       options.onProgress?.(processedCount, files.length);
     }
@@ -190,7 +199,7 @@ export const normalizeUploadImagesSettled = async (files: File[], options: Norma
 
       try {
         results[currentIndex] = {
-          file: await normalizeUploadImage(files[currentIndex]),
+          file: await normalizeUploadImage(files[currentIndex], options?.watermarkText),
         };
       } catch (error) {
         results[currentIndex] = {

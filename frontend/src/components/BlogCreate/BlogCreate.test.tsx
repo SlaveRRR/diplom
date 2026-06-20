@@ -6,6 +6,23 @@ const navigateMock = vi.fn();
 const successMock = vi.fn();
 const errorMock = vi.fn();
 
+vi.mock('@ant-design/icons', () => ({
+  AlignCenterOutlined: () => <span data-testid="icon-align-center" />,
+  AlignLeftOutlined: () => <span data-testid="icon-align-left" />,
+  AlignRightOutlined: () => <span data-testid="icon-align-right" />,
+  BoldOutlined: () => <span data-testid="icon-bold" />,
+  FileWordOutlined: () => <span data-testid="icon-docx" />,
+  HighlightOutlined: () => <span data-testid="icon-highlight" />,
+  ItalicOutlined: () => <span data-testid="icon-italic" />,
+  OrderedListOutlined: () => <span data-testid="icon-ordered-list" />,
+  PictureOutlined: () => <span data-testid="icon-picture" />,
+  PlusOutlined: () => <span data-testid="icon-plus" />,
+  RedoOutlined: () => <span data-testid="icon-redo" />,
+  SaveOutlined: () => <span data-testid="icon-save" />,
+  UndoOutlined: () => <span data-testid="icon-undo" />,
+  UnorderedListOutlined: () => <span data-testid="icon-unordered-list" />,
+}));
+
 vi.mock('react-router-dom', () => ({
   useNavigate: () => navigateMock,
   useOutletContext: () => ({
@@ -62,7 +79,9 @@ vi.mock('@tiptap/react', () => ({
 }));
 
 vi.mock('@tiptap/starter-kit', () => ({
-  default: {},
+  default: {
+    configure: vi.fn(() => ({})),
+  },
 }));
 
 vi.mock('./editor/blogImageExtension', () => ({

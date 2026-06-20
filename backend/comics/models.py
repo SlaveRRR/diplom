@@ -27,6 +27,8 @@ class Tag(TimeStampedModel):
     description = models.TextField(blank=True)
 
     class Meta:
+        verbose_name = 'тег комикса'
+        verbose_name_plural = 'теги комиксов'
         ordering = ('name',)
 
     def save(self, *args, **kwargs):
@@ -44,6 +46,8 @@ class Genre(TimeStampedModel):
     description = models.TextField(blank=True)
 
     class Meta:
+        verbose_name = 'жанр'
+        verbose_name_plural = 'жанры'
         ordering = ('name',)
 
     def save(self, *args, **kwargs):
@@ -97,6 +101,7 @@ class Comic(TimeStampedModel):
         choices=Status.choices,
         default=Status.DRAFT,
     )
+    is_hidden = models.BooleanField(default=False)
     has_published_updates = models.BooleanField(default=False)
     moderation_message = models.TextField(blank=True)
     genre = models.ForeignKey(
@@ -118,6 +123,8 @@ class Comic(TimeStampedModel):
     published_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
+        verbose_name = 'комикс'
+        verbose_name_plural = 'комиксы'
         ordering = ('-created_at',)
         indexes = [
             models.Index(fields=('status', 'published_at', 'created_at'), name='comic_status_pub_idx'),
@@ -155,6 +162,8 @@ class ComicUploadDraft(TimeStampedModel):
     expires_at = models.DateTimeField(default=default_draft_expiration)
 
     class Meta:
+        verbose_name = 'черновик загрузки комикса'
+        verbose_name_plural = 'черновики загрузки комиксов'
         ordering = ('-created_at',)
 
     def __str__(self):
@@ -175,6 +184,8 @@ class Chapter(TimeStampedModel):
     published_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
+        verbose_name = 'глава'
+        verbose_name_plural = 'главы'
         ordering = ('chapter_number', 'id')
         constraints = [
             models.UniqueConstraint(
@@ -226,6 +237,8 @@ class ChapterUploadDraft(TimeStampedModel):
     expires_at = models.DateTimeField(default=default_draft_expiration)
 
     class Meta:
+        verbose_name = 'черновик загрузки главы'
+        verbose_name_plural = 'черновики загрузки глав'
         ordering = ('-created_at',)
         constraints = [
             models.CheckConstraint(
@@ -253,6 +266,8 @@ class ComicRating(TimeStampedModel):
     )
 
     class Meta:
+        verbose_name = 'оценка комикса'
+        verbose_name_plural = 'оценки комиксов'
         constraints = [
             models.UniqueConstraint(
                 fields=('comic', 'user'),
@@ -271,6 +286,10 @@ class ComicStats(models.Model):
     favorites_count = models.PositiveIntegerField(default=0)
     comments_count = models.PositiveIntegerField(default=0)
     avg_read_time = models.FloatField(default=0)
+
+    class Meta:
+        verbose_name = 'статистика комикса'
+        verbose_name_plural = 'статистика комиксов'
 
     def __str__(self):
         return f'Stats for {self.comic.title}'
@@ -295,6 +314,8 @@ class ComicReadingProgress(TimeStampedModel):
     last_page = models.PositiveIntegerField(default=1)
 
     class Meta:
+        verbose_name = 'прогресс чтения комикса'
+        verbose_name_plural = 'прогресс чтения комиксов'
         indexes = [
             models.Index(fields=('user', 'updated_at', 'created_at'), name='comic_prog_user_idx'),
         ]

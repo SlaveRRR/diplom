@@ -132,12 +132,12 @@ class ReadingHistoryView(InteractionsAccessMixin, APIView):
             return access_error
 
         comic_history = (
-            ComicReadingProgress.objects.filter(user=request.user, comic__status=Comic.Status.PUBLISHED)
+            ComicReadingProgress.objects.filter(user=request.user, comic__status=Comic.Status.PUBLISHED, comic__is_hidden=False)
             .select_related('comic', 'chapter')
             .order_by('-updated_at', '-created_at')
         )
         post_history = (
-            PostReadingHistory.objects.filter(user=request.user, post__status=Post.Status.PUBLISHED)
+            PostReadingHistory.objects.filter(user=request.user, post__status=Post.Status.PUBLISHED, post__is_hidden=False)
             .select_related('post')
             .order_by('-updated_at', '-created_at')
         )

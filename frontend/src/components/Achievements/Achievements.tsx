@@ -1,4 +1,5 @@
 import { Alert, Card, Col, Progress, Row, Skeleton, Space, Tag, Typography } from 'antd';
+import clsx from 'clsx';
 import { useQuery } from '@tanstack/react-query';
 
 import { api } from '@api';
@@ -280,7 +281,7 @@ export const Achievements = () => {
                           {achievement.description}
                         </Paragraph>
 
-                        <div>
+                        <div className={clsx(!!achievement?.awardedAt && 'hidden')}>
                           <div className="mb-2 flex items-center justify-between gap-3">
                             <Text type="secondary">Прогресс</Text>
                             <Text strong>

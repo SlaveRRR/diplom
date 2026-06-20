@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '@api';
 import { OutletContext } from '@pages';
-import { ComicConfirmResponse, ComicUploadConfigPayload } from '@types';
+import { ComicConfirmResponse, ComicUploadConfigPayload, ComicUploadConfigResponse } from '@types';
 import { ACCOUNT_QUERY_KEY } from '@components/Account/hooks/useAccountQuery';
 import { CURRENT_USER_QUERY_KEY } from '@hooks/useCurrentUser';
 
@@ -16,6 +16,10 @@ const getFilePayload = (file: File) => ({
 });
 
 const getAssetPayload = (asset: CreateComicPayload['cover']) => {
+  if (!asset) {
+    return null;
+  }
+
   if (asset.file) {
     return getFilePayload(asset.file);
   }
@@ -34,19 +38,62 @@ const initialUploadState: ComicUploadState = {
   errorMessage: null,
 };
 
+type PendingComicUpload = {
+  signature: string;
+  uploadConfig: ComicUploadConfigResponse;
+  uploadedKeys: Set<string>;
+};
+
+type ComicUploadEntry = {
+  file: File;
+  key: string;
+  uploadUrl: string;
+};
+
+const getFileSignature = (file: File | null | undefined) =>
+  file ? `${file.name}:${file.size}:${file.type}:${file.lastModified}` : null;
+
+const getAssetSignature = (asset: CreateComicPayload['cover']) => ({
+  source: asset?.source ?? null,
+  storageKey: asset?.storageKey ?? null,
+  file: getFileSignature(asset?.file),
+});
+
+const buildUploadSignature = (payload: CreateComicPayload) =>
+  JSON.stringify({
+    comicId: payload.comicId ?? null,
+    title: payload.title,
+    description: payload.description,
+    ageRating: payload.ageRating ?? null,
+    tagIds: payload.tagIds,
+    genreId: payload.genreId ?? null,
+    cover: getAssetSignature(payload.cover),
+    banner: getAssetSignature(payload.banner),
+    chapters: payload.chapters.map((chapter) => ({
+      title: chapter.title,
+      description: chapter.description,
+      chapterNumber: chapter.chapterNumber,
+      pages: chapter.pages.map(getAssetSignature),
+    })),
+  });
+
 export const useCreateComicMutation = () => {
   const { messageApi } = useOutletContext<OutletContext>();
   const queryClient = useQueryClient();
   const [uploadState, setUploadState] = useState<ComicUploadState>(initialUploadState);
   const lockedDraftIdRef = useRef<string | null>(null);
+  const pendingUploadRef = useRef<PendingComicUpload | null>(null);
 
   const clearUploadLock = () => {
     lockedDraftIdRef.current = null;
+    pendingUploadRef.current = null;
     setUploadState(initialUploadState);
   };
 
   const mutation = useMutation({
     mutationFn: async (payload: CreateComicPayload): Promise<ComicConfirmResponse> => {
+      lockedDraftIdRef.current = null;
+
       if (lockedDraftIdRef.current) {
         throw new Error(
           'Предыдущая загрузка завершилась ошибкой после создания upload-config. Сбросьте форму, чтобы начать заново.',
@@ -54,8 +101,8 @@ export const useCreateComicMutation = () => {
       }
 
       const totalUploadFiles =
-        (payload.cover.file ? 1 : 0) +
-        (payload.banner.file ? 1 : 0) +
+        (payload.cover?.file ? 1 : 0) +
+        (payload.banner?.file ? 1 : 0) +
         payload.chapters.reduce(
           (total, chapter) => total + chapter.pages.filter((page) => Boolean(page.file)).length,
           0,
@@ -90,26 +137,41 @@ export const useCreateComicMutation = () => {
       };
 
       let createdDraftId: string | null = null;
+      const uploadSignature = buildUploadSignature(payload);
 
       try {
-        const uploadConfigResponse = await api.getComicUploadConfig(uploadPayload);
-        const uploadConfig = uploadConfigResponse.data.data;
+        const reusableUpload =
+          pendingUploadRef.current?.signature === uploadSignature ? pendingUploadRef.current : null;
+        const uploadConfig = reusableUpload
+          ? reusableUpload.uploadConfig
+          : (await api.getComicUploadConfig(uploadPayload)).data.data;
+
+        if (!reusableUpload) {
+          pendingUploadRef.current = {
+            signature: uploadSignature,
+            uploadConfig,
+            uploadedKeys: new Set(),
+          };
+        }
+
         createdDraftId = uploadConfig.comic_draft_id;
         lockedDraftIdRef.current = createdDraftId;
 
-        const uploadEntries = [
-          ...(uploadConfig.cover && payload.cover.file
+        const uploadEntries: ComicUploadEntry[] = [
+          ...(uploadConfig.cover && payload.cover?.file
             ? [
                 {
                   file: payload.cover.file,
+                  key: uploadConfig.cover.key,
                   uploadUrl: uploadConfig.cover.upload_url,
                 },
               ]
             : []),
-          ...(uploadConfig.banner && payload.banner.file
+          ...(uploadConfig.banner && payload.banner?.file
             ? [
                 {
                   file: payload.banner.file,
+                  key: uploadConfig.banner.key,
                   uploadUrl: uploadConfig.banner.upload_url,
                 },
               ]
@@ -136,24 +198,37 @@ export const useCreateComicMutation = () => {
 
               return {
                 file: page.file,
+                key: pageUpload.key,
                 uploadUrl: pageUpload.upload_url,
               };
             });
           }),
         ];
 
+        const uploadedKeys = pendingUploadRef.current?.uploadedKeys ?? new Set<string>();
+        const alreadyUploadedFiles = uploadEntries.filter((entry) => uploadedKeys.has(entry.key)).length;
+
         setUploadState((prevState) => ({
           ...prevState,
           stage: 'upload',
+          uploadedFiles: alreadyUploadedFiles,
+          totalFiles: uploadEntries.length,
           lockedDraftId: createdDraftId,
+          isDraftLocked: false,
+          errorMessage: null,
         }));
 
-        for (const [index, uploadEntry] of uploadEntries.entries()) {
+        for (const uploadEntry of uploadEntries) {
+          if (uploadedKeys.has(uploadEntry.key)) {
+            continue;
+          }
+
           await api.uploadFile(uploadEntry.uploadUrl, uploadEntry.file);
+          uploadedKeys.add(uploadEntry.key);
 
           setUploadState((prevState) => ({
             ...prevState,
-            uploadedFiles: index + 1,
+            uploadedFiles: prevState.uploadedFiles + 1,
           }));
         }
 
@@ -176,9 +251,9 @@ export const useCreateComicMutation = () => {
         if (createdDraftId) {
           setUploadState({
             stage: 'idle',
-            uploadedFiles: 0,
-            totalFiles: 0,
-            isDraftLocked: true,
+            uploadedFiles: pendingUploadRef.current?.uploadedKeys.size ?? 0,
+            totalFiles: totalUploadFiles,
+            isDraftLocked: false,
             lockedDraftId: createdDraftId,
             errorMessage: message,
           });
@@ -195,6 +270,7 @@ export const useCreateComicMutation = () => {
     },
     onSuccess: () => {
       lockedDraftIdRef.current = null;
+      pendingUploadRef.current = null;
       setUploadState(initialUploadState);
       queryClient.invalidateQueries([CURRENT_USER_QUERY_KEY]);
       queryClient.invalidateQueries([ACCOUNT_QUERY_KEY]);

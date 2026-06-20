@@ -9,6 +9,7 @@ from django.utils import timezone
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from comics import services
@@ -37,6 +38,8 @@ from comics.serializers import (
     ComicReadingProgressUpdateSerializer,
     ComicRatingRequestSerializer,
     ComicRatingResponseSerializer,
+    ComicVisibilityResponseSerializer,
+    DraftDeleteResponseSerializer,
     ComicUploadConfigRequestSerializer,
     ComicUploadConfigResponseSerializer,
     TaxonomyResponseSerializer,
@@ -70,7 +73,7 @@ class ComicsAccessMixin:
 
 
 def can_access_comic(user, comic):
-    if comic.status == Comic.Status.PUBLISHED:
+    if comic.status == Comic.Status.PUBLISHED and not comic.is_hidden:
         return True
 
     if not getattr(user, 'is_authenticated', False):
@@ -153,7 +156,7 @@ def build_comic_editor_payload(comic):
 
 def get_public_catalog_queryset():
     return (
-        Comic.objects.filter(status=Comic.Status.PUBLISHED)
+        Comic.objects.filter(status=Comic.Status.PUBLISHED, is_hidden=False)
         .select_related('author', 'genre', 'stats')
         .prefetch_related('tags')
         .annotate(
@@ -285,7 +288,7 @@ class HomeSelectionsView(APIView):
         )[:4]
 
         posts = list(
-            Post.objects.filter(status=Post.Status.PUBLISHED)
+            Post.objects.filter(status=Post.Status.PUBLISHED, is_hidden=False)
             .select_related('author')
             .prefetch_related('tags')
             .annotate(comments_total=Count('comments', distinct=True))
@@ -315,6 +318,9 @@ class HomeSelectionsView(APIView):
 
 
 class ComicUploadConfigView(ComicsAccessMixin, APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'upload_config'
+
     @extend_schema(
         tags=['Comics'],
         request=ComicUploadConfigRequestSerializer,
@@ -342,32 +348,53 @@ class ComicUploadConfigView(ComicsAccessMixin, APIView):
             )
 
         upload_service = services.S3UploadService()
+        stale_drafts = list(
+            ComicUploadDraft.objects.filter(
+                user=request.user,
+                status__in=[
+                    UploadDraftStatus.PENDING,
+                    UploadDraftStatus.EXPIRED,
+                    UploadDraftStatus.CANCELLED,
+                ],
+            ).prefetch_related('chapter_upload_drafts')
+        )
+        stale_keys = []
+        for stale_draft in stale_drafts:
+            stale_keys.extend([stale_draft.cover, stale_draft.banner])
+            for stale_chapter in stale_draft.chapter_upload_drafts.all():
+                stale_keys.extend(stale_chapter.page_keys)
+        upload_service.delete_objects(stale_keys)
+        if stale_drafts:
+            ComicUploadDraft.objects.filter(id__in=[stale_draft.id for stale_draft in stale_drafts]).delete()
         comic_draft = ComicUploadDraft.objects.create(
             user=request.user,
-            title=validated_data['title'],
+            title=validated_data['title'].strip() or 'Новый комикс',
             description=validated_data.get('description', ''),
             age_rating=validated_data['ageRating'],
-            genre_id=validated_data['genreId'],
+            genre_id=validated_data.get('genreId'),
             tag_ids=validated_data.get('tagIds', []),
             scope_prefix=f'drafts/{request.user.id}/comics/',
         )
 
-        cover_key = validated_data['cover'].get('existingKey', '')
-        if validated_data['cover'].get('filename'):
+        cover_payload = validated_data.get('cover') or {}
+        banner_payload = validated_data.get('banner') or {}
+
+        cover_key = cover_payload.get('existingKey', '')
+        if cover_payload.get('filename'):
             cover_key = services.build_comic_media_key(
                 request.user.id,
                 comic_draft.id,
                 'cover',
-                validated_data['cover']['filename'],
+                cover_payload['filename'],
             )
 
-        banner_key = validated_data['banner'].get('existingKey', '')
-        if validated_data['banner'].get('filename'):
+        banner_key = banner_payload.get('existingKey', '')
+        if banner_payload.get('filename'):
             banner_key = services.build_comic_media_key(
                 request.user.id,
                 comic_draft.id,
                 'banner',
-                validated_data['banner']['filename'],
+                banner_payload['filename'],
             )
 
         comic_draft.scope_prefix = f'drafts/{request.user.id}/comics/{comic_draft.id}/'
@@ -427,13 +454,13 @@ class ComicUploadConfigView(ComicsAccessMixin, APIView):
             'comic_draft_id': comic_draft.id,
             'expires_at': comic_draft.expires_at,
             'cover': (
-                upload_service.generate_upload(cover_key, validated_data['cover']['content_type'])
-                if validated_data['cover'].get('filename')
+                upload_service.generate_upload(cover_key, cover_payload['content_type'])
+                if cover_payload.get('filename')
                 else None
             ),
             'banner': (
-                upload_service.generate_upload(banner_key, validated_data['banner']['content_type'])
-                if validated_data['banner'].get('filename')
+                upload_service.generate_upload(banner_key, banner_payload['content_type'])
+                if banner_payload.get('filename')
                 else None
             ),
             'chapters': chapters_payload,
@@ -442,6 +469,9 @@ class ComicUploadConfigView(ComicsAccessMixin, APIView):
 
 
 class ComicConfirmView(ComicsAccessMixin, APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'upload_confirm'
+
     @extend_schema(
         tags=['Comics'],
         request=ComicConfirmRequestSerializer,
@@ -496,23 +526,58 @@ class ComicConfirmView(ComicsAccessMixin, APIView):
         if len(tags) != len(set(comic_draft.tag_ids)):
             return error_response('Some tags from draft do not exist anymore.', status.HTTP_400_BAD_REQUEST)
 
+        chapter_drafts = list(comic_draft.chapter_upload_drafts.order_by('chapter_number', 'created_at'))
+        if submission_mode != Comic.Status.DRAFT:
+            if not comic_draft.title.strip():
+                return error_response('Comic title is required for moderation.', status.HTTP_400_BAD_REQUEST)
+            if not comic_draft.cover or not comic_draft.banner:
+                return error_response('Comic cover and banner are required for moderation.', status.HTTP_400_BAD_REQUEST)
+            if not genre:
+                return error_response('Comic genre is required for moderation.', status.HTTP_400_BAD_REQUEST)
+            if not chapter_drafts:
+                return error_response('At least one chapter is required for moderation.', status.HTTP_400_BAD_REQUEST)
+
+            invalid_chapter = next(
+                (
+                    chapter_draft
+                    for chapter_draft in chapter_drafts
+                    if not chapter_draft.title.strip() or not chapter_draft.page_keys
+                ),
+                None,
+            )
+            if invalid_chapter:
+                return error_response(
+                    'Every chapter must have a title and at least one page for moderation.',
+                    status.HTTP_400_BAD_REQUEST,
+                )
+
         upload_service = services.S3UploadService()
         missing_keys = []
+        invalid_keys = []
         for object_key in [comic_draft.cover, comic_draft.banner]:
             if object_key and not upload_service.object_exists(object_key):
                 missing_keys.append(object_key)
+            elif object_key and not upload_service.validate_image_object(object_key):
+                invalid_keys.append(object_key)
 
-        chapter_drafts = list(comic_draft.chapter_upload_drafts.order_by('chapter_number', 'created_at'))
         for chapter_draft in chapter_drafts:
             for page_key in chapter_draft.page_keys:
                 if not upload_service.object_exists(page_key):
                     missing_keys.append(page_key)
+                elif not upload_service.validate_image_object(page_key):
+                    invalid_keys.append(page_key)
 
         if missing_keys:
             return error_response(
                 'Some uploaded files were not found in storage.',
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
                 {'missing_keys': missing_keys},
+            )
+        if invalid_keys:
+            return error_response(
+                'Some uploaded files are not valid images.',
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                {'invalid_keys': invalid_keys},
             )
 
         if editable_comic:
@@ -886,7 +951,7 @@ class FavoriteComicListView(ComicsAccessMixin, APIView):
         recent_boundary = now - timedelta(days=14)
 
         comics = (
-            Comic.objects.filter(favorites__user=request.user, status=Comic.Status.PUBLISHED)
+            Comic.objects.filter(favorites__user=request.user, status=Comic.Status.PUBLISHED, is_hidden=False)
             .select_related('author', 'genre', 'stats')
             .prefetch_related('tags')
             .annotate(
@@ -904,6 +969,9 @@ class FavoriteComicListView(ComicsAccessMixin, APIView):
 
 
 class ComicCommentCreateView(ComicsAccessMixin, APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'comment'
+
     @extend_schema(
         tags=['Interactions'],
         request=ComicCommentCreateSerializer,
@@ -915,7 +983,7 @@ class ComicCommentCreateView(ComicsAccessMixin, APIView):
         if access_error:
             return access_error
 
-        comic = get_object_or_404(Comic, id=comic_id)
+        comic = get_object_or_404(Comic, id=comic_id, status=Comic.Status.PUBLISHED, is_hidden=False)
         serializer = ComicCommentCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -970,6 +1038,9 @@ class ComicCommentCreateView(ComicsAccessMixin, APIView):
 
 
 class ComicFavoriteToggleView(ComicsAccessMixin, APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'interaction'
+
     @extend_schema(
         tags=['Interactions'],
         responses={200: ComicInteractionResponseSerializer},
@@ -980,7 +1051,7 @@ class ComicFavoriteToggleView(ComicsAccessMixin, APIView):
         if access_error:
             return access_error
 
-        comic = get_object_or_404(Comic, id=comic_id)
+        comic = get_object_or_404(Comic, id=comic_id, status=Comic.Status.PUBLISHED, is_hidden=False)
         favorite, created = ComicFavorite.objects.get_or_create(user=request.user, comic=comic)
 
         if not created:
@@ -1011,6 +1082,9 @@ class ComicFavoriteToggleView(ComicsAccessMixin, APIView):
 
 
 class ComicLikeToggleView(ComicsAccessMixin, APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'interaction'
+
     @extend_schema(
         tags=['Interactions'],
         responses={200: ComicInteractionResponseSerializer},
@@ -1021,7 +1095,7 @@ class ComicLikeToggleView(ComicsAccessMixin, APIView):
         if access_error:
             return access_error
 
-        comic = get_object_or_404(Comic, id=comic_id)
+        comic = get_object_or_404(Comic, id=comic_id, status=Comic.Status.PUBLISHED, is_hidden=False)
         like, created = ComicLike.objects.get_or_create(user=request.user, comic=comic)
 
         if not created:
@@ -1048,6 +1122,9 @@ class ComicLikeToggleView(ComicsAccessMixin, APIView):
 
 
 class ComicRatingView(ComicsAccessMixin, APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'rating'
+
     @extend_schema(
         tags=['Interactions'],
         request=ComicRatingRequestSerializer,
@@ -1059,7 +1136,7 @@ class ComicRatingView(ComicsAccessMixin, APIView):
         if access_error:
             return access_error
 
-        comic = get_object_or_404(Comic, id=comic_id)
+        comic = get_object_or_404(Comic, id=comic_id, status=Comic.Status.PUBLISHED, is_hidden=False)
         serializer = ComicRatingRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -1082,6 +1159,9 @@ class ComicRatingView(ComicsAccessMixin, APIView):
 
 
 class ComicReactionToggleView(ComicsAccessMixin, APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'interaction'
+
     @extend_schema(
         tags=['Interactions'],
         request=ContentReactionToggleSerializer,
@@ -1093,7 +1173,7 @@ class ComicReactionToggleView(ComicsAccessMixin, APIView):
         if access_error:
             return access_error
 
-        comic = get_object_or_404(Comic, id=comic_id)
+        comic = get_object_or_404(Comic, id=comic_id, status=Comic.Status.PUBLISHED, is_hidden=False)
         serializer = ContentReactionToggleSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -1215,7 +1295,70 @@ class ComicEditorView(ComicsAccessMixin, APIView):
         return success_response(ComicEditorSerializer(payload).data, status.HTTP_200_OK)
 
 
+class ComicVisibilityToggleView(ComicsAccessMixin, APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'interaction'
+
+    @extend_schema(
+        tags=['Comics'],
+        responses={200: ComicVisibilityResponseSerializer},
+        summary='Toggle public visibility for an owned published comic',
+    )
+    def post(self, request, comic_id):
+        access_error = self.ensure_authenticated(request.user)
+        if access_error:
+            return access_error
+
+        comic = get_object_or_404(Comic, id=comic_id, author=request.user)
+        if comic.status != Comic.Status.PUBLISHED:
+            return error_response('Only published comics can be hidden or shown.', status.HTTP_400_BAD_REQUEST)
+
+        comic.is_hidden = not comic.is_hidden
+        comic.save(update_fields=['is_hidden', 'updated_at'])
+
+        return success_response({'isHidden': comic.is_hidden}, status.HTTP_200_OK)
+
+
+class ComicDraftDeleteView(ComicsAccessMixin, APIView):
+    @extend_schema(
+        tags=['Comics'],
+        responses={200: DraftDeleteResponseSerializer},
+        summary='Delete an owned draft comic and its uploaded media',
+    )
+    def delete(self, request, comic_id):
+        access_error = self.ensure_authenticated(request.user)
+        if access_error:
+            return access_error
+
+        comic = get_object_or_404(
+            Comic.objects.prefetch_related('chapters'),
+            id=comic_id,
+            author=request.user,
+        )
+        if comic.status != Comic.Status.DRAFT:
+            return error_response('Only draft comics can be deleted by the author.', status.HTTP_400_BAD_REQUEST)
+
+        object_keys = [comic.cover, comic.banner]
+        for chapter in comic.chapters.all():
+            object_keys.extend(chapter.page_keys or [])
+
+        deleted_media_count = services.S3UploadService().delete_objects(object_keys)
+        deleted_id = comic.id
+        comic.delete()
+
+        return success_response(
+            {
+                'id': deleted_id,
+                'deletedMediaCount': deleted_media_count,
+            },
+            status.HTTP_200_OK,
+        )
+
+
 class ComicReadingProgressView(ComicsAccessMixin, APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'reading_progress'
+
     @extend_schema(
         tags=['Comics'],
         request=ComicReadingProgressUpdateSerializer,
@@ -1228,6 +1371,7 @@ class ComicReadingProgressView(ComicsAccessMixin, APIView):
             return access_error
 
         comic = get_object_or_404(Comic, id=comic_id)
+        ensure_comic_access(request, comic)
         chapter = get_object_or_404(Chapter, id=chapter_id, comic=comic)
 
         serializer = ComicReadingProgressUpdateSerializer(data=request.data)
@@ -1257,6 +1401,7 @@ class ComicReadingProgressView(ComicsAccessMixin, APIView):
             stats.unique_readers += 1
             stats.save(update_fields=['views', 'unique_readers'])
 
-        register_chapter_read(request.user, chapter)
+        if last_page >= max(chapter.page_count, 1):
+            register_chapter_read(request.user, chapter)
 
         return success_response(ComicContinueReadingSerializer(progress).data, status.HTTP_200_OK)

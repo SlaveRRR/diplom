@@ -16,11 +16,14 @@ import {
   CURRENT_USER_ENDPOINT,
   FAVORITE_COMICS_ENDPOINT,
   getBlogPostCommentsEndpoint,
+  getBlogPostDraftEndpoint,
   getBlogPostEditorEndpoint,
   getBlogPostEndpoint,
   getBlogPostReactionEndpoint,
+  getBlogPostVisibilityEndpoint,
   getComicCommentsEndpoint,
   getComicDetailsEndpoint,
+  getComicDraftEndpoint,
   getComicEditorEndpoint,
   getComicFavoriteEndpoint,
   getComicLikeEndpoint,
@@ -28,6 +31,7 @@ import {
   getComicReactionEndpoint,
   getComicReaderEndpoint,
   getComicReadingProgressEndpoint,
+  getComicVisibilityEndpoint,
   getUserFollowEndpoint,
   getUserProfileEndpoint,
   HOME_SELECTIONS_ENDPOINT,
@@ -242,6 +246,10 @@ class Api {
     return axiosInstance.get<Response<BlogEditablePost>>(getBlogPostEditorEndpoint(postId));
   }
 
+  async deleteBlogPostDraft(postId: string | number) {
+    return axiosInstance.delete<Response<{ id: number; deletedMediaCount: number }>>(getBlogPostDraftEndpoint(postId));
+  }
+
   async getBlogPostUploadConfig(data: BlogPostUploadConfigPayload) {
     return axiosInstance.post<Response<BlogPostUploadConfigResponse>>(BLOG_UPLOAD_CONFIG_ENDPOINT, data);
   }
@@ -258,12 +266,20 @@ class Api {
     return axiosInstance.post<Response<ContentReactionState>>(getBlogPostReactionEndpoint(postId), data);
   }
 
+  async toggleBlogPostVisibility(postId: string | number) {
+    return axiosInstance.post<Response<{ isHidden: boolean }>>(getBlogPostVisibilityEndpoint(postId));
+  }
+
   async getComicDetails(comicId: string | number) {
     return axiosInstance.get<Response<ComicDetailsResponse>>(getComicDetailsEndpoint(comicId));
   }
 
   async getEditableComic(comicId: string | number) {
     return axiosInstance.get<Response<ComicEditorResponse>>(getComicEditorEndpoint(comicId));
+  }
+
+  async deleteComicDraft(comicId: string | number) {
+    return axiosInstance.delete<Response<{ id: number; deletedMediaCount: number }>>(getComicDraftEndpoint(comicId));
   }
 
   async getCatalogComics(params?: CatalogComicsQueryParams) {
@@ -289,6 +305,10 @@ class Api {
 
   async toggleComicFavorite(comicId: string | number) {
     return axiosInstance.post<Response<ComicInteractionResponse>>(getComicFavoriteEndpoint(comicId));
+  }
+
+  async toggleComicVisibility(comicId: string | number) {
+    return axiosInstance.post<Response<{ isHidden: boolean }>>(getComicVisibilityEndpoint(comicId));
   }
 
   async toggleComicLike(comicId: string | number) {

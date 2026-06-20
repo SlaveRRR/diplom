@@ -12,6 +12,7 @@ from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from verify_email.email_handler import ActivationMailManager
@@ -75,6 +76,8 @@ def delete_refresh_cookie(response):
 
 class SignUpView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'signup'
 
     @extend_schema(
         tags=['Authentication'],
@@ -111,6 +114,8 @@ class SignUpView(APIView):
 
 class SignInView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth'
 
     @extend_schema(
         tags=['Authentication'],
@@ -150,6 +155,8 @@ class SignInView(APIView):
 
 class TokenRefreshCookieView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth'
 
     @extend_schema(
         tags=['Authentication'],
@@ -198,6 +205,8 @@ def set_verification_cooldown(email):
 
 class ResendVerificationEmailView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'verification_email'
 
     @extend_schema(
         tags=['Authentication'],
@@ -286,6 +295,8 @@ def get_social_callback_url():
 
 class SocialLoginStartView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'social_auth'
 
     @extend_schema(
         tags=['Authentication'],
@@ -322,6 +333,8 @@ class SocialLoginStartView(APIView):
 class SocialSessionExchangeView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'social_auth'
 
     @extend_schema(
         tags=['Authentication'],

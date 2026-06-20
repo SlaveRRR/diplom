@@ -105,6 +105,13 @@ export const Badge = Object.assign(({ children }) => <div data-testid="badge">{c
   ),
 });
 export const Drawer = ({ children }) => <div data-testid="drawer">{children}</div>;
+export const Modal = ({ children, open, title }) =>
+  open ? (
+    <div data-testid="modal">
+      {title}
+      {children}
+    </div>
+  ) : null;
 export const Image = ({ children }) => <div data-testid="image">{children}</div>;
 export const Divider = () => <></>;
 export const Menu = ({ children }) => <div data-testid="menu">{children}</div>;

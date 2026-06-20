@@ -4,17 +4,32 @@ from comics import services as comic_services
 from comics.models import ComicAgeRating
 
 from blog.models import BlogTag, Post
+from blog.services import PostContentValidationError, validate_post_content_document
 
 
 class UploadFileConfigRequestSerializer(serializers.Serializer):
     filename = serializers.CharField(max_length=255)
     content_type = serializers.CharField(max_length=255)
 
+    def validate(self, attrs):
+        try:
+            comic_services.validate_image_upload_metadata(attrs['filename'], attrs['content_type'])
+        except comic_services.ImageUploadValidationError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
+        return attrs
+
 
 class InlineImageUploadRequestSerializer(serializers.Serializer):
     uploadId = serializers.CharField(max_length=120)
     filename = serializers.CharField(max_length=255)
     content_type = serializers.CharField(max_length=255)
+
+    def validate(self, attrs):
+        try:
+            comic_services.validate_image_upload_metadata(attrs['filename'], attrs['content_type'])
+        except comic_services.ImageUploadValidationError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
+        return attrs
 
 
 class PostUploadConfigRequestSerializer(serializers.Serializer):
@@ -58,6 +73,12 @@ class PostConfirmRequestSerializer(serializers.Serializer):
         if len(value) != len(set(value)):
             raise serializers.ValidationError('Tag ids must be unique.')
         return value
+
+    def validate_content(self, value):
+        try:
+            return validate_post_content_document(value)
+        except PostContentValidationError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
 
 
 class BlogTagSerializer(serializers.ModelSerializer):
@@ -105,6 +126,15 @@ class ContentReactionToggleSerializer(serializers.Serializer):
 class ContentReactionResponseSerializer(serializers.Serializer):
     reactions = ContentReactionSummarySerializer(many=True)
     currentEmoji = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+
+
+class PostVisibilityResponseSerializer(serializers.Serializer):
+    isHidden = serializers.BooleanField()
+
+
+class DraftDeleteResponseSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    deletedMediaCount = serializers.IntegerField()
 
 
 class BlogPostListItemSerializer(serializers.Serializer):

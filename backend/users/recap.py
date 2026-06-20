@@ -43,6 +43,7 @@ def _build_top_comic(user, period_start, period_end):
             created_at__date__gte=period_start,
             created_at__date__lt=period_end,
             chapter__comic__status=Comic.Status.PUBLISHED,
+            chapter__comic__is_hidden=False,
         )
         .values('chapter__comic_id', 'chapter__comic__title', 'chapter__comic__genre__name')
         .annotate(chapters_read=Count('id'))
@@ -68,6 +69,7 @@ def _build_top_post(user, period_start, period_end):
             updated_at__date__gte=period_start,
             updated_at__date__lt=period_end,
             post__status=Post.Status.PUBLISHED,
+            post__is_hidden=False,
         )
         .values('post_id', 'post__title')
         .annotate(reads=Count('id'))
@@ -93,6 +95,7 @@ def _build_top_genres(user, period_start, period_end):
             created_at__date__lt=period_end,
             chapter__comic__genre__isnull=False,
             chapter__comic__status=Comic.Status.PUBLISHED,
+            chapter__comic__is_hidden=False,
         )
         .values('chapter__comic__genre__name')
         .annotate(value=Count('id'))
@@ -109,6 +112,7 @@ def _build_top_tags(user, period_start, period_end):
             created_at__date__gte=period_start,
             created_at__date__lt=period_end,
             chapter__comic__status=Comic.Status.PUBLISHED,
+            chapter__comic__is_hidden=False,
         )
         .values('chapter__comic__tags__name')
         .exclude(chapter__comic__tags__name__isnull=True)
@@ -145,6 +149,7 @@ def _build_summary(user, period_start, period_end):
         user=user,
         created_at__date__gte=period_start,
         created_at__date__lt=period_end,
+        chapter__comic__is_hidden=False,
     )
     comments = Comment.objects.filter(
         user=user,
@@ -155,11 +160,13 @@ def _build_summary(user, period_start, period_end):
         user=user,
         created_at__date__gte=period_start,
         created_at__date__lt=period_end,
+        comic__is_hidden=False,
     )
     finished = UserFinishedComic.objects.filter(
         user=user,
         created_at__date__gte=period_start,
         created_at__date__lt=period_end,
+        comic__is_hidden=False,
     )
     reading_days = UserReadingActivityDay.objects.filter(
         user=user,

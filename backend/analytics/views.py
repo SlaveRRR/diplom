@@ -1,5 +1,6 @@
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from analytics.models import AnalyticsEvent
@@ -73,6 +74,9 @@ class AnalyticsDashboardView(AnalyticsAccessMixin, APIView):
 
 
 class AnalyticsExportView(AnalyticsAccessMixin, APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'analytics_export'
+
     @extend_schema(
         tags=['Analytics'],
         responses={200: {'type': 'string', 'format': 'binary'}},

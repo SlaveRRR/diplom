@@ -86,6 +86,40 @@ const createPayload = (): CreateComicPayload => ({
   ],
 });
 
+const mockUploadConfig = () => {
+  mockApi.getComicUploadConfig.mockResolvedValue({
+    data: {
+      data: {
+        comic_draft_id: '77',
+        cover: {
+          method: 'PUT',
+          key: 'comics/covers/cover.png',
+          upload_url: 'https://upload.example.com/cover',
+        },
+        banner: {
+          method: 'PUT',
+          key: 'comics/banners/banner.png',
+          upload_url: 'https://upload.example.com/banner',
+        },
+        chapters: [
+          {
+            chapter_draft_id: 'chapter-draft-1',
+            chapter_number: 1,
+            pages: [
+              {
+                page_index: 0,
+                method: 'PUT',
+                key: 'comics/chapters/1/page-1.png',
+                upload_url: 'https://upload.example.com/page-1',
+              },
+            ],
+          },
+        ],
+      },
+    },
+  } as never);
+};
+
 describe('useCreateComicMutation', () => {
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
@@ -102,38 +136,7 @@ describe('useCreateComicMutation', () => {
     const { queryClient, wrapper } = createWrapper();
     const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
-    mockApi.getComicUploadConfig.mockResolvedValue({
-      data: {
-        data: {
-          comic_draft_id: '77',
-          cover: {
-            method: 'PUT',
-            key: 'comics/covers/cover.png',
-            upload_url: 'https://upload.example.com/cover',
-          },
-          banner: {
-            method: 'PUT',
-            key: 'comics/banners/banner.png',
-            upload_url: 'https://upload.example.com/banner',
-          },
-          chapters: [
-            {
-              chapter_draft_id: 'chapter-draft-1',
-              chapter_number: 1,
-              pages: [
-                {
-                  page_index: 0,
-                  method: 'PUT',
-                  key: 'comics/chapters/1/page-1.png',
-                  upload_url: 'https://upload.example.com/page-1',
-                },
-              ],
-            },
-          ],
-        },
-      },
-    } as never);
-
+    mockUploadConfig();
     mockApi.uploadFile.mockResolvedValue({} as never);
     mockApi.confirmComicCreation.mockResolvedValue({
       data: {
@@ -161,8 +164,8 @@ describe('useCreateComicMutation', () => {
 
     expect(mockApi.getComicUploadConfig).toHaveBeenCalledTimes(1);
     expect(mockApi.uploadFile).toHaveBeenCalledTimes(3);
-    expect(mockApi.uploadFile).toHaveBeenNthCalledWith(1, 'https://upload.example.com/cover', payload.cover.file);
-    expect(mockApi.uploadFile).toHaveBeenNthCalledWith(2, 'https://upload.example.com/banner', payload.banner.file);
+    expect(mockApi.uploadFile).toHaveBeenNthCalledWith(1, 'https://upload.example.com/cover', payload.cover?.file);
+    expect(mockApi.uploadFile).toHaveBeenNthCalledWith(2, 'https://upload.example.com/banner', payload.banner?.file);
     expect(mockApi.uploadFile).toHaveBeenNthCalledWith(
       3,
       'https://upload.example.com/page-1',
@@ -185,50 +188,34 @@ describe('useCreateComicMutation', () => {
     expect(invalidateQueriesSpy).toHaveBeenCalledWith(['account']);
   });
 
-  test('блокирует повторное создание upload-config после ошибки загрузки в s3', async () => {
+  test('после ошибки S3 повторяет отправку с тем же upload-config и не грузит уже успешные файлы', async () => {
     const { wrapper } = createWrapper();
 
-    mockApi.getComicUploadConfig.mockResolvedValue({
+    mockUploadConfig();
+    mockApi.uploadFile
+      .mockResolvedValue({} as never)
+      .mockResolvedValueOnce({} as never)
+      .mockRejectedValueOnce(new Error('S3 upload failed'));
+    mockApi.confirmComicCreation.mockResolvedValue({
       data: {
         data: {
-          comic_draft_id: '77',
-          cover: {
-            method: 'PUT',
-            key: 'comics/covers/cover.png',
-            upload_url: 'https://upload.example.com/cover',
-          },
-          banner: {
-            method: 'PUT',
-            key: 'comics/banners/banner.png',
-            upload_url: 'https://upload.example.com/banner',
-          },
-          chapters: [
-            {
-              chapter_draft_id: 'chapter-draft-1',
-              chapter_number: 1,
-              pages: [
-                {
-                  page_index: 0,
-                  method: 'PUT',
-                  key: 'comics/chapters/1/page-1.png',
-                  upload_url: 'https://upload.example.com/page-1',
-                },
-              ],
-            },
-          ],
+          comic_id: 77,
+          id: 77,
+          title: 'Moon Tower',
+          status: 'under_review',
+          chapter_ids: [11],
         },
       },
     } as never);
 
-    mockApi.uploadFile.mockRejectedValueOnce(new Error('S3 upload failed'));
-
     const { result } = renderHook(() => useCreateComicMutation(), {
       wrapper,
     });
+    const payload = createPayload();
 
     await act(async () => {
       try {
-        await result.current.mutation.mutateAsync(createPayload());
+        await result.current.mutation.mutateAsync(payload);
       } catch {
         /* noop */
       }
@@ -238,25 +225,32 @@ describe('useCreateComicMutation', () => {
 
     expect(result.current.uploadState).toEqual({
       stage: 'idle',
-      uploadedFiles: 0,
-      totalFiles: 0,
-      isDraftLocked: true,
+      uploadedFiles: 1,
+      totalFiles: 3,
+      isDraftLocked: false,
       lockedDraftId: '77',
       errorMessage: 'S3 upload failed',
     });
 
     await act(async () => {
-      try {
-        await result.current.mutation.mutateAsync(createPayload());
-      } catch {
-        /* noop */
-      }
+      await result.current.mutation.mutateAsync(payload);
     });
 
     expect(mockApi.getComicUploadConfig).toHaveBeenCalledTimes(1);
-    expect(mockMessageError).toHaveBeenLastCalledWith(
-      'Предыдущая загрузка завершилась ошибкой после создания upload-config. Сбросьте форму, чтобы начать заново.',
+    expect(mockApi.uploadFile).toHaveBeenCalledTimes(4);
+    expect(mockApi.uploadFile).toHaveBeenNthCalledWith(1, 'https://upload.example.com/cover', payload.cover?.file);
+    expect(mockApi.uploadFile).toHaveBeenNthCalledWith(3, 'https://upload.example.com/banner', payload.banner?.file);
+    expect(mockApi.uploadFile).toHaveBeenNthCalledWith(
+      4,
+      'https://upload.example.com/page-1',
+      payload.chapters[0].pages[0].file,
     );
+    expect(mockApi.confirmComicCreation).toHaveBeenCalledWith({
+      comic_draft_id: '77',
+      submission_mode: 'under_review',
+      comic_id: undefined,
+    });
+    expect(mockMessageError).toHaveBeenCalledWith('S3 upload failed');
 
     act(() => {
       result.current.clearUploadLock();
@@ -269,6 +263,68 @@ describe('useCreateComicMutation', () => {
       isDraftLocked: false,
       lockedDraftId: null,
       errorMessage: null,
+    });
+  });
+
+  test('сохраняет частичный черновик без загрузки файлов', async () => {
+    const { wrapper } = createWrapper();
+
+    mockApi.getComicUploadConfig.mockResolvedValue({
+      data: {
+        data: {
+          comic_draft_id: 'partial-77',
+          cover: null,
+          banner: null,
+          chapters: [],
+        },
+      },
+    } as never);
+    mockApi.confirmComicCreation.mockResolvedValue({
+      data: {
+        data: {
+          comic_id: 77,
+          id: 77,
+          title: 'Draft title',
+          status: 'draft',
+          chapter_ids: [],
+        },
+      },
+    } as never);
+
+    const { result } = renderHook(() => useCreateComicMutation(), {
+      wrapper,
+    });
+
+    await act(async () => {
+      await result.current.mutation.mutateAsync({
+        title: 'Draft title',
+        description: 'Saved early',
+        ageRating: null,
+        tagIds: [],
+        genreId: null,
+        submissionMode: 'draft',
+        cover: null,
+        banner: null,
+        chapters: [],
+      });
+    });
+
+    expect(mockApi.getComicUploadConfig).toHaveBeenCalledWith({
+      title: 'Draft title',
+      description: 'Saved early',
+      ageRating: null,
+      tagIds: [],
+      genreId: null,
+      cover: null,
+      banner: null,
+      chapters: [],
+      comicId: undefined,
+    });
+    expect(mockApi.uploadFile).not.toHaveBeenCalled();
+    expect(mockApi.confirmComicCreation).toHaveBeenCalledWith({
+      comic_draft_id: 'partial-77',
+      submission_mode: 'draft',
+      comic_id: undefined,
     });
   });
 });

@@ -7,6 +7,7 @@
   Flex,
   Form,
   Input,
+  Modal,
   Row,
   Segmented,
   Skeleton,
@@ -22,7 +23,9 @@ import {
   BookOutlined,
   CameraOutlined,
   CommentOutlined,
+  DeleteOutlined,
   EditOutlined,
+  EyeInvisibleOutlined,
   EyeOutlined,
   FileTextOutlined,
   HeartOutlined,
@@ -35,9 +38,16 @@ import { colors } from '@constants';
 import { useWindowSize } from '@hooks';
 import { UserProfileComic, UserProfilePost, UserProfileUpdatePayload } from '@types';
 import { useUpdateCurrentProfileMutation } from '@components/Profile/hooks/useUpdateCurrentProfileMutation';
+import { SUPPORT_EMAIL } from '@constants/support';
 import { OutletContext } from '@pages/LayoutPage/types';
 
-import { useAccountAvatarUploadMutation, useAccountQuery, useLogoutMutation } from './hooks';
+import {
+  useAccountAvatarUploadMutation,
+  useAccountContentVisibilityMutation,
+  useAccountDraftDeleteMutation,
+  useAccountQuery,
+  useLogoutMutation,
+} from './hooks';
 
 const { Paragraph, Text, Title } = Typography;
 
@@ -80,6 +90,17 @@ const postStatusColors: Record<UserProfilePost['status'], string> = {
 };
 
 type PostFilterValue = 'all' | UserProfilePost['status'];
+type PendingVisibilityChange = {
+  id: number;
+  kind: 'comic' | 'post';
+  title: string;
+  isHidden: boolean;
+} | null;
+type PendingDraftDelete = {
+  id: number;
+  kind: 'comic' | 'post';
+  title: string;
+} | null;
 
 const postFilterOptions: Array<{ value: PostFilterValue; label: string }> = [
   { value: 'all', label: 'Все' },
@@ -110,10 +131,14 @@ export const Account: FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [localAvatarPreview, setLocalAvatarPreview] = useState<string | null>(null);
   const [postFilter, setPostFilter] = useState<PostFilterValue>('all');
+  const [pendingVisibilityChange, setPendingVisibilityChange] = useState<PendingVisibilityChange>(null);
+  const [pendingDraftDelete, setPendingDraftDelete] = useState<PendingDraftDelete>(null);
 
   const { data, isLoading, isError } = useAccountQuery();
   const updateProfileMutation = useUpdateCurrentProfileMutation(data?.id);
   const avatarUploadMutation = useAccountAvatarUploadMutation(data?.id);
+  const contentVisibilityMutation = useAccountContentVisibilityMutation();
+  const draftDeleteMutation = useAccountDraftDeleteMutation();
   const logoutMutation = useLogoutMutation();
 
   useEffect(() => {
@@ -186,6 +211,40 @@ export const Account: FC = () => {
     }
 
     return false;
+  };
+
+  const handleToggleContentVisibility = async (payload: {
+    id: number;
+    kind: 'comic' | 'post';
+    title: string;
+    isHidden: boolean;
+  }) => {
+    if (!payload.isHidden) {
+      setPendingVisibilityChange(payload);
+      return;
+    }
+
+    await submitContentVisibilityChange(payload);
+  };
+
+  const submitContentVisibilityChange = async (payload: Exclude<PendingVisibilityChange, null>) => {
+    try {
+      await contentVisibilityMutation.mutateAsync({ id: payload.id, kind: payload.kind });
+      messageApi.success(payload.isHidden ? 'Публикация снова видна пользователям.' : 'Публикация скрыта.');
+      setPendingVisibilityChange(null);
+    } catch (error) {
+      messageApi.error(error instanceof Error ? error.message : 'Не удалось изменить видимость публикации.');
+    }
+  };
+
+  const submitDraftDelete = async (payload: Exclude<PendingDraftDelete, null>) => {
+    try {
+      await draftDeleteMutation.mutateAsync({ id: payload.id, kind: payload.kind });
+      setPendingDraftDelete(null);
+      messageApi.success('Черновик и загруженные изображения удалены.');
+    } catch (error) {
+      messageApi.error(error instanceof Error ? error.message : 'Не удалось удалить черновик.');
+    }
   };
 
   if (isLoading) {
@@ -391,7 +450,34 @@ export const Account: FC = () => {
               <Row gutter={[16, 16]}>
                 {authorComics.map((comic) => (
                   <Col key={comic.id} xs={24} lg={12}>
-                    <AuthorComicCard comic={comic} />
+                    <AuthorComicCard
+                      comic={comic}
+                      isVisibilityLoading={
+                        contentVisibilityMutation.isLoading &&
+                        contentVisibilityMutation.variables?.kind === 'comic' &&
+                        contentVisibilityMutation.variables.id === comic.id
+                      }
+                      onToggleVisibility={() =>
+                        handleToggleContentVisibility({
+                          id: comic.id,
+                          kind: 'comic',
+                          title: comic.title,
+                          isHidden: comic.isHidden,
+                        })
+                      }
+                      isDeleteLoading={
+                        draftDeleteMutation.isLoading &&
+                        draftDeleteMutation.variables?.kind === 'comic' &&
+                        draftDeleteMutation.variables.id === comic.id
+                      }
+                      onDeleteDraft={() =>
+                        setPendingDraftDelete({
+                          id: comic.id,
+                          kind: 'comic',
+                          title: comic.title,
+                        })
+                      }
+                    />
                   </Col>
                 ))}
               </Row>
@@ -428,7 +514,34 @@ export const Account: FC = () => {
               <Row gutter={[16, 16]}>
                 {filteredAuthorPosts.map((post) => (
                   <Col key={post.id} xs={24} lg={12}>
-                    <AuthorPostCard post={post} />
+                    <AuthorPostCard
+                      post={post}
+                      isVisibilityLoading={
+                        contentVisibilityMutation.isLoading &&
+                        contentVisibilityMutation.variables?.kind === 'post' &&
+                        contentVisibilityMutation.variables.id === post.id
+                      }
+                      onToggleVisibility={() =>
+                        handleToggleContentVisibility({
+                          id: post.id,
+                          kind: 'post',
+                          title: post.title,
+                          isHidden: post.isHidden,
+                        })
+                      }
+                      isDeleteLoading={
+                        draftDeleteMutation.isLoading &&
+                        draftDeleteMutation.variables?.kind === 'post' &&
+                        draftDeleteMutation.variables.id === post.id
+                      }
+                      onDeleteDraft={() =>
+                        setPendingDraftDelete({
+                          id: post.id,
+                          kind: 'post',
+                          title: post.title,
+                        })
+                      }
+                    />
                   </Col>
                 ))}
               </Row>
@@ -450,6 +563,58 @@ export const Account: FC = () => {
           </Flex>
         </Card>
       ) : null}
+
+      <Modal
+        open={Boolean(pendingVisibilityChange)}
+        title="Скрыть публикацию?"
+        okText="Скрыть"
+        cancelText="Отмена"
+        okButtonProps={{ danger: true, loading: contentVisibilityMutation.isLoading }}
+        onCancel={() => setPendingVisibilityChange(null)}
+        onOk={() => {
+          if (pendingVisibilityChange) {
+            void submitContentVisibilityChange(pendingVisibilityChange);
+          }
+        }}
+      >
+        <Flex vertical gap={12}>
+          <Text>
+            «{pendingVisibilityChange?.title}» будет скрыта со всех публичных разделов платформы: каталога, блога,
+            главной страницы, избранного, истории чтения и публичного профиля.
+          </Text>
+          <Text type="secondary">
+            Это не удаляет публикацию с платформы. Для полного удаления обратитесь в поддержку
+            {SUPPORT_EMAIL ? (
+              <>
+                {' '}
+                по адресу <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
+              </>
+            ) : null}
+            .
+          </Text>
+        </Flex>
+      </Modal>
+
+      <Modal
+        open={Boolean(pendingDraftDelete)}
+        title="Удалить черновик?"
+        okText="Удалить"
+        cancelText="Отмена"
+        okButtonProps={{ danger: true, loading: draftDeleteMutation.isLoading }}
+        onCancel={() => setPendingDraftDelete(null)}
+        onOk={() => {
+          if (pendingDraftDelete) {
+            void submitDraftDelete(pendingDraftDelete);
+          }
+        }}
+      >
+        <Flex vertical gap={12}>
+          <Text>
+            Черновик «{pendingDraftDelete?.title}» будет полностью удалён вместе с загруженными изображениями.
+          </Text>
+          <Text type="secondary">Это действие нельзя отменить.</Text>
+        </Flex>
+      </Modal>
     </Flex>
   );
 };
@@ -460,7 +625,20 @@ const AccountMetric: FC<{ label: string; value: string }> = ({ label, value }) =
   </Card>
 );
 
-const AuthorComicCard: FC<{ comic: UserProfileComic }> = ({ comic }) => (
+type AuthorContentCardActionProps = {
+  isVisibilityLoading: boolean;
+  onToggleVisibility: () => void;
+  isDeleteLoading: boolean;
+  onDeleteDraft: () => void;
+};
+
+const AuthorComicCard: FC<{ comic: UserProfileComic } & AuthorContentCardActionProps> = ({
+  comic,
+  isDeleteLoading,
+  isVisibilityLoading,
+  onDeleteDraft,
+  onToggleVisibility,
+}) => (
   <Card className="h-full border border-black/6 shadow-none transition-transform duration-200 hover:-translate-y-0.5">
     <Flex gap={16} align="start" wrap>
       {comic.coverUrl || comic.cover ? (
@@ -485,6 +663,11 @@ const AuthorComicCard: FC<{ comic: UserProfileComic }> = ({ comic }) => (
               <Tag className="m-0 rounded-full border-0 bg-black/5 px-3 py-1 text-xs font-semibold">
                 {comic.ageRating}
               </Tag>
+              {comic.isHidden ? (
+                <Tag color="warning" className="m-0 rounded-full px-3 py-1 text-xs font-semibold">
+                  Скрыт
+                </Tag>
+              ) : null}
             </Space>
 
             <div>
@@ -495,17 +678,34 @@ const AuthorComicCard: FC<{ comic: UserProfileComic }> = ({ comic }) => (
             </div>
           </Flex>
 
-          {comic.status === 'draft' || comic.status === 'revision' || comic.status === 'published' ? (
-            <Link to={`/comics/${comic.id}/edit`}>
-              <Button icon={<EditOutlined />}>
-                {comic.status === 'published' ? 'Редактировать комикс' : 'Продолжить редактирование'}
+          <Space wrap>
+            {comic.status === 'published' ? (
+              <Button
+                icon={comic.isHidden ? <EyeOutlined /> : <EyeInvisibleOutlined />}
+                loading={isVisibilityLoading}
+                onClick={onToggleVisibility}
+              >
+                {comic.isHidden ? 'Показать' : 'Скрыть'}
               </Button>
-            </Link>
-          ) : (
-            <Link to={`/comics/${comic.id}`}>
-              <Button icon={<LinkOutlined />}>Страница комикса</Button>
-            </Link>
-          )}
+            ) : null}
+            {comic.status === 'draft' ? (
+              <Button danger icon={<DeleteOutlined />} loading={isDeleteLoading} onClick={onDeleteDraft}>
+                Удалить черновик
+              </Button>
+            ) : null}
+            {comic.status === 'draft' || comic.status === 'revision' || comic.status === 'published' ? (
+              <Link to={`/comics/${comic.id}/edit`}>
+                <Button icon={<EditOutlined />}>
+                  {comic.status === 'published' ? 'Редактировать комикс' : 'Продолжить редактирование'}
+                </Button>
+              </Link>
+            ) : null}
+            {comic.status === 'revision' || comic.status === 'published' ? (
+              <Link to={`/comics/${comic.id}`}>
+                <Button icon={<LinkOutlined />}>Страница комикса</Button>
+              </Link>
+            ) : null}
+          </Space>
         </Flex>
 
         <Paragraph
@@ -552,7 +752,13 @@ const AuthorComicCard: FC<{ comic: UserProfileComic }> = ({ comic }) => (
   </Card>
 );
 
-const AuthorPostCard: FC<{ post: UserProfilePost }> = ({ post }) => (
+const AuthorPostCard: FC<{ post: UserProfilePost } & AuthorContentCardActionProps> = ({
+  post,
+  isDeleteLoading,
+  isVisibilityLoading,
+  onDeleteDraft,
+  onToggleVisibility,
+}) => (
   <Card className="h-full border border-black/6 shadow-none transition-transform duration-200 hover:-translate-y-0.5">
     <Flex gap={16} align="start" wrap>
       {post.coverUrl || post.cover ? (
@@ -570,12 +776,19 @@ const AuthorPostCard: FC<{ post: UserProfilePost }> = ({ post }) => (
       <Flex vertical gap={12} className="flex-1 min-w-65">
         <Flex justify="space-between" align="start" gap={12} wrap="wrap">
           <Flex vertical gap={8} className="min-w-0">
-            <Tag
-              color={postStatusColors[post.status]}
-              className="m-0 w-fit rounded-full px-3 py-1 text-xs font-semibold"
-            >
-              {postStatusLabels[post.status]}
-            </Tag>
+            <Space wrap>
+              <Tag
+                color={postStatusColors[post.status]}
+                className="m-0 w-fit rounded-full px-3 py-1 text-xs font-semibold"
+              >
+                {postStatusLabels[post.status]}
+              </Tag>
+              {post.isHidden ? (
+                <Tag color="warning" className="m-0 rounded-full px-3 py-1 text-xs font-semibold">
+                  Скрыт
+                </Tag>
+              ) : null}
+            </Space>
 
             <div>
               <Title level={4} className="!mb-1" ellipsis={{ rows: 1, tooltip: post.title }}>
@@ -590,13 +803,29 @@ const AuthorPostCard: FC<{ post: UserProfilePost }> = ({ post }) => (
           </Flex>
 
           {post.status === 'published' ? (
-            <Link to={`/blog/${post.id}`}>
-              <Button icon={<LinkOutlined />}>Страница поста</Button>
-            </Link>
+            <Space wrap>
+              <Button
+                icon={post.isHidden ? <EyeOutlined /> : <EyeInvisibleOutlined />}
+                loading={isVisibilityLoading}
+                onClick={onToggleVisibility}
+              >
+                {post.isHidden ? 'Показать' : 'Скрыть'}
+              </Button>
+              <Link to={`/blog/${post.id}`}>
+                <Button icon={<LinkOutlined />}>Страница поста</Button>
+              </Link>
+            </Space>
           ) : post.status === 'draft' || post.status === 'revision' ? (
-            <Link to={`/blog/${post.id}/edit`}>
-              <Button icon={<EditOutlined />}>Продолжить редактирование</Button>
-            </Link>
+            <Space wrap>
+              {post.status === 'draft' ? (
+                <Button danger icon={<DeleteOutlined />} loading={isDeleteLoading} onClick={onDeleteDraft}>
+                  Удалить черновик
+                </Button>
+              ) : null}
+              <Link to={`/blog/${post.id}/edit`}>
+                <Button icon={<EditOutlined />}>Продолжить редактирование</Button>
+              </Link>
+            </Space>
           ) : (
             <Tag className="m-0 rounded-full border-0 bg-black/5 px-3 py-1 text-xs">Пока скрыт из блога</Tag>
           )}
@@ -636,7 +865,7 @@ const AuthorPostCard: FC<{ post: UserProfilePost }> = ({ post }) => (
 );
 
 const ItemStat: FC<{ icon: ReactNode; label: string; value: string }> = ({ icon, label, value }) => (
-  <Flex vertical gap={4} className="rounded-2xl bg-black/[0.025] p-3">
+  <Flex vertical gap={4} className="rounded-2xl bg-black/[0.025] p-3 min-w-30">
     <Text type="secondary" className="flex items-center gap-1.5 text-xs">
       {icon}
       {label}

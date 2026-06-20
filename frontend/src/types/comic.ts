@@ -22,11 +22,11 @@ export interface ComicUploadConfigPayload {
   comicId?: number;
   title: string;
   description: string;
-  ageRating: string;
+  ageRating?: string;
   tagIds: number[];
-  genreId: number;
-  cover: UploadAssetPayload;
-  banner: UploadAssetPayload;
+  genreId?: number | null;
+  cover?: UploadAssetPayload | null;
+  banner?: UploadAssetPayload | null;
   chapters: ChapterUploadConfigPayload[];
 }
 

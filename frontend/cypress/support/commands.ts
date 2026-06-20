@@ -3,6 +3,7 @@
 
 type VisitAppOptions = {
   authenticated?: boolean;
+  onBeforeLoad?: (win: Cypress.AUTWindow) => void;
 };
 
 const buildAccessToken = () => {
@@ -22,6 +23,8 @@ Cypress.Commands.add('visitApp', (path: string, options: VisitAppOptions = {}) =
       if (options.authenticated) {
         win.localStorage.setItem('token', buildAccessToken());
       }
+
+      options.onBeforeLoad?.(win);
     },
   });
 });

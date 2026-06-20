@@ -41,11 +41,15 @@ export const BLOG_UPLOAD_CONFIG_ENDPOINT = '/posts/upload-config/';
 export const BLOG_CONFIRM_ENDPOINT = '/posts/confirm/';
 export const getBlogPostEndpoint = (postId: string | number) => `/posts/${postId}/`;
 export const getBlogPostEditorEndpoint = (postId: string | number) => `/posts/${postId}/editor/`;
+export const getBlogPostDraftEndpoint = (postId: string | number) => `/posts/${postId}/draft/`;
 export const getBlogPostCommentsEndpoint = (postId: string | number) => `/posts/${postId}/comments/`;
 export const getBlogPostReactionEndpoint = (postId: string | number) => `/posts/${postId}/reaction/`;
+export const getBlogPostVisibilityEndpoint = (postId: string | number) => `/posts/${postId}/visibility/`;
 
 export const getComicDetailsEndpoint = (comicId: string | number) => `/comics/${comicId}/`;
 export const getComicEditorEndpoint = (comicId: string | number) => `/comics/${comicId}/editor/`;
+export const getComicDraftEndpoint = (comicId: string | number) => `/comics/${comicId}/draft/`;
+export const getComicVisibilityEndpoint = (comicId: string | number) => `/comics/${comicId}/visibility/`;
 
 export const getComicCommentsEndpoint = (comicId: string | number) => `/comics/${comicId}/comments/`;
 

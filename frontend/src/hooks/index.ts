@@ -1,5 +1,6 @@
 export * from './useApp';
 export * from './useAdultContentGate';
+export * from './useContentProtection';
 export * from './useCurrentUser';
 export * from './useForm';
 export * from './useLocalStorage';

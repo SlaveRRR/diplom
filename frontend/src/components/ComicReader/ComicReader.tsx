@@ -20,6 +20,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@api';
 import { CATALOG_QUERY_KEY } from '@components/Catalog/hooks/useCatalogStore/useCatalogStore';
 import { useApp } from '@hooks/useApp';
+import { useContentProtection } from '@hooks/useContentProtection';
 import { useRequireAuthAction } from '@hooks/useRequireAuthAction';
 import { OutletContext } from '@pages/LayoutPage/types';
 
@@ -45,6 +46,8 @@ const getInitialReaderMode = (): ReaderMode => {
 };
 
 export const ComicReader = () => {
+  useContentProtection({ blockScreenshots: true });
+
   const screens = Grid.useBreakpoint();
   const queryClient = useQueryClient();
   const { comicId, chapterId } = useParams();

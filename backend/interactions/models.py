@@ -36,6 +36,8 @@ class Comment(TimeStampedModel):
     )
 
     class Meta:
+        verbose_name = 'комментарий'
+        verbose_name_plural = 'комментарии'
         ordering = ('-created_at',)
         indexes = [
             models.Index(fields=('content_type', 'object_id', 'created_at'), name='comment_target_created_idx'),
@@ -67,6 +69,8 @@ class ContentReaction(TimeStampedModel):
     emoji = models.CharField(max_length=32)
 
     class Meta:
+        verbose_name = 'реакция на контент'
+        verbose_name_plural = 'реакции на контент'
         indexes = [
             models.Index(fields=('content_type', 'object_id', 'emoji'), name='reaction_target_emoji_idx'),
             models.Index(fields=('user', 'created_at'), name='reaction_user_created_idx'),
@@ -95,6 +99,8 @@ class ComicFavorite(TimeStampedModel):
     )
 
     class Meta:
+        verbose_name = 'избранный комикс'
+        verbose_name_plural = 'избранные комиксы'
         indexes = [
             models.Index(fields=('user', 'created_at'), name='fav_user_created_idx'),
         ]
@@ -122,6 +128,8 @@ class ComicLike(TimeStampedModel):
     )
 
     class Meta:
+        verbose_name = 'лайк комикса'
+        verbose_name_plural = 'лайки комиксов'
         constraints = [
             models.UniqueConstraint(
                 fields=('user', 'comic'),
@@ -151,6 +159,8 @@ class Notification(TimeStampedModel):
     read_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
+        verbose_name = 'уведомление'
+        verbose_name_plural = 'уведомления'
         ordering = ('read_at', '-created_at')
         indexes = [
             models.Index(fields=('user', 'read_at', 'created_at'), name='notif_user_read_idx'),
@@ -173,6 +183,8 @@ class PostReadingHistory(TimeStampedModel):
     )
 
     class Meta:
+        verbose_name = 'запись истории чтения поста'
+        verbose_name_plural = 'история чтения постов'
         ordering = ('-updated_at', '-created_at')
         indexes = [
             models.Index(fields=('user', 'updated_at', 'created_at'), name='post_hist_user_idx'),

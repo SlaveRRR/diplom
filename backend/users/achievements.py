@@ -162,7 +162,7 @@ def award_achievements_for_user(user):
 
 def sync_favorite_stats(user):
     stats = ensure_user_stats(user)
-    stats.favorite_comics_count = ComicFavorite.objects.filter(user=user).count()
+    stats.favorite_comics_count = ComicFavorite.objects.filter(user=user, comic__is_hidden=False).count()
     stats.save(update_fields=['favorite_comics_count', 'updated_at'])
     award_achievements_for_user(user)
     return stats
@@ -178,11 +178,12 @@ def sync_comment_stats(user):
 
 def sync_creator_stats(user):
     stats = ensure_user_stats(user)
-    published_comics = Comic.objects.filter(author=user, status=Comic.Status.PUBLISHED)
+    published_comics = Comic.objects.filter(author=user, status=Comic.Status.PUBLISHED, is_hidden=False)
     stats.published_comics_count = published_comics.count()
     stats.published_chapters_count = Chapter.objects.filter(
         comic__author=user,
         comic__status=Comic.Status.PUBLISHED,
+        comic__is_hidden=False,
     ).count()
     stats.save(update_fields=['published_comics_count', 'published_chapters_count', 'updated_at'])
     award_achievements_for_user(user)
@@ -226,7 +227,7 @@ def register_reading_activity_day(user, *, activity_date=None):
 @transaction.atomic
 def register_chapter_read(user, chapter):
     comic = chapter.comic
-    if comic.status != Comic.Status.PUBLISHED:
+    if comic.status != Comic.Status.PUBLISHED or comic.is_hidden:
         return {
             'created': False,
             'finished_comic': False,

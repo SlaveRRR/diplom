@@ -27,6 +27,7 @@ from comics.models import (
     UploadDraftStatus,
 )
 from interactions.models import Comment, ComicFavorite, ComicLike
+from users.models import UserAchievement, UserReadChapter
 
 User = get_user_model()
 
@@ -290,6 +291,112 @@ class ComicsApiTests(APITestCase):
         self.assertEqual(payload['data']['freshComics'][0]['title'], 'Новая заря')
         self.assertEqual(payload['data']['popularPosts'][0]['title'], 'Новый анонс')
 
+    def test_hidden_published_comic_is_excluded_from_catalog_home_and_favorites(self):
+        visible_comic = Comic.objects.create(
+            title='Visible comic',
+            description='Public',
+            author=self.author,
+            status=Comic.Status.PUBLISHED,
+            published_at=timezone.now(),
+        )
+        hidden_comic = Comic.objects.create(
+            title='Hidden comic',
+            description='Hidden',
+            author=self.author,
+            status=Comic.Status.PUBLISHED,
+            is_hidden=True,
+            published_at=timezone.now(),
+        )
+        ComicFavorite.objects.create(user=self.reader, comic=hidden_comic)
+
+        catalog_response = self.client.get(reverse('comics-list'))
+        catalog_response.render()
+        catalog_payload = json.loads(catalog_response.content)
+
+        self.assertEqual(catalog_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(catalog_payload['data']['pagination']['total'], 1)
+        self.assertEqual(catalog_payload['data']['items'][0]['id'], visible_comic.id)
+
+        home_response = self.client.get(reverse('home-selections'))
+        home_response.render()
+        home_payload = json.loads(home_response.content)
+        home_ids = {item['id'] for item in home_payload['data']['freshComics']}
+        self.assertIn(visible_comic.id, home_ids)
+        self.assertNotIn(hidden_comic.id, home_ids)
+
+        self.client.force_authenticate(user=self.reader)
+        favorites_response = self.client.get(reverse('favorite-comics-list'))
+        favorites_response.render()
+        favorites_payload = json.loads(favorites_response.content)
+        self.assertEqual(favorites_payload['data'], [])
+
+    def test_author_can_toggle_published_comic_visibility(self):
+        comic = Comic.objects.create(
+            title='Toggle comic',
+            description='Public',
+            author=self.author,
+            status=Comic.Status.PUBLISHED,
+            published_at=timezone.now(),
+        )
+
+        self.client.force_authenticate(user=self.author)
+        response = self.client.post(f'/api/v1/comics/{comic.id}/visibility/')
+        response.render()
+        payload = json.loads(response.content)
+        comic.refresh_from_db()
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(payload['data']['isHidden'])
+        self.assertTrue(comic.is_hidden)
+
+    @patch('comics.views.services.S3UploadService.delete_objects', return_value=4)
+    def test_author_can_delete_own_draft_comic_with_media(self, mock_delete_objects):
+        comic = Comic.objects.create(
+            title='Draft to delete',
+            description='Draft',
+            author=self.author,
+            status=Comic.Status.DRAFT,
+            cover='drafts/1/comics/1/cover.webp',
+            banner='drafts/1/comics/1/banner.webp',
+        )
+        Chapter.objects.create(
+            comic=comic,
+            title='Chapter 1',
+            chapter_number=1,
+            page_count=2,
+            page_keys=['drafts/1/comics/1/chapters/1/001.webp', 'drafts/1/comics/1/chapters/1/002.webp'],
+        )
+
+        self.client.force_authenticate(user=self.author)
+        response = self.client.delete(reverse('comic-draft-delete', kwargs={'comic_id': comic.id}))
+        response.render()
+        payload = json.loads(response.content)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(payload['data']['deletedMediaCount'], 4)
+        self.assertFalse(Comic.objects.filter(id=comic.id).exists())
+        mock_delete_objects.assert_called_once_with(
+            [
+                'drafts/1/comics/1/cover.webp',
+                'drafts/1/comics/1/banner.webp',
+                'drafts/1/comics/1/chapters/1/001.webp',
+                'drafts/1/comics/1/chapters/1/002.webp',
+            ]
+        )
+
+    def test_author_cannot_delete_published_comic_as_draft(self):
+        comic = Comic.objects.create(
+            title='Published',
+            author=self.author,
+            status=Comic.Status.PUBLISHED,
+        )
+
+        self.client.force_authenticate(user=self.author)
+        response = self.client.delete(reverse('comic-draft-delete', kwargs={'comic_id': comic.id}))
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(Comic.objects.filter(id=comic.id).exists())
+
     @patch('comics.views.services.S3UploadService.generate_upload')
     def test_upload_config_creates_comic_and_chapter_drafts(self, mock_generate_upload):
         mock_generate_upload.side_effect = lambda key, content_type: {
@@ -362,8 +469,95 @@ class ComicsApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIsNone(payload['error'])
 
+    def test_upload_config_allows_partial_comic_draft(self):
+        self.client.force_authenticate(self.author)
+
+        response = self.client.post(
+            reverse('comic-upload-config'),
+            {
+                'title': 'Черновик после первого шага',
+                'description': 'Пока без медиа.',
+                'tagIds': [],
+                'chapters': [],
+            },
+            format='json',
+        )
+        response.render()
+        payload = json.loads(response.content)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIsNone(payload['error'])
+        self.assertIsNone(payload['data']['cover'])
+        self.assertIsNone(payload['data']['banner'])
+        comic_draft = ComicUploadDraft.objects.get()
+        self.assertEqual(comic_draft.title, 'Черновик после первого шага')
+        self.assertEqual(comic_draft.age_rating, ComicAgeRating.AGE_16)
+        self.assertIsNone(comic_draft.genre_id)
+
+    def test_upload_config_rejects_non_image_file(self):
+        self.client.force_authenticate(self.author)
+
+        response = self.client.post(
+            reverse('comic-upload-config'),
+            {
+                'title': 'Invalid upload',
+                'cover': {'filename': 'cover.exe', 'content_type': 'image/png'},
+                'chapters': [],
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_confirm_saves_partial_comic_draft(self):
+        comic_draft = ComicUploadDraft.objects.create(
+            user=self.author,
+            title='Черновик после первого шага',
+            description='Пока без медиа.',
+            scope_prefix='drafts/1/comics/draft-1/',
+            expires_at=timezone.now() + timedelta(minutes=30),
+        )
+        self.client.force_authenticate(self.author)
+
+        response = self.client.post(
+            reverse('comic-confirm'),
+            {
+                'comic_draft_id': str(comic_draft.id),
+                'submission_mode': Comic.Status.DRAFT,
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        comic = Comic.objects.get()
+        self.assertEqual(comic.status, Comic.Status.DRAFT)
+        self.assertEqual(comic.title, 'Черновик после первого шага')
+        self.assertEqual(comic.cover, '')
+        self.assertEqual(comic.banner, '')
+        self.assertIsNone(comic.genre)
+
+    def test_confirm_rejects_partial_comic_for_moderation(self):
+        comic_draft = ComicUploadDraft.objects.create(
+            user=self.author,
+            title='Черновик после первого шага',
+            description='Пока без медиа.',
+            scope_prefix='drafts/1/comics/draft-1/',
+            expires_at=timezone.now() + timedelta(minutes=30),
+        )
+        self.client.force_authenticate(self.author)
+
+        response = self.client.post(
+            reverse('comic-confirm'),
+            {'comic_draft_id': str(comic_draft.id)},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(Comic.objects.exists())
+
+    @patch('comics.views.services.S3UploadService.validate_image_object', return_value=True)
     @patch('comics.views.services.S3UploadService.object_exists', return_value=True)
-    def test_confirm_promotes_reader_to_author_after_first_comic(self, mock_object_exists):
+    def test_confirm_promotes_reader_to_author_after_first_comic(self, mock_object_exists, mock_validate_image_object):
         comic_draft = ComicUploadDraft.objects.create(
             user=self.reader,
             title='Лунная Башня',
@@ -405,8 +599,9 @@ class ComicsApiTests(APITestCase):
         BACKEND_PUBLIC_URL='https://api.comicsera.ru',
     )
     @patch('core.moderation.send_email_task.delay')
+    @patch('comics.views.services.S3UploadService.validate_image_object', return_value=True)
     @patch('comics.views.services.S3UploadService.object_exists', return_value=True)
-    def test_confirm_creates_comic_and_chapters_from_draft(self, mock_object_exists, send_email_task_mock):
+    def test_confirm_creates_comic_and_chapters_from_draft(self, mock_object_exists, mock_validate_image_object, send_email_task_mock):
         comic_draft = ComicUploadDraft.objects.create(
             user=self.author,
             title='Лунная Башня',
@@ -461,9 +656,20 @@ class ComicsApiTests(APITestCase):
         comic_draft = ComicUploadDraft.objects.create(
             user=self.author,
             title='Лунная Башня',
+            genre_id=self.genre.id,
             scope_prefix='drafts/1/comics/draft-1/',
             cover='drafts/1/comics/draft-1/cover.webp',
             banner='drafts/1/comics/draft-1/banner.webp',
+            expires_at=timezone.now() + timedelta(minutes=30),
+        )
+        ChapterUploadDraft.objects.create(
+            user=self.author,
+            comic_draft=comic_draft,
+            title='Пролог',
+            chapter_number=1,
+            expected_page_count=1,
+            scope_prefix='drafts/1/comics/draft-1/chapters/ch-1/',
+            page_keys=['drafts/1/comics/draft-1/chapters/ch-1/001.webp'],
             expires_at=timezone.now() + timedelta(minutes=30),
         )
         self.client.force_authenticate(self.author)
@@ -479,6 +685,48 @@ class ComicsApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
         self.assertIsNone(payload['data'])
         self.assertEqual(payload['error']['message'], 'Some uploaded files were not found in storage.')
+
+    @patch('comics.views.services.S3UploadService.validate_image_object', return_value=False)
+    @patch('comics.views.services.S3UploadService.object_exists', return_value=True)
+    def test_confirm_rejects_uploaded_non_image_object(self, mock_object_exists, mock_validate_image_object):
+        comic_draft = ComicUploadDraft.objects.create(
+            user=self.author,
+            title='Лунная Башня',
+            description='История про магов и древние кланы.',
+            age_rating=ComicAgeRating.AGE_16,
+            genre_id=self.genre.id,
+            tag_ids=[self.tag.id],
+            scope_prefix='drafts/1/comics/draft-1/',
+            cover='drafts/1/comics/draft-1/cover.png',
+            banner='drafts/1/comics/draft-1/banner.png',
+            expires_at=timezone.now() + timedelta(minutes=30),
+        )
+        ChapterUploadDraft.objects.create(
+            user=self.author,
+            comic_draft=comic_draft,
+            title='Пролог',
+            chapter_number=1,
+            expected_page_count=1,
+            scope_prefix='drafts/1/comics/draft-1/chapters/ch-1/',
+            page_keys=['drafts/1/comics/draft-1/chapters/ch-1/001.png'],
+            expires_at=timezone.now() + timedelta(minutes=30),
+        )
+        self.client.force_authenticate(self.author)
+
+        response = self.client.post(
+            reverse('comic-confirm'),
+            {'comic_draft_id': str(comic_draft.id)},
+            format='json',
+        )
+        response.render()
+        payload = json.loads(response.content)
+
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertIsNone(payload['data'])
+        self.assertEqual(payload['error']['message'], 'Some uploaded files are not valid images.')
+        self.assertFalse(Comic.objects.exists())
+        mock_object_exists.assert_any_call('drafts/1/comics/draft-1/cover.png')
+        mock_validate_image_object.assert_any_call('drafts/1/comics/draft-1/cover.png')
 
     def test_comic_detail_returns_page_payload_for_frontend(self):
         comic = Comic.objects.create(
@@ -609,7 +857,12 @@ class ComicsApiTests(APITestCase):
         self.assertTrue(payload['data']['items'][0]['isTrending'])
 
     def test_create_comment_for_comic(self):
-        comic = Comic.objects.create(title='Лунная Башня', author=self.author, genre=self.genre)
+        comic = Comic.objects.create(
+            title='Лунная Башня',
+            author=self.author,
+            genre=self.genre,
+            status=Comic.Status.PUBLISHED,
+        )
         self.client.force_authenticate(self.reader)
 
         response = self.client.post(
@@ -625,7 +878,12 @@ class ComicsApiTests(APITestCase):
         self.assertEqual(payload['data']['text'], 'Очень сильный пилот.')
 
     def test_toggle_comic_favorite(self):
-        comic = Comic.objects.create(title='Лунная Башня', author=self.author, genre=self.genre)
+        comic = Comic.objects.create(
+            title='Лунная Башня',
+            author=self.author,
+            genre=self.genre,
+            status=Comic.Status.PUBLISHED,
+        )
         self.client.force_authenticate(self.reader)
 
         response = self.client.post(reverse('comic-favorite-toggle', kwargs={'comic_id': comic.id}), format='json')
@@ -644,7 +902,12 @@ class ComicsApiTests(APITestCase):
         self.assertEqual(payload['data']['count'], 0)
 
     def test_toggle_comic_like(self):
-        comic = Comic.objects.create(title='Лунная Башня', author=self.author, genre=self.genre)
+        comic = Comic.objects.create(
+            title='Лунная Башня',
+            author=self.author,
+            genre=self.genre,
+            status=Comic.Status.PUBLISHED,
+        )
         self.client.force_authenticate(self.reader)
 
         response = self.client.post(reverse('comic-like-toggle', kwargs={'comic_id': comic.id}), format='json')
@@ -656,7 +919,12 @@ class ComicsApiTests(APITestCase):
         self.assertEqual(payload['data']['count'], 1)
 
     def test_user_can_rate_comic(self):
-        comic = Comic.objects.create(title='Лунная Башня', author=self.author, genre=self.genre)
+        comic = Comic.objects.create(
+            title='Лунная Башня',
+            author=self.author,
+            genre=self.genre,
+            status=Comic.Status.PUBLISHED,
+        )
         self.client.force_authenticate(self.reader)
 
         response = self.client.put(
@@ -781,6 +1049,8 @@ class ComicsApiTests(APITestCase):
         self.assertEqual(ComicReadingProgress.objects.get(user=self.reader, comic=comic).last_page, 3)
         self.assertEqual(ComicStats.objects.get(comic=comic).unique_readers, 1)
         self.assertEqual(ComicStats.objects.get(comic=comic).views, 1)
+        self.assertFalse(UserReadChapter.objects.filter(user=self.reader, chapter=chapter).exists())
+        self.assertFalse(UserAchievement.objects.filter(user=self.reader, code='finish_1_comic').exists())
 
         self.client.post(
             reverse('comic-reading-progress', kwargs={'comic_id': comic.id, 'chapter_id': chapter.id}),
@@ -791,3 +1061,5 @@ class ComicsApiTests(APITestCase):
         self.assertEqual(ComicReadingProgress.objects.get(user=self.reader, comic=comic).last_page, 5)
         self.assertEqual(ComicStats.objects.get(comic=comic).unique_readers, 1)
         self.assertEqual(ComicStats.objects.get(comic=comic).views, 1)
+        self.assertTrue(UserReadChapter.objects.filter(user=self.reader, chapter=chapter).exists())
+        self.assertTrue(UserAchievement.objects.filter(user=self.reader, code='finish_1_comic').exists())

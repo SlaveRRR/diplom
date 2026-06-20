@@ -70,6 +70,7 @@ class ProfileComicSerializer(serializers.Serializer):
     coverUrl = serializers.CharField(allow_blank=True)
     ageRating = serializers.CharField()
     status = serializers.CharField()
+    isHidden = serializers.BooleanField()
     genre = serializers.CharField(allow_null=True)
     tags = serializers.ListField(child=serializers.CharField(), default=list)
     likesCount = serializers.IntegerField()
@@ -88,6 +89,7 @@ class ProfilePostSerializer(serializers.Serializer):
     coverUrl = serializers.CharField(allow_blank=True)
     ageRating = serializers.CharField()
     status = serializers.CharField()
+    isHidden = serializers.BooleanField()
     tags = serializers.ListField(child=serializers.CharField(), default=list)
     commentsCount = serializers.IntegerField()
     updatedAt = serializers.DateTimeField()
@@ -213,6 +215,13 @@ class AvatarUploadConfigRequestSerializer(serializers.Serializer):
     filename = serializers.CharField(max_length=255)
     content_type = serializers.CharField(max_length=255)
 
+    def validate(self, attrs):
+        try:
+            services.validate_image_upload_metadata(attrs['filename'], attrs['content_type'])
+        except services.ImageUploadValidationError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
+        return attrs
+
 
 class AvatarUploadTargetSerializer(serializers.Serializer):
     method = serializers.CharField()
@@ -247,6 +256,7 @@ class UserProfileComicBuilder:
             'coverUrl': services.build_public_media_url(comic.cover),
             'ageRating': comic.age_rating,
             'status': comic.status,
+            'isHidden': comic.is_hidden,
             'genre': comic.genre.name if comic.genre else None,
             'tags': [tag.name for tag in comic.tags.all()],
             'likesCount': getattr(comic, 'likes_total', 0),
@@ -269,6 +279,7 @@ class UserProfilePostBuilder:
             'coverUrl': services.build_public_media_url(post.cover),
             'ageRating': post.age_rating,
             'status': post.status,
+            'isHidden': post.is_hidden,
             'tags': [tag.name for tag in post.tags.all()],
             'commentsCount': getattr(post, 'comments_total', 0),
             'updatedAt': post.updated_at,

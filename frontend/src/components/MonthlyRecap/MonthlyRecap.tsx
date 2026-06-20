@@ -3,7 +3,7 @@ import '@react-instastories/external/index.css';
 
 import { Button, Card, Col, Empty, Row, Skeleton, Space, Statistic, Tag, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeftOutlined, ArrowRightOutlined, LeftOutlined, RightOutlined, TrophyOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, ArrowRightOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons';
 import { Configurable, InstaStories, Page, Pages, Preview, Stories, Story } from '@react-instastories/base';
 import { Controls, Events, Preloadable } from '@react-instastories/external';
 import { useQuery } from '@tanstack/react-query';
@@ -631,54 +631,6 @@ export const MonthlyRecap = () => {
                         <Col xs={24} md={24} lg={12}>
                           <Card
                             className="recap-story-page-card recap-spotlight-card h-full rounded-[24px] border-black/8"
-                            title="Главный комикс месяца"
-                          >
-                            {recap.topComic ? (
-                              <Space direction="vertical" size={14} className="flex">
-                                <div>
-                                  <Title level={3} className="!mb-1 max-sm:!text-[24px]">
-                                    {recap.topComic.title}
-                                  </Title>
-                                  {recap.topComic.genre ? <Tag color="geekblue">{recap.topComic.genre}</Tag> : null}
-                                </div>
-                                <Statistic
-                                  title="Прочитано глав"
-                                  value={recap.topComic.chaptersRead}
-                                  prefix={<TrophyOutlined />}
-                                />
-                              </Space>
-                            ) : (
-                              <Empty description="В этом месяце еще нет прочитанных комиксов." />
-                            )}
-                          </Card>
-                        </Col>
-                        <Col xs={24} md={24} lg={12}>
-                          <Card
-                            className="recap-story-page-card recap-spotlight-card h-full rounded-[24px] border-black/8"
-                            title="Последний важный пост месяца"
-                          >
-                            {recap.topPost ? (
-                              <Space direction="vertical" size={14} className="flex">
-                                <Title level={3} className="!mb-0 max-sm:!text-[24px]">
-                                  {recap.topPost.title}
-                                </Title>
-                                <Statistic title="Попаданий в reading history" value={recap.topPost.reads} />
-                              </Space>
-                            ) : (
-                              <Empty description="В этом месяце вы еще не читали посты блога." />
-                            )}
-                          </Card>
-                        </Col>
-                      </Row>
-                    </StoryFrame>
-                  </Page>
-
-                  <Page duration={7000}>
-                    <StoryFrame>
-                      <Row gutter={[16, 16]}>
-                        <Col xs={24} md={24} lg={12}>
-                          <Card
-                            className="recap-story-page-card recap-spotlight-card h-full rounded-[24px] border-black/8"
                             title="Любимые жанры месяца"
                           >
                             {recap.topGenres.length ? (
@@ -724,12 +676,12 @@ export const MonthlyRecap = () => {
                             Достижения
                           </Tag>
                           <Title level={2} className="!mb-1 !mt-4 max-sm:!text-[28px]">
-                            Что открылось в этом месяце
+                            Открытые достижения в этом месяце
                           </Title>
                         </div>
 
                         {recap.achievementsUnlocked.length ? (
-                          <Space direction="vertical" size={12} className="flex">
+                          <Space direction="vertical" size={12} className="flex max-h-80 overflow-y-scroll p-2.5">
                             {recap.achievementsUnlocked.map((achievement) => (
                               <Card
                                 key={achievement.code}

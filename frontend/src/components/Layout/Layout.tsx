@@ -1,10 +1,11 @@
-﻿import { Layout as AntdLayout, Badge, Button, Drawer, Space, theme } from 'antd';
+﻿import { Layout as AntdLayout, Badge, Button, Drawer, Space, theme, Typography } from 'antd';
 import { FC, PropsWithChildren, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   BarChartOutlined,
   CalendarOutlined,
   CompassOutlined,
+  CopyrightOutlined,
   HeartOutlined,
   HistoryOutlined,
   HomeOutlined,
@@ -279,8 +280,11 @@ export const Layout: FC<LayoutProps> = ({ children, notificationApi }) => {
                   <Link to="/privacy-policy">Политика конфиденциальности</Link>
                   <Link to="/personal-data">Политика обработки персональных данных</Link>
                   <Link to="/content-guidelines">Памятка по модерации</Link>
-                  <a href={`mailto:${SUPPORT_EMAIL}`}>Почта техподдержки</a>
+                  <a href={`mailto:${SUPPORT_EMAIL}`}>Почта техподдержки - {SUPPORT_EMAIL}</a>
                 </Space>
+                <Typography.Text>
+                  <CopyrightOutlined /> 2026 ComicsApp. Все права защищены
+                </Typography.Text>
               </div>
             </Footer>
           )}

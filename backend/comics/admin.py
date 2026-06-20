@@ -57,8 +57,8 @@ class ComicAdminForm(forms.ModelForm):
 class ComicAdmin(ModerationAdminMixin):
     form = ComicAdminForm
     moderation_item_label = 'комикс'
-    list_display = ('id', 'title', 'author', 'status', 'preview_link', 'published_at', 'created_at')
-    list_filter = ('status', 'genre', 'tags')
+    list_display = ('id', 'title', 'author', 'status', 'is_hidden', 'preview_link', 'published_at', 'created_at')
+    list_filter = ('status', 'is_hidden', 'genre', 'tags')
     search_fields = ('title', 'description', 'author__username')
     autocomplete_fields = ('author',)
     readonly_fields = ('preview_link',)

@@ -8,7 +8,9 @@ vi.mock('@tiptap/react', () => ({
 }));
 
 vi.mock('@tiptap/starter-kit', () => ({
-  default: {},
+  default: {
+    configure: vi.fn(() => ({})),
+  },
 }));
 
 vi.mock('@components/BlogCreate/editor/blogImageExtension', () => ({
@@ -29,6 +31,7 @@ vi.mock('react-router-dom', () => ({
 
 vi.mock('@hooks', () => ({
   useApp: () => ({ isAuth: false }),
+  useContentProtection: () => undefined,
   useRequireAuthAction: () => ({ redirectToAuth: vi.fn() }),
 }));
 

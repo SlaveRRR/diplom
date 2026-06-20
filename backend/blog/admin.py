@@ -38,8 +38,8 @@ class PostAdmin(ModerationAdminMixin):
     form = PostAdminForm
     moderation_item_label = 'пост'
     moderation_status_labels = MODERATION_STATUS_LABELS
-    list_display = ('id', 'title', 'author', 'status_display', 'preview_link', 'published_at', 'updated_at')
-    list_filter = ('status', 'tags')
+    list_display = ('id', 'title', 'author', 'status_display', 'is_hidden', 'preview_link', 'published_at', 'updated_at')
+    list_filter = ('status', 'is_hidden', 'tags')
     search_fields = ('title', 'author__username')
     list_select_related = ('author',)
     autocomplete_fields = ('author',)

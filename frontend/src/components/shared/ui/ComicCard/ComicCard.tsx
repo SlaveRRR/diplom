@@ -201,7 +201,16 @@ type ComicCardActionButtonProps = {
 };
 
 export const ComicCardActionButton = ({ children, danger, icon, loading, onClick }: ComicCardActionButtonProps) => (
-  <Button danger={danger} icon={icon} loading={loading} onClick={() => void onClick()}>
+  <Button
+    danger={danger}
+    icon={icon}
+    loading={loading}
+    onClick={(event: MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void onClick();
+    }}
+  >
     {children}
   </Button>
 );

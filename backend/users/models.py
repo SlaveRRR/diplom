@@ -22,6 +22,10 @@ class User(AbstractUser):
 
     REQUIRED_FIELDS = ['email']
 
+    class Meta:
+        verbose_name = 'пользователь'
+        verbose_name_plural = 'пользователи'
+
     def save(self, *args, **kwargs):
         if self.is_superuser:
             self.role = self.Role.ADMIN
@@ -46,6 +50,8 @@ class UserFollow(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        verbose_name = 'подписка пользователя'
+        verbose_name_plural = 'подписки пользователей'
         ordering = ('-created_at',)
         constraints = [
             models.UniqueConstraint(
@@ -80,6 +86,10 @@ class UserStats(models.Model):
     last_reading_activity_date = models.DateField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        verbose_name = 'статистика пользователя'
+        verbose_name_plural = 'статистика пользователей'
+
     def __str__(self):
         return f'Stats for {self.user.username}'
 
@@ -96,6 +106,8 @@ class UserAchievement(models.Model):
     awarded_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        verbose_name = 'достижение пользователя'
+        verbose_name_plural = 'достижения пользователей'
         ordering = ('-awarded_at', '-id')
         constraints = [
             models.UniqueConstraint(
@@ -122,6 +134,8 @@ class UserReadChapter(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        verbose_name = 'прочитанная глава'
+        verbose_name_plural = 'прочитанные главы'
         ordering = ('-created_at',)
         constraints = [
             models.UniqueConstraint(
@@ -148,6 +162,8 @@ class UserFinishedComic(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        verbose_name = 'завершенный комикс'
+        verbose_name_plural = 'завершенные комиксы'
         ordering = ('-created_at',)
         constraints = [
             models.UniqueConstraint(
@@ -170,6 +186,8 @@ class UserReadingActivityDay(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        verbose_name = 'день читательской активности'
+        verbose_name_plural = 'дни читательской активности'
         ordering = ('-activity_date', '-id')
         constraints = [
             models.UniqueConstraint(
@@ -195,6 +213,8 @@ class MonthlyRecap(models.Model):
     generated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        verbose_name = 'ежемесячный итог'
+        verbose_name_plural = 'ежемесячные итоги'
         ordering = ('-year', '-month', '-generated_at')
         constraints = [
             models.UniqueConstraint(
@@ -225,6 +245,8 @@ class AvatarUploadDraft(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        verbose_name = 'черновик загрузки аватара'
+        verbose_name_plural = 'черновики загрузки аватаров'
         ordering = ('-created_at',)
 
     def __str__(self):
